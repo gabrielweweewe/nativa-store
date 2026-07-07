@@ -8,7 +8,7 @@
     "dev:client": "vite --host",
     "dev:server": "tsx watch --env-file=.env server/dev.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist --alias:@shared=./shared",
-    "build:vercel": "vite build && esbuild api/handler.ts --bundle --platform=node --packages=external --format=esm --outfile=api/index.js --alias:@shared=./shared",
+    "build:vercel": "vite build && esbuild server/vercel.ts --bundle --platform=node --packages=external --format=esm --outfile=api/index.js --alias:@shared=./shared",
     "start": "NODE_ENV=production node dist/index.js",
     "seed": "tsx --env-file=.env server/scripts/seed-products.ts",
     "migrate:nuvemshop": "tsx --env-file=.env server/scripts/migrate-tiendanube.ts",
