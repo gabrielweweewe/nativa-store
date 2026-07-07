@@ -24,6 +24,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
+    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -48,10 +49,23 @@ export default function Navbar() {
         }`}
       >
         <div className="container">
-          <div className="flex items-center justify-between h-16 md:h-20">
-            {/* Logo */}
-            <Link href="/" className="group shrink-0">
+          <div className="relative flex items-center justify-end md:justify-between h-16 md:h-20">
+            {/* Logo — desktop sempre visível */}
+            <Link href="/" className="hidden md:block group shrink-0">
               <NativaLogo className="h-9 sm:h-10 md:h-11 w-auto" showTagline />
+            </Link>
+
+            {/* Logo — mobile: só ao rolar (header com fundo) */}
+            <Link
+              href="/"
+              className={`md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
+                scrolled
+                  ? "opacity-100 scale-100 pointer-events-auto"
+                  : "opacity-0 scale-95 pointer-events-none"
+              }`}
+              aria-hidden={!scrolled}
+            >
+              <NativaLogo className="h-9 w-auto" />
             </Link>
 
             {/* Desktop Nav */}
@@ -70,7 +84,7 @@ export default function Navbar() {
             </nav>
 
             {/* Actions */}
-            <div className="flex items-center gap-3">
+            <div className="relative z-10 flex items-center gap-3">
               <button
                 onClick={() => toast("Busca em breve!", { description: "Funcionalidade sendo desenvolvida." })}
                 className="hidden md:flex items-center justify-center w-9 h-9 rounded-full hover:bg-[#C4522A]/10 text-[#3D2B1F] hover:text-[#C4522A] transition-all duration-200"
