@@ -38,26 +38,38 @@
 nativa-store/
 ├── client/                 # Frontend React (Vite root)
 │   ├── index.html
+│   ├── public/templates/   # Modelo CSV da importação em massa
 │   └── src/
-│       ├── App.tsx         # Rotas
+│       ├── App.tsx         # Rotas (loja + /admin)
 │       ├── pages/          # Home, ProductPage, NotFound
-│       ├── components/     # UI da loja + ui/ (shadcn)
-│       └── lib/products.ts # fetch da API (NÃO importa dados fixos)
+│       │   └── admin/      # AdminLogin, AdminProductsList, AdminProductForm, AdminProductImport
+│       ├── components/     # UI da loja + ui/ (shadcn) + admin/ (AdminLayout, ImageManager...)
+│       ├── contexts/        # ThemeContext, AdminAuthContext
+│       └── lib/products.ts, adminApi.ts # fetch da API (NÃO importa dados fixos)
 ├── server/                 # Backend Express
 │   ├── index.ts            # Produção: API + arquivos estáticos
 │   ├── dev.ts              # Dev: só API na porta 3001
 │   ├── app.ts              # Factory do Express com rotas /api
 │   ├── lib/supabase.ts     # Cliente Supabase (SECRET KEY)
-│   ├── routes/products.ts
-│   ├── services/products.ts
+│   ├── lib/adminAuth.ts    # JWT + verificação de senha do admin
+│   ├── lib/upload.ts       # Config do multer (upload de imagens)
+│   ├── middleware/requireAdmin.ts
+│   ├── routes/products.ts  # CRUD (GET público; POST/PUT/DELETE/bulk protegidos)
+│   ├── routes/admin.ts     # login/logout/me/uploads
+│   ├── services/products.ts, uploads.ts
 │   └── scripts/
 │       ├── seed-products.ts        # Popula com dados de exemplo (legado)
-│       └── migrate-tiendanube.ts   # Migra CSV da Nuvemshop → Supabase
+│       ├── migrate-tiendanube.ts   # Migra CSV da Nuvemshop → Supabase
+│       └── setup-storage.ts        # Cria o bucket product-images no Supabase Storage
 ├── shared/                 # Código compartilhado front/back
 │   ├── types/product.ts    # Interface Product (fonte da verdade)
+│   ├── schemas/product.ts  # Schema Zod (validação client + server)
 │   ├── lib/productMapper.ts      # snake_case DB ↔ camelCase TS
+│   ├── lib/slugify.ts            # Geração de slug único
+│   ├── lib/importProductsMapper.ts # Mapeia linha de planilha → produto (importação em massa)
 │   ├── lib/parseTiendanubeCsv.ts # Parser do export Nuvemshop
 │   └── data/products.ts    # ⚠️ LEGADO — produtos fictícios de demo (não usado no site)
+├── docs/importacao-em-massa.md # Guia da importação em massa de produtos
 ├── supabase/setup.sql      # DDL da tabela products
 ├── .env                    # Segredos (NÃO commitar)
 ├── .env.example
@@ -83,11 +95,17 @@ SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_SECRET_KEY=sb_secret_...     # Settings → API Keys → Secret keys
 API_PORT=3001
 NUVEMSHOP_STORE_URL=https://www.nativa.art.br   # usado na migração de imagens
+
+# Painel administrativo (/admin)
+ADMIN_PASSWORD=defina_uma_senha_forte_aqui
+ADMIN_JWT_SECRET=defina_um_segredo_aleatorio_longo_aqui
 ```
 
 - **Nunca** colocar `SUPABASE_SECRET_KEY` no frontend.
 - Aceita também `SUPABASE_SERVICE_ROLE_KEY` (chave legacy JWT).
 - Salvar o `.env` com Ctrl+S antes de rodar scripts no terminal.
+- `ADMIN_PASSWORD`/`ADMIN_JWT_SECRET` também precisam ser configuradas no Vercel (Project Settings
+  → Environment Variables), já que a loja está em produção lá.
 
 ### Scripts
 
@@ -102,6 +120,7 @@ NUVEMSHOP_STORE_URL=https://www.nativa.art.br   # usado na migração de imagens
 | `pnpm seed` | Insere produtos de **exemplo** de `shared/data/products.ts` |
 | `pnpm migrate:nuvemshop` | **Apaga todos os produtos** e reimporta do CSV Nuvemshop |
 | `pnpm fix:images` | Corrige só as imagens dos produtos (busca na loja `nativa.art.br`) |
+| `pnpm setup:storage` | Cria o bucket `product-images` no Supabase Storage (rodar 1x antes de usar o upload de imagens no admin) |
 
 ### Desenvolvimento (fluxo)
 
@@ -167,12 +186,23 @@ Usar sempre `shared/lib/productMapper.ts`:
 
 Base: `/api`
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| `GET` | `/api/products` | Lista todos os produtos |
-| `GET` | `/api/products/:slug` | Um produto por slug; 404 se não existir |
+| Método | Rota | Descrição | Autenticação |
+|--------|------|-----------|--------------|
+| `GET` | `/api/products` | Lista todos os produtos | Pública |
+| `GET` | `/api/products/:slug` | Um produto por slug; 404 se não existir | Pública |
+| `POST` | `/api/products` | Cria produto (valida com `shared/schemas/product.ts`, gera slug único se necessário) | Admin |
+| `PUT` | `/api/products/:slug` | Atualiza produto pelo slug atual | Admin |
+| `DELETE` | `/api/products/:slug` | Remove produto | Admin |
+| `POST` | `/api/products/bulk` | Upsert em lote por slug (usado na importação em massa) — body `{ products: ProductInput[] }` | Admin |
+| `POST` | `/api/admin/login` | Login do admin (`{ password }`) — seta cookie httpOnly `nativa_admin_token` | Pública |
+| `POST` | `/api/admin/logout` | Limpa o cookie de sessão | Pública |
+| `GET` | `/api/admin/me` | Verifica se o cookie atual é válido | Admin |
+| `POST` | `/api/admin/uploads` | Upload de imagem (`multipart/form-data`, campo `file`) → sobe para o Supabase Storage e retorna `{ url }` | Admin |
 
 **Ordem das rotas em `server/index.ts`:** rotas `/api` **antes** do `app.get("*")` que serve o `index.html`.
+
+"Admin" = rotas protegidas pelo middleware `server/middleware/requireAdmin.ts` (exige cookie JWT
+válido, emitido em `/api/admin/login`).
 
 ### Frontend consome assim
 
@@ -221,11 +251,49 @@ Lê `tiendanube-6418246-17834446675007348008384088291.csv` (ou `TIENDANUBE_CSV_P
 |------|--------|-----------|
 | `/` | `Home` | Landing com seções (hero, coleções, sobre, etc.) |
 | `/produto/:slug` | `ProductPage` | PDP completa |
+| `/admin/login` | `AdminLogin` | Login do painel admin (senha única) |
+| `/admin/produtos` | `AdminProductsList` | Lista/busca/exclui produtos |
+| `/admin/produtos/novo` | `AdminProductForm` | Cadastro de produto |
+| `/admin/produtos/:slug/editar` | `AdminProductForm` | Edição de produto |
+| `/admin/produtos/importar` | `AdminProductImport` | Importação em massa (CSV/XLSX) |
 | `*` | `NotFound` | 404 |
 
-Roteamento: **Wouter** (`client/src/App.tsx`).
+Roteamento: **Wouter** (`client/src/App.tsx`). As rotas `/admin/*` (exceto `/admin/login`) são
+protegidas no client por `RequireAdminAuth`, mas a segurança real está nas rotas do backend
+(middleware `requireAdmin`).
 
 ---
+
+## Painel admin (`/admin`)
+
+Autenticação simples (senha única do dono, guardada em `ADMIN_PASSWORD`) — sem tabela de usuários.
+Pensado para deploy serverless no Vercel, por isso não usa sessão em memória.
+
+```mermaid
+flowchart LR
+  Browser["/admin (SPA)"] -->|"fetch credentials include"| API["/api/admin/*, /api/products (POST/PUT/DELETE/bulk)"]
+  API --> Auth["requireAdmin (JWT no cookie httpOnly nativa_admin_token)"]
+  Auth --> Supabase["Supabase (tabela products + bucket product-images)"]
+```
+
+- **Backend:** `server/lib/adminAuth.ts` (assina/verifica JWT, compara senha em tempo constante),
+  `server/middleware/requireAdmin.ts`, `server/routes/admin.ts` (login/logout/me/uploads),
+  `server/services/uploads.ts` (Supabase Storage).
+- **Validação compartilhada:** `shared/schemas/product.ts` (Zod) — usada tanto no formulário do
+  client (`zodResolver`) quanto nas rotas do servidor.
+- **Slug:** gerado automaticamente a partir do nome (`shared/lib/slugify.ts`); só é alterado
+  manualmente se o usuário editar o campo.
+- **Frontend:** `client/src/contexts/AdminAuthContext.tsx` + `client/src/components/admin/`
+  (`AdminLayout`, `RequireAdminAuth`, `ImageManager`, `TagsInput`) + `client/src/pages/admin/`.
+- **Upload de imagens:** bucket público `product-images` no Supabase Storage (criar 1x com
+  `pnpm setup:storage`). Limite de 4MB por imagem (JPG/PNG/WEBP) — compatível com o limite de
+  corpo de requisição do Vercel.
+- **Importação em massa:** parse de CSV/XLSX feito **no navegador** com a lib `xlsx`
+  (`shared/lib/importProductsMapper.ts` faz o mapeamento e a validação). Ver
+  [`docs/importacao-em-massa.md`](docs/importacao-em-massa.md) para o guia completo e o
+  significado de cada coluna do modelo.
+- **Módulos futuros** (Pedidos, Configurações) já aparecem no menu do admin como "Em breve" —
+  desabilitados, sem rota implementada ainda.
 
 ## O que JÁ existe (UI)
 
@@ -241,12 +309,13 @@ Roteamento: **Wouter** (`client/src/App.tsx`).
 | Carrinho real | ❌ Só toast "em breve" |
 | Checkout / pagamento | ❌ |
 | Login de cliente | ❌ |
-| Painel admin | ❌ |
-| Pedidos (`orders`) | ❌ Sem tabela |
-| Supabase Storage para imagens | ❌ Usando CDN Nuvemshop |
+| Painel admin | ✅ CRUD de produtos em `/admin` (jul/2026) |
+| Pedidos (`orders`) | ❌ Sem tabela — módulo "Pedidos" já aparece no menu do admin como "Em breve" |
+| Configurações da loja | ❌ Módulo "Configurações" já aparece no menu do admin como "Em breve" |
+| Supabase Storage para imagens | ✅ Bucket `product-images` (upload pelo admin); CDN Nuvemshop ainda usado nos produtos migrados |
 | Busca / filtros avançados | ❌ Filtro básico por categoria na home |
 | Avaliações reais | ❌ Campos existem, dados zerados |
-| API de escrita (CRUD admin) | ❌ Só leitura |
+| API de escrita (CRUD admin) | ✅ `POST/PUT/DELETE /api/products` + `/bulk`, protegidos por login admin |
 
 Ao implementar carrinho/pedidos, criar novas tabelas no Supabase e novas rotas em `server/routes/`.
 
@@ -358,6 +427,8 @@ Antes de codar, confirme:
 - [ ] Produtos vêm do Supabase (não do arquivo `shared/data/products.ts`)
 - [ ] Novas features seguem `client → API → Supabase`
 - [ ] Tipos em `shared/types/`, mapeamento em `productMapper.ts`
+- [ ] Rotas de escrita novas (POST/PUT/DELETE) usam o middleware `requireAdmin`
+- [ ] `ADMIN_PASSWORD` e `ADMIN_JWT_SECRET` existem no `.env` (para testar o `/admin` local)
 
 ---
 
@@ -375,8 +446,11 @@ Antes de codar, confirme:
 1. **Fase inicial:** catálogo estático em `shared/data/products.ts`, servidor Express só para arquivos estáticos
 2. **Integração Supabase:** tabela `products`, API REST, proxy Vite, `@supabase/supabase-js`
 3. **Migração Nuvemshop:** parser CSV, script de migração, imagens da loja publicada, 7 produtos reais no banco
-4. **Pendente:** carrinho, checkout, admin, storage próprio de imagens
+4. **Painel admin (jul/2026):** login por senha única (JWT em cookie httpOnly), CRUD completo de
+   produtos em `/admin`, upload de imagens via Supabase Storage e importação em massa por
+   planilha (CSV/XLSX) com pré-visualização
+5. **Pendente:** carrinho, checkout, pedidos, configurações da loja
 
 ---
 
-*Última atualização: julho de 2026*
+*Última atualização: julho de 2026 (adição do painel admin de produtos)*

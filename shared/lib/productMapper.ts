@@ -119,7 +119,7 @@ export function mapProductRowToProduct(row: ProductRow): Product {
   };
 }
 
-export function mapProductToRow(product: Product) {
+export function mapProductToRow(product: Omit<Product, "id">) {
   return {
     slug: product.slug,
     name: product.name,

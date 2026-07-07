@@ -100,7 +100,7 @@ async function migrate() {
 
   console.log("✓ Produtos anteriores removidos");
 
-  const dbRows = products.map((product) => mapProductToRow({ ...product, id: 0 }));
+  const dbRows = products.map((product) => mapProductToRow(product));
   const { error: insertError } = await supabase.from("products").insert(dbRows);
 
   if (insertError) {
