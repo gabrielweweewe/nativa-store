@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import ProductPage from "@/pages/ProductPage";
 import { lazy, Suspense } from "react";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
@@ -22,15 +22,22 @@ function AdminFallback() {
 }
 
 function Router() {
+  const [location] = useLocation();
+
+  // Verificação manual (em vez de <Route path="/admin/:rest*">): o padrão de wildcard do
+  // wouter exige pelo menos um segmento após a barra, então não bate com "/admin" sozinho.
+  if (location === "/admin" || location.startsWith("/admin/")) {
+    return (
+      <Suspense fallback={<AdminFallback />}>
+        <AdminRouter />
+      </Suspense>
+    );
+  }
+
   return (
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/produto/:slug"} component={ProductPage} />
-      <Route path="/admin/:rest*">
-        <Suspense fallback={<AdminFallback />}>
-          <AdminRouter />
-        </Suspense>
-      </Route>
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
