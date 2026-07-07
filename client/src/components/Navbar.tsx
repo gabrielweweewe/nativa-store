@@ -70,13 +70,18 @@ export default function Navbar() {
         }`}
       >
         <div className="container">
-          <div className="flex items-center justify-between h-16 md:h-20">
+          <div className="flex items-center justify-between h-14 md:h-20">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <NativaLogoMark size={38} />
+            <Link href="/" className="flex items-center gap-2 group">
+              <span className="md:hidden">
+                <NativaLogoMark size={32} />
+              </span>
+              <span className="hidden md:block">
+                <NativaLogoMark size={38} />
+              </span>
               <span className="flex flex-col leading-none">
                 <span
-                  className="text-2xl font-bold italic tracking-tight"
+                  className="text-xl md:text-2xl font-bold italic tracking-tight"
                   style={{
                     fontFamily: "'Playfair Display', Georgia, serif",
                     background: "linear-gradient(135deg, #C4522A 0%, #E8821A 40%, #2D6A4F 100%)",

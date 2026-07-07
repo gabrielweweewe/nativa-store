@@ -54,7 +54,7 @@ export default function ProductsSection() {
   });
 
   return (
-    <section id="colecoes" className="py-20 relative overflow-hidden" style={{ background: "#FAF7F2" }}>
+    <section id="colecoes" className="py-12 md:py-20 relative overflow-hidden" style={{ background: "#FAF7F2" }}>
       <div className="absolute top-12 right-6 feather-float opacity-35">
         <FeatherOrange className="w-6 h-14 rotate-[20deg]" />
       </div>
@@ -80,7 +80,7 @@ export default function ProductsSection() {
               ✦ Peças Autorais
             </div>
             <h2
-              className="text-4xl md:text-5xl font-bold leading-tight"
+              className="text-3xl md:text-5xl font-bold leading-tight"
               style={{
                 fontFamily: "'Playfair Display', Georgia, serif",
                 background: "linear-gradient(135deg, #C4522A, #E8821A, #C9922A)",

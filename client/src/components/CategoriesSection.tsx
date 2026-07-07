@@ -95,7 +95,7 @@ const categories = [
 
 export default function CategoriesSection() {
   return (
-    <section className="py-16" style={{ background: "#F5F0E8" }}>
+    <section className="py-10 md:py-16" style={{ background: "#F5F0E8" }}>
       <div className="container">
         {/* Section header — left-aligned for asymmetry */}
         <div className="mb-10">

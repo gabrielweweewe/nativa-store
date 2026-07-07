@@ -102,18 +102,18 @@ const features = [
 export default function FeaturesSection() {
   return (
     <section
-      className="py-12 border-y"
+      className="py-8 md:py-12 border-y"
       style={{
         background: "linear-gradient(135deg, #F5F0E8 0%, #FAF7F2 100%)",
         borderColor: "#E8D5C4",
       }}
     >
       <div className="container">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
           {features.map((feat, i) => (
             <div
               key={feat.title}
-              className="flex flex-col items-center text-center gap-3 group p-4 rounded-2xl transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
+              className="flex flex-row sm:flex-col items-center sm:text-center gap-3 group p-3 sm:p-4 rounded-xl md:rounded-2xl transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
               style={{
                 background: feat.bg,
                 border: `1px solid ${feat.border}`,
@@ -121,20 +121,20 @@ export default function FeaturesSection() {
               }}
             >
               <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
+                className="w-11 h-11 sm:w-14 sm:h-14 shrink-0 rounded-xl sm:rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
                 style={{ background: "white", boxShadow: `0 4px 12px ${feat.color}20` }}
               >
                 {feat.icon}
               </div>
-              <div>
+              <div className="min-w-0 text-left sm:text-center">
                 <h4
-                  className="text-sm font-bold mb-1"
+                  className="text-xs sm:text-sm font-bold mb-0.5 sm:mb-1"
                   style={{ fontFamily: "'Nunito', sans-serif", color: feat.color }}
                 >
                   {feat.title}
                 </h4>
                 <p
-                  className="text-xs text-[#8B6F5E] leading-relaxed"
+                  className="text-[11px] sm:text-xs text-[#8B6F5E] leading-snug sm:leading-relaxed"
                   style={{ fontFamily: "'Lora', serif" }}
                 >
                   {feat.desc}

@@ -36,10 +36,10 @@ export default function HeroSection() {
       <img
         src="/images/bannerNativa.jpg"
         alt="Nativa — Fauna e flora brasileira"
-        className="w-full h-[70vh] md:h-auto object-cover object-center block"
+        className="w-full h-[38vh] max-h-[260px] sm:h-[48vh] sm:max-h-[340px] md:h-auto md:max-h-none object-cover object-[center_20%] md:object-center block"
       />
 
-      <div className="absolute inset-0 pointer-events-none z-10">
+      <div className="absolute inset-0 pointer-events-none z-10 hidden sm:block">
         {feathers.map(({ Feather, top, left, right, size, rotate, anim, opacity }, i) => (
           <div
             key={i}
