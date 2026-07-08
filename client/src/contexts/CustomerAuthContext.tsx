@@ -1,4 +1,5 @@
 import { mapAuthError } from "@/lib/authErrors";
+import { appPath } from "@/lib/appUrl";
 import { updateCustomerProfile } from "@/lib/customerApi";
 import { supabaseClient } from "@/lib/supabaseClient";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -87,7 +88,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
           full_name: input.fullName.trim(),
           phone: input.phone ?? null,
         },
-        emailRedirectTo: `${window.location.origin}/conta`,
+        emailRedirectTo: appPath("/conta"),
       },
     });
 
@@ -124,7 +125,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
   async function resetPassword(email: string) {
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/redefinir-senha`,
+      redirectTo: appPath("/redefinir-senha"),
     });
 
     if (error) {
@@ -144,7 +145,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       type: "signup",
       email: email.trim(),
       options: {
-        emailRedirectTo: `${window.location.origin}/conta`,
+        emailRedirectTo: appPath("/conta"),
       },
     });
 
