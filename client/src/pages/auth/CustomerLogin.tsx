@@ -1,12 +1,11 @@
-import Footer from "@/components/Footer";
-import Navbar from "@/components/Navbar";
+import AuthBrandPanel from "@/components/auth/AuthBrandPanel";
+import AuthFormCard from "@/components/auth/AuthFormCard";
+import AuthInputField from "@/components/auth/AuthInputField";
+import AuthPageShell from "@/components/auth/AuthPageShell";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
-import { LogIn, Mail, Lock } from "lucide-react";
+import { LogIn, Mail, Lock, Package, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
@@ -50,87 +49,89 @@ export default function CustomerLogin() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#F5F0E8" }}>
-      <Navbar />
-      <main className="container flex min-h-[calc(100vh-160px)] items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md border-[#E8D5C4] shadow-lg">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2 text-[#3D2B1F]">
-              <LogIn className="size-5 text-[#C4522A]" />
-              <h1
-                className="text-xl font-bold"
-                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-              >
-                Entrar na sua conta
-              </h1>
-            </div>
-            <p className="mt-1 text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-              Acompanhe pedidos e agilize suas próximas compras.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="customer-email">E-mail</Label>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8B6F5E]" />
-                  <Input
-                    id="customer-email"
-                    type="email"
-                    autoComplete="email"
-                    className="pl-9"
-                    placeholder="voce@exemplo.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={submitting}
-                  />
-                </div>
-              </div>
+    <AuthPageShell>
+      <div className="mx-auto grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[1fr_420px] lg:gap-16 xl:grid-cols-[1fr_440px]">
+        <AuthBrandPanel
+          eyebrow="Minha conta Nativa"
+          title="Liberdade em cada detalhe, também na sua conta"
+          description="Acesse seu perfil, acompanhe pedidos e tenha uma experiência mais fluida nas próximas compras de artesanato brasileiro."
+          features={[
+            { icon: Package, text: "Histórico de pedidos em um só lugar" },
+            { icon: ShieldCheck, text: "Dados protegidos com login seguro" },
+            { icon: Sparkles, text: "Checkout mais rápido nas próximas visitas" },
+          ]}
+          footer="&ldquo;Artesanato feito à mão, com alma e cuidado em cada peça.&rdquo;"
+        />
 
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Label htmlFor="customer-password">Senha</Label>
-                  <Link
-                    href="/recuperar-senha"
-                    className="text-xs font-semibold text-[#C4522A] hover:underline"
-                  >
-                    Esqueci minha senha
-                  </Link>
-                </div>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8B6F5E]" />
-                  <Input
-                    id="customer-password"
-                    type="password"
-                    autoComplete="current-password"
-                    className="pl-9"
-                    placeholder="Digite sua senha"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={submitting}
-                  />
-                </div>
-              </div>
+        <AuthFormCard
+          icon={LogIn}
+          title="Entrar na sua conta"
+          description="Use o e-mail e a senha cadastrados para continuar."
+        >
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <AuthInputField
+              id="customer-email"
+              label="E-mail"
+              icon={Mail}
+              type="email"
+              autoComplete="email"
+              placeholder="voce@exemplo.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={submitting}
+            />
 
-              <Button
-                type="submit"
-                disabled={submitting || !email.trim() || !password}
-                className="nativa-btn-primary mt-1 rounded-lg py-5"
-              >
-                {submitting ? <Spinner className="size-4" /> : "Entrar"}
-              </Button>
-
-              <p className="text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                Ainda não tem conta?{" "}
-                <Link href="/cadastro" className="font-semibold text-[#C4522A] hover:underline">
-                  Criar cadastro
+            <AuthInputField
+              id="customer-password"
+              label="Senha"
+              icon={Lock}
+              type="password"
+              autoComplete="current-password"
+              placeholder="Digite sua senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={submitting}
+              labelExtra={
+                <Link
+                  href="/recuperar-senha"
+                  className="text-xs font-semibold text-[#C4522A] hover:underline"
+                >
+                  Esqueci minha senha
                 </Link>
+              }
+            />
+
+            <Button
+              type="submit"
+              disabled={submitting || !email.trim() || !password}
+              className="nativa-btn-primary mt-1 rounded-xl py-6 text-sm tracking-wide"
+            >
+              {submitting ? <Spinner className="size-4" /> : "Entrar"}
+            </Button>
+
+            <div className="relative py-1">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[#E8D5C4]" />
+              </div>
+              <p
+                className="relative mx-auto w-fit bg-white px-3 text-xs text-[#8B6F5E]"
+                style={{ fontFamily: "'Nunito', sans-serif" }}
+              >
+                Novo por aqui?
               </p>
-            </form>
-          </CardContent>
-        </Card>
-      </main>
-      <Footer />
-    </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              asChild
+              className="rounded-xl border-[#C4522A]/25 py-6 text-[#C4522A] hover:bg-[#C4522A]/5"
+            >
+              <Link href="/cadastro">Criar minha conta</Link>
+            </Button>
+          </form>
+        </AuthFormCard>
+      </div>
+    </AuthPageShell>
   );
 }

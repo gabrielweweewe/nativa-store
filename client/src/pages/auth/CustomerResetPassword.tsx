@@ -1,9 +1,7 @@
-import Footer from "@/components/Footer";
-import Navbar from "@/components/Navbar";
+import AuthFormCard from "@/components/auth/AuthFormCard";
+import AuthInputField from "@/components/auth/AuthInputField";
+import AuthPageShell from "@/components/auth/AuthPageShell";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
 import { Lock } from "lucide-react";
@@ -69,74 +67,52 @@ export default function CustomerResetPassword() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#F5F0E8" }}>
-      <Navbar />
-      <main className="container flex min-h-[calc(100vh-160px)] items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md border-[#E8D5C4] shadow-lg">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2 text-[#3D2B1F]">
-              <Lock className="size-5 text-[#C4522A]" />
-              <h1
-                className="text-xl font-bold"
-                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-              >
-                Nova senha
-              </h1>
-            </div>
-            <p className="mt-1 text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-              Escolha uma senha segura para sua conta.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="reset-password">Nova senha</Label>
-                <Input
-                  id="reset-password"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Crie uma senha"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={submitting}
-                />
-                {!!passwordHint && (
-                  <p className="text-xs text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                    {passwordHint}
-                  </p>
-                )}
-              </div>
+    <AuthPageShell>
+      <div className="mx-auto w-full max-w-md">
+        <AuthFormCard
+          icon={Lock}
+          title="Nova senha"
+          description="Escolha uma senha segura para proteger sua conta."
+        >
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <AuthInputField
+              id="reset-password"
+              label="Nova senha"
+              icon={Lock}
+              type="password"
+              autoComplete="new-password"
+              placeholder="Crie uma senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={submitting}
+              hint={passwordHint || undefined}
+            />
 
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="reset-password-confirm">Confirmar senha</Label>
-                <Input
-                  id="reset-password-confirm"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Repita a senha"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={submitting}
-                />
-                {!passwordsMatch && confirmPassword.length > 0 && (
-                  <p className="text-xs text-destructive" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                    As senhas não conferem
-                  </p>
-                )}
-              </div>
+            <AuthInputField
+              id="reset-password-confirm"
+              label="Confirmar senha"
+              icon={Lock}
+              type="password"
+              autoComplete="new-password"
+              placeholder="Repita a senha"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={submitting}
+              error={
+                !passwordsMatch && confirmPassword.length > 0 ? "As senhas não conferem" : undefined
+              }
+            />
 
-              <Button
-                type="submit"
-                disabled={submitting || !password || !confirmPassword || !passwordsMatch}
-                className="nativa-btn-primary mt-1 rounded-lg py-5"
-              >
-                {submitting ? <Spinner className="size-4" /> : "Salvar nova senha"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </main>
-      <Footer />
-    </div>
+            <Button
+              type="submit"
+              disabled={submitting || !password || !confirmPassword || !passwordsMatch}
+              className="nativa-btn-primary rounded-xl py-6"
+            >
+              {submitting ? <Spinner className="size-4" /> : "Salvar nova senha"}
+            </Button>
+          </form>
+        </AuthFormCard>
+      </div>
+    </AuthPageShell>
   );
 }

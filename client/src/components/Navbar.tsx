@@ -22,6 +22,14 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const isHome = location === "/";
+  const isAuthPage =
+    location === "/entrar" ||
+    location === "/cadastro" ||
+    location === "/conta" ||
+    location === "/recuperar-senha" ||
+    location === "/redefinir-senha" ||
+    location.startsWith("/verificar-email");
+  const showSolidHeader = scrolled || !isHome || isAuthPage;
   const { user, isLoading } = useCustomerAuth();
 
   useEffect(() => {
@@ -45,7 +53,7 @@ export default function Navbar() {
     <>
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled
+          showSolidHeader
             ? "bg-[#F5F0E8]/95 backdrop-blur-md shadow-sm border-b border-[#C4522A]/10"
             : "bg-transparent"
         }`}
@@ -61,11 +69,11 @@ export default function Navbar() {
             <Link
               href="/"
               className={`md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
-                scrolled
+                showSolidHeader
                   ? "opacity-100 scale-100 pointer-events-auto"
                   : "opacity-0 scale-95 pointer-events-none"
               }`}
-              aria-hidden={!scrolled}
+              aria-hidden={!showSolidHeader}
             >
               <NativaLogo className="h-9 w-auto" />
             </Link>
