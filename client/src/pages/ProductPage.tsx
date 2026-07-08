@@ -19,11 +19,14 @@ import {
   ChevronLeft,
   Sparkles,
   Package,
+  MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
+import ProductGallery from "@/components/product/ProductGallery";
+import ProductShippingQuote from "@/components/product/ProductShippingQuote";
 import { FeatherOrange, FeatherGreen } from "@/components/NativaDecorations";
 import {
   Accordion,
@@ -44,8 +47,6 @@ import { useCart } from "@/contexts/CartContext";
 import type { Product } from "@shared/types/product";
 import NotFound from "@/pages/NotFound";
 
-const imageLabels = ["Visão geral", "Detalhe", "Acabamento"];
-
 export default function ProductPage() {
   const params = useParams<{ slug: string }>();
   const [product, setProduct] = useState<Product | null>(null);
@@ -53,7 +54,6 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -97,7 +97,6 @@ export default function ProductPage() {
       document.title = `${product.name} — Nativa Store`;
       setSelectedSize(product.sizes.find((s) => s.available)?.label ?? "");
       setSelectedColor(product.colors[0]?.name ?? "");
-      setSelectedImage(0);
       setQuantity(1);
       window.scrollTo(0, 0);
     }
@@ -209,254 +208,285 @@ export default function ProductPage() {
             Voltar às coleções
           </Link>
 
-          {/* Main grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,480px)_1fr] gap-10 lg:gap-16 lg:items-start mb-16">
-            {/* Gallery */}
-            <div className="space-y-4 w-full max-w-[480px] mx-auto lg:mx-0 lg:sticky lg:top-28">
-              <div className="relative rounded-2xl overflow-hidden bg-white border border-[#E8D5C4] aspect-[4/5] shadow-sm">
-                <img
-                  src={product.images[selectedImage]}
-                  alt={`${product.name} — ${imageLabels[selectedImage] ?? "foto"}`}
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-                <div
-                  className="absolute top-4 left-4 px-3 py-1.5 rounded-full text-white text-xs font-bold"
-                  style={{ background: product.badgeColor, fontFamily: "'Nunito', sans-serif" }}
-                >
-                  {product.badge}
-                </div>
-                {discount && (
-                  <div
-                    className="absolute top-4 right-4 px-3 py-1.5 rounded-full text-white text-xs font-bold"
-                    style={{ background: "#E8821A", fontFamily: "'Nunito', sans-serif" }}
-                  >
-                    -{discount}%
-                  </div>
-                )}
-              </div>
-
-              {product.images.length > 1 && (
-                <div className="flex flex-wrap gap-2.5">
-                  {product.images.map((img, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setSelectedImage(i)}
-                      className={`relative w-[4.75rem] h-[4.75rem] flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all duration-200 ${
-                        selectedImage === i
-                          ? "border-[#C4522A] shadow-md"
-                          : "border-[#E8D5C4] opacity-70 hover:opacity-100"
-                      }`}
-                      aria-label={imageLabels[i] ?? `Imagem ${i + 1}`}
-                    >
-                      <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
+          {/* Main grid — duas colunas equilibradas */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 xl:gap-12 lg:items-start mb-16">
+            {/* Galeria */}
+            <div className="w-full lg:sticky lg:top-28">
+              <ProductGallery
+                images={product.images}
+                productName={product.name}
+                badge={product.badge}
+                badgeColor={product.badgeColor}
+                discount={discount}
+              />
             </div>
 
-            {/* Product info */}
-            <div className="flex flex-col lg:pt-1 max-w-xl">
-              <p
-                className="text-xs font-bold uppercase tracking-widest mb-2"
-                style={{ fontFamily: "'Nunito', sans-serif", color: "#1B7A8C" }}
-              >
-                {product.category}
-              </p>
+            {/* Informações + compra */}
+            <div className="flex flex-col gap-6 w-full">
+              {/* Cabeçalho do produto */}
+              <div>
+                <p
+                  className="text-xs font-bold uppercase tracking-widest mb-2"
+                  style={{ fontFamily: "'Nunito', sans-serif", color: "#1B7A8C" }}
+                >
+                  {product.category}
+                </p>
 
-              <h1
-                className="text-3xl md:text-4xl font-bold text-[#3D2B1F] leading-tight mb-3"
-                style={{ fontFamily: "'Playfair Display', serif" }}
-              >
-                {product.name}
-              </h1>
-
-              {/* Rating */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex gap-0.5">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      size={16}
-                      className={i < Math.floor(product.rating) ? "fill-[#C9922A] text-[#C9922A]" : "text-[#D4C5B5]"}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                  {product.rating} · {product.reviews} avaliações
-                </span>
-              </div>
-
-              <p
-                className="text-[#8B6F5E] text-base leading-relaxed mb-6"
-                style={{ fontFamily: "'Lora', serif" }}
-              >
-                {decodeHtmlEntities(product.shortDescription)}
-              </p>
-
-              {/* Price */}
-              <div className="flex items-baseline gap-3 mb-6 pb-6 border-b border-[#E8D5C4]/80">
-                <span
-                  className="text-3xl md:text-4xl font-bold text-[#C4522A]"
+                <h1
+                  className="text-3xl md:text-4xl xl:text-[2.75rem] font-bold text-[#3D2B1F] leading-tight mb-3"
                   style={{ fontFamily: "'Playfair Display', serif" }}
                 >
-                  {formatPrice(product.price)}
-                </span>
-                {product.originalPrice && (
-                  <span className="text-lg text-[#B0A090] line-through" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                    {formatPrice(product.originalPrice)}
-                  </span>
-                )}
-              </div>
+                  {product.name}
+                </h1>
 
-              {/* Highlights */}
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-6">
-                {product.highlights.map((h) => (
-                  <li
-                    key={h}
-                    className="flex items-center gap-2 text-sm text-[#3D2B1F]"
-                    style={{ fontFamily: "'Nunito', sans-serif" }}
-                  >
-                    <Sparkles size={14} className="text-[#C9922A] flex-shrink-0" />
-                    {h}
-                  </li>
-                ))}
-              </ul>
-
-              {/* Color selector */}
-              {product.colors.length > 0 && (
-                <div className="mb-5">
-                  <p className="text-sm font-semibold text-[#3D2B1F] mb-2" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                    Cor: <span className="font-normal text-[#8B6F5E]">{selectedColor}</span>
-                  </p>
-                  <div className="flex gap-2">
-                    {product.colors.map((color) => (
-                      <button
-                        key={color.name}
-                        onClick={() => setSelectedColor(color.name)}
-                        className={`w-9 h-9 rounded-full border-2 transition-all duration-200 ${
-                          selectedColor === color.name
-                            ? "border-[#C4522A] scale-110 shadow-md"
-                            : "border-[#E8D5C4] hover:border-[#C4522A]/50"
-                        }`}
-                        style={{ background: color.hex }}
-                        title={color.name}
-                        aria-label={color.name}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        size={16}
+                        className={i < Math.floor(product.rating) ? "fill-[#C9922A] text-[#C9922A]" : "text-[#D4C5B5]"}
                       />
                     ))}
                   </div>
+                  <span className="text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                    {product.rating} · {product.reviews} avaliações
+                  </span>
                 </div>
-              )}
 
-              {/* Size selector */}
-              {product.sizes.length > 0 && (
-                <div className="mb-5">
-                  <p className="text-sm font-semibold text-[#3D2B1F] mb-2" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                    Tamanho
-                  </p>
+                <p
+                  className="text-[#8B6F5E] text-base leading-relaxed"
+                  style={{ fontFamily: "'Lora', serif" }}
+                >
+                  {decodeHtmlEntities(product.shortDescription)}
+                </p>
+              </div>
+
+              {/* Painel de compra */}
+              <div
+                className="rounded-2xl border border-[#E8D5C4] bg-white p-5 md:p-6 shadow-sm space-y-5"
+                style={{ boxShadow: "0 8px 32px oklch(0.52 0.14 38 / 0.06)" }}
+              >
+                {/* Preço */}
+                <div className="flex items-baseline gap-3 pb-5 border-b border-[#E8D5C4]/80">
+                  <span
+                    className="text-3xl md:text-4xl font-bold text-[#C4522A]"
+                    style={{ fontFamily: "'Playfair Display', serif" }}
+                  >
+                    {formatPrice(product.price)}
+                  </span>
+                  {product.originalPrice && (
+                    <span className="text-lg text-[#B0A090] line-through" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                      {formatPrice(product.originalPrice)}
+                    </span>
+                  )}
+                  {discount != null && discount > 0 && (
+                    <span
+                      className="ml-auto text-xs font-bold text-white px-2.5 py-1 rounded-full"
+                      style={{ background: "#E8821A", fontFamily: "'Nunito', sans-serif" }}
+                    >
+                      Economize {discount}%
+                    </span>
+                  )}
+                </div>
+
+                {/* Tags */}
+                {product.highlights.length > 0 && (
                   <div className="flex flex-wrap gap-2">
-                    {product.sizes.map((size) => (
-                      <button
-                        key={size.label}
-                        onClick={() => size.available && setSelectedSize(size.label)}
-                        disabled={!size.available}
-                        className={`min-w-[3rem] px-4 py-2 rounded-xl text-sm font-semibold border transition-all duration-200 ${
-                          !size.available
-                            ? "border-[#E8D5C4] text-[#B0A090] line-through cursor-not-allowed opacity-50"
-                            : selectedSize === size.label
-                              ? "border-[#C4522A] bg-[#C4522A] text-white shadow-md"
-                              : "border-[#E8D5C4] text-[#3D2B1F] hover:border-[#C4522A]/50"
-                        }`}
+                    {product.highlights.map((h) => (
+                      <span
+                        key={h}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[#E8D5C4] bg-[#FAF7F2] px-3 py-1 text-xs font-semibold text-[#3D2B1F]"
                         style={{ fontFamily: "'Nunito', sans-serif" }}
                       >
-                        {size.label}
-                      </button>
+                        <Sparkles size={11} className="text-[#C9922A]" />
+                        {h}
+                      </span>
                     ))}
                   </div>
+                )}
+
+                {/* Cor */}
+                {product.colors.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-[#3D2B1F] mb-2" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                      Cor: <span className="font-normal text-[#8B6F5E]">{selectedColor}</span>
+                    </p>
+                    <div className="flex gap-2">
+                      {product.colors.map((color) => (
+                        <button
+                          key={color.name}
+                          type="button"
+                          onClick={() => setSelectedColor(color.name)}
+                          className={`w-9 h-9 rounded-full border-2 transition-all duration-200 ${
+                            selectedColor === color.name
+                              ? "border-[#C4522A] scale-110 shadow-md"
+                              : "border-[#E8D5C4] hover:border-[#C4522A]/50"
+                          }`}
+                          style={{ background: color.hex }}
+                          title={color.name}
+                          aria-label={color.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tamanho */}
+                {product.sizes.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-[#3D2B1F] mb-2" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                      Tamanho
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {product.sizes.map((size) => (
+                        <button
+                          key={size.label}
+                          type="button"
+                          onClick={() => size.available && setSelectedSize(size.label)}
+                          disabled={!size.available}
+                          className={`min-w-[3rem] px-4 py-2 rounded-xl text-sm font-semibold border transition-all duration-200 ${
+                            !size.available
+                              ? "border-[#E8D5C4] text-[#B0A090] line-through cursor-not-allowed opacity-50"
+                              : selectedSize === size.label
+                                ? "border-[#C4522A] bg-[#C4522A] text-white shadow-md"
+                                : "border-[#E8D5C4] text-[#3D2B1F] hover:border-[#C4522A]/50"
+                          }`}
+                          style={{ fontFamily: "'Nunito', sans-serif" }}
+                        >
+                          {size.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quantidade */}
+                <div>
+                  <p className="text-sm font-semibold text-[#3D2B1F] mb-2" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                    Quantidade
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="inline-flex items-center border border-[#E8D5C4] rounded-xl overflow-hidden bg-[#FAF7F2]">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        className="w-10 h-10 flex items-center justify-center text-[#3D2B1F] hover:bg-[#C4522A]/10 transition-colors"
+                        aria-label="Diminuir quantidade"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="w-12 text-center font-semibold text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.min(product.stockCount, q + 1))}
+                        className="w-10 h-10 flex items-center justify-center text-[#3D2B1F] hover:bg-[#C4522A]/10 transition-colors"
+                        aria-label="Aumentar quantidade"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                    <span className="text-xs text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                      {product.stockCount} unidades disponíveis
+                    </span>
+                  </div>
+                </div>
+
+                {/* CTAs */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={handleAddToCart}
+                    disabled={isUpdating || !product.inStock}
+                    className="flex-1 py-4 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.01] disabled:opacity-60 disabled:pointer-events-none"
+                    style={{
+                      background: "linear-gradient(135deg, #C4522A, #E8821A)",
+                      fontFamily: "'Nunito', sans-serif",
+                    }}
+                  >
+                    <ShoppingBag size={20} />
+                    Adicionar ao Carrinho
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsFav(!isFav);
+                      toast(isFav ? "Removido dos favoritos" : "Adicionado aos favoritos!");
+                    }}
+                    className={`px-5 py-4 rounded-2xl border-2 flex items-center justify-center transition-all duration-200 ${
+                      isFav
+                        ? "border-[#C4522A] bg-[#C4522A]/10 text-[#C4522A]"
+                        : "border-[#E8D5C4] text-[#3D2B1F] hover:border-[#C4522A]/50"
+                    }`}
+                    aria-label={isFav ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                  >
+                    <Heart size={20} className={isFav ? "fill-[#C4522A]" : ""} />
+                  </button>
+                </div>
+
+                {/* Frete */}
+                <ProductShippingQuote productPrice={product.price} quantity={quantity} />
+
+                {/* Trust badges */}
+                <div className="grid grid-cols-3 gap-3 pt-1">
+                  {[
+                    { icon: Truck, label: "Frete grátis", sub: "Acima de R$ 299" },
+                    { icon: Shield, label: "Compra segura", sub: "Pagamento protegido" },
+                    { icon: RotateCcw, label: "Troca fácil", sub: "Até 30 dias" },
+                  ].map(({ icon: Icon, label, sub }) => (
+                    <div key={label} className="text-center rounded-xl bg-[#FAF7F2] border border-[#E8D5C4]/60 py-3 px-1">
+                      <Icon size={18} className="mx-auto mb-1.5 text-[#2D6A4F]" />
+                      <p className="text-[11px] font-bold text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                        {label}
+                      </p>
+                      <p className="text-[9px] text-[#8B6F5E] leading-tight" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                        {sub}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="text-xs text-[#8B6F5E] text-center" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                  SKU: {product.sku}
+                </p>
+              </div>
+
+              {/* Artesã */}
+              {product.artisan?.name && (
+                <div className="rounded-2xl border border-[#E8D5C4] bg-gradient-to-br from-[#F5F0E8] to-white p-5 md:p-6">
+                  <p
+                    className="text-xs font-bold uppercase tracking-widest text-[#1B7A8C] mb-3"
+                    style={{ fontFamily: "'Nunito', sans-serif" }}
+                  >
+                    Feito por
+                  </p>
+                  <h3
+                    className="text-xl font-bold text-[#3D2B1F] mb-1"
+                    style={{ fontFamily: "'Playfair Display', serif" }}
+                  >
+                    {product.artisan.name}
+                  </h3>
+                  {product.artisan.region && (
+                    <p
+                      className="flex items-center gap-1.5 text-sm text-[#8B6F5E] mb-3"
+                      style={{ fontFamily: "'Nunito', sans-serif" }}
+                    >
+                      <MapPin size={14} className="text-[#C4522A]" />
+                      {product.artisan.region}
+                    </p>
+                  )}
+                  {product.artisan.story && (
+                    <p
+                      className="text-sm text-[#8B6F5E] leading-relaxed italic"
+                      style={{ fontFamily: "'Lora', serif" }}
+                    >
+                      {product.artisan.story}
+                    </p>
+                  )}
                 </div>
               )}
-
-              {/* Quantity */}
-              <div className="mb-6">
-                <p className="text-sm font-semibold text-[#3D2B1F] mb-2" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                  Quantidade
-                </p>
-                <div className="inline-flex items-center border border-[#E8D5C4] rounded-xl overflow-hidden bg-white">
-                  <button
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="w-10 h-10 flex items-center justify-center text-[#3D2B1F] hover:bg-[#C4522A]/10 transition-colors"
-                    aria-label="Diminuir quantidade"
-                  >
-                    <Minus size={16} />
-                  </button>
-                  <span className="w-12 text-center font-semibold text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                    {quantity}
-                  </span>
-                  <button
-                    onClick={() => setQuantity((q) => Math.min(product.stockCount, q + 1))}
-                    className="w-10 h-10 flex items-center justify-center text-[#3D2B1F] hover:bg-[#C4522A]/10 transition-colors"
-                    aria-label="Aumentar quantidade"
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
-                <span className="ml-3 text-xs text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                  {product.stockCount} unidades disponíveis
-                </span>
-              </div>
-
-              {/* CTAs */}
-              <div className="flex flex-col sm:flex-row gap-3 mb-6">
-                <button
-                  onClick={handleAddToCart}
-                  disabled={isUpdating || !product.inStock}
-                  className="flex-1 py-4 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] disabled:opacity-60 disabled:pointer-events-none"
-                  style={{
-                    background: "linear-gradient(135deg, #C4522A, #E8821A)",
-                    fontFamily: "'Nunito', sans-serif",
-                  }}
-                >
-                  <ShoppingBag size={20} />
-                  Adicionar ao Carrinho
-                </button>
-                <button
-                  onClick={() => {
-                    setIsFav(!isFav);
-                    toast(isFav ? "Removido dos favoritos" : "Adicionado aos favoritos!");
-                  }}
-                  className={`px-5 py-4 rounded-2xl border-2 flex items-center justify-center transition-all duration-200 ${
-                    isFav
-                      ? "border-[#C4522A] bg-[#C4522A]/10 text-[#C4522A]"
-                      : "border-[#E8D5C4] text-[#3D2B1F] hover:border-[#C4522A]/50"
-                  }`}
-                  aria-label={isFav ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-                >
-                  <Heart size={20} className={isFav ? "fill-[#C4522A]" : ""} />
-                </button>
-              </div>
-
-              {/* Trust badges */}
-              <div className="grid grid-cols-3 gap-3 p-4 rounded-2xl bg-white border border-[#E8D5C4]">
-                {[
-                  { icon: Truck, label: "Frete grátis", sub: "Acima de R$ 299" },
-                  { icon: Shield, label: "Compra segura", sub: "Pagamento protegido" },
-                  { icon: RotateCcw, label: "Troca fácil", sub: "Até 30 dias" },
-                ].map(({ icon: Icon, label, sub }) => (
-                  <div key={label} className="text-center">
-                    <Icon size={20} className="mx-auto mb-1.5 text-[#2D6A4F]" />
-                    <p className="text-xs font-bold text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                      {label}
-                    </p>
-                    <p className="text-[10px] text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                      {sub}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <p className="text-xs text-[#8B6F5E] mt-3" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                SKU: {product.sku}
-              </p>
             </div>
           </div>
 
