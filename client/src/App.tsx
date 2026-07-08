@@ -12,6 +12,9 @@ import Home from "./pages/Home";
 import CustomerLogin from "./pages/auth/CustomerLogin";
 import CustomerRegister from "./pages/auth/CustomerRegister";
 import CustomerAccount from "./pages/auth/CustomerAccount";
+import CustomerForgotPassword from "./pages/auth/CustomerForgotPassword";
+import CustomerResetPassword from "./pages/auth/CustomerResetPassword";
+import CustomerVerifyEmail from "./pages/auth/CustomerVerifyEmail";
 
 // Lazy: o painel admin (e a lib de planilhas usada na importação em massa) só é
 // carregado quando alguém acessa /admin — não pesa o bundle da loja pública.
@@ -43,6 +46,9 @@ function Router() {
       <Route path={"/"} component={Home} />
       <Route path={"/entrar"} component={CustomerLogin} />
       <Route path={"/cadastro"} component={CustomerRegister} />
+      <Route path={"/recuperar-senha"} component={CustomerForgotPassword} />
+      <Route path={"/redefinir-senha"} component={CustomerResetPassword} />
+      <Route path={"/verificar-email"} component={CustomerVerifyEmail} />
       <Route path={"/conta"} component={CustomerAccount} />
       <Route path={"/produto/:slug"} component={ProductPage} />
       <Route path={"/404"} component={NotFound} />

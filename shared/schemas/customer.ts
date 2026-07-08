@@ -1,3 +1,4 @@
+import { isValidPhoneBr, normalizePhoneBr } from "@shared/lib/phoneBr";
 import { z } from "zod";
 
 export const customerProfileUpdateSchema = z.object({
@@ -5,10 +6,12 @@ export const customerProfileUpdateSchema = z.object({
   phone: z
     .string()
     .trim()
-    .max(30, "Telefone muito longo")
     .optional()
-    .or(z.literal("")),
+    .or(z.literal(""))
+    .transform((value) => (value ? normalizePhoneBr(value) : ""))
+    .refine((value) => value === "" || isValidPhoneBr(value), {
+      message: "Informe um telefone válido com DDD",
+    }),
 });
 
 export type CustomerProfileUpdateInput = z.infer<typeof customerProfileUpdateSchema>;
-

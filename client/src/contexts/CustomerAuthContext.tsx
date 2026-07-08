@@ -1,17 +1,45 @@
+import { mapAuthError } from "@/lib/authErrors";
+import { updateCustomerProfile } from "@/lib/customerApi";
 import { supabaseClient } from "@/lib/supabaseClient";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+
+export interface SignUpResult {
+  needsEmailConfirmation: boolean;
+}
 
 interface CustomerAuthContextType {
   isLoading: boolean;
   session: Session | null;
   user: User | null;
-  signUp: (input: { fullName: string; phone?: string; email: string; password: string }) => Promise<void>;
+  signUp: (input: {
+    fullName: string;
+    phone?: string;
+    email: string;
+    password: string;
+  }) => Promise<SignUpResult>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  resendSignupConfirmation: (email: string) => Promise<void>;
 }
 
 const CustomerAuthContext = createContext<CustomerAuthContextType | undefined>(undefined);
+
+async function syncProfileAfterAuth(
+  token: string,
+  input: { fullName: string; phone?: string },
+): Promise<void> {
+  try {
+    await updateCustomerProfile(token, {
+      fullName: input.fullName,
+      phone: input.phone ?? "",
+    });
+  } catch {
+    // O GET /me sincroniza metadata depois, se necessário.
+  }
+}
 
 export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
@@ -45,46 +73,84 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function signUp(input: { fullName: string; phone?: string; email: string; password: string }) {
-    const { error } = await supabaseClient.auth.signUp({
+  async function signUp(input: {
+    fullName: string;
+    phone?: string;
+    email: string;
+    password: string;
+  }): Promise<SignUpResult> {
+    const { data, error } = await supabaseClient.auth.signUp({
       email: input.email,
       password: input.password,
       options: {
         data: {
-          full_name: input.fullName,
+          full_name: input.fullName.trim(),
           phone: input.phone ?? null,
         },
+        emailRedirectTo: `${window.location.origin}/conta`,
       },
     });
 
     if (error) {
-      throw error;
+      throw new Error(mapAuthError(error));
     }
 
-    // Atualiza perfil via API para garantir consistência com a tabela `customer_profiles`
-    // (mesmo se o trigger criar a linha vazia).
-    const nextSession = (await supabaseClient.auth.getSession()).data.session;
-    const token = nextSession?.access_token;
+    const token = data.session?.access_token;
     if (token) {
-      await fetch("/api/customers/me", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ fullName: input.fullName, phone: input.phone ?? "" }),
-      });
+      await syncProfileAfterAuth(token, input);
+      return { needsEmailConfirmation: false };
     }
+
+    return { needsEmailConfirmation: true };
   }
 
   async function signIn(email: string, password: string) {
-    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    const { error } = await supabaseClient.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (error) {
+      throw new Error(mapAuthError(error));
+    }
   }
 
   async function signOut() {
     const { error } = await supabaseClient.auth.signOut();
-    if (error) throw error;
+    if (error) {
+      throw new Error(mapAuthError(error));
+    }
+  }
+
+  async function resetPassword(email: string) {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/redefinir-senha`,
+    });
+
+    if (error) {
+      throw new Error(mapAuthError(error));
+    }
+  }
+
+  async function updatePassword(password: string) {
+    const { error } = await supabaseClient.auth.updateUser({ password });
+    if (error) {
+      throw new Error(mapAuthError(error));
+    }
+  }
+
+  async function resendSignupConfirmation(email: string) {
+    const { error } = await supabaseClient.auth.resend({
+      type: "signup",
+      email: email.trim(),
+      options: {
+        emailRedirectTo: `${window.location.origin}/conta`,
+      },
+    });
+
+    if (error) {
+      throw new Error(mapAuthError(error));
+    }
   }
 
   const value = useMemo(
@@ -95,6 +161,9 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       signOut,
+      resetPassword,
+      updatePassword,
+      resendSignupConfirmation,
     }),
     [isLoading, session, user],
   );
@@ -109,4 +178,3 @@ export function useCustomerAuth() {
   }
   return context;
 }
-

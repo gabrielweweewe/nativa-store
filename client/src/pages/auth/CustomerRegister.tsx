@@ -2,10 +2,12 @@ import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
+import { formatPhoneBr, isValidPhoneBr, normalizePhoneBr } from "@shared/lib/phoneBr";
 import { UserPlus, Mail, Lock, User, Phone } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -25,6 +27,7 @@ export default function CustomerRegister() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -35,6 +38,8 @@ export default function CustomerRegister() {
 
   const passwordHint = useMemo(() => getPasswordHint(password), [password]);
   const passwordsMatch = password === confirmPassword;
+  const phoneDigits = normalizePhoneBr(phone);
+  const phoneInvalid = phoneDigits.length > 0 && !isValidPhoneBr(phoneDigits);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,25 +54,48 @@ export default function CustomerRegister() {
       return;
     }
 
+    if (phoneInvalid) {
+      toast("Telefone inválido", { description: "Informe DDD + número com 10 ou 11 dígitos." });
+      return;
+    }
+
+    if (!acceptedTerms) {
+      toast("Aceite os termos", { description: "É necessário concordar para criar a conta." });
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await signUp({
+      const result = await signUp({
         fullName: fullName.trim(),
-        phone: phone.trim() || undefined,
+        phone: phoneDigits || undefined,
         email: email.trim(),
         password,
       });
 
-      toast("Cadastro criado!", {
-        description: "Se o Supabase exigir confirmação por e-mail, verifique sua caixa de entrada.",
-      });
+      if (result.needsEmailConfirmation) {
+        toast("Quase lá!", { description: "Confirme seu e-mail para ativar a conta." });
+        setLocation(`/verificar-email?email=${encodeURIComponent(email.trim())}`);
+        return;
+      }
+
+      toast("Cadastro criado!", { description: "Sua conta está pronta." });
       setLocation("/conta");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Não foi possível criar sua conta";
-      toast("Erro no cadastro", { description: message });
+      toast("Erro no cadastro", {
+        description: error instanceof Error ? error.message : "Não foi possível criar sua conta",
+      });
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F0E8]">
+        <Spinner className="size-8 text-[#C4522A]" />
+      </div>
+    );
   }
 
   return (
@@ -86,7 +114,7 @@ export default function CustomerRegister() {
               </h1>
             </div>
             <p className="mt-1 text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-              Cadastro rápido: nome e telefone agora, endereço e CPF ficam para o checkout.
+              Nome e telefone agora. Endereço e CPF serão solicitados no checkout.
             </p>
           </CardHeader>
           <CardContent>
@@ -99,6 +127,7 @@ export default function CustomerRegister() {
                     id="customer-name"
                     className="pl-9"
                     placeholder="Seu nome"
+                    autoComplete="name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     disabled={submitting}
@@ -107,18 +136,25 @@ export default function CustomerRegister() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="customer-phone">Telefone (opcional)</Label>
+                <Label htmlFor="customer-phone">Telefone (WhatsApp)</Label>
                 <div className="relative">
                   <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8B6F5E]" />
                   <Input
                     id="customer-phone"
                     className="pl-9"
                     placeholder="(11) 99999-9999"
+                    autoComplete="tel"
+                    inputMode="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(formatPhoneBr(e.target.value))}
                     disabled={submitting}
                   />
                 </div>
+                {phoneInvalid && (
+                  <p className="text-xs text-destructive" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                    Informe um telefone válido com DDD
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">
@@ -182,6 +218,18 @@ export default function CustomerRegister() {
                 )}
               </div>
 
+              <label className="flex items-start gap-3 text-sm text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                <Checkbox
+                  checked={acceptedTerms}
+                  onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+                  disabled={submitting}
+                  className="mt-0.5"
+                />
+                <span>
+                  Li e concordo com o uso dos meus dados para compras e comunicação da Nativa Store.
+                </span>
+              </label>
+
               <Button
                 type="submit"
                 disabled={
@@ -190,7 +238,9 @@ export default function CustomerRegister() {
                   !email.trim() ||
                   !password ||
                   !confirmPassword ||
-                  !passwordsMatch
+                  !passwordsMatch ||
+                  phoneInvalid ||
+                  !acceptedTerms
                 }
                 className="nativa-btn-primary mt-1 rounded-lg py-5"
               >
@@ -211,4 +261,3 @@ export default function CustomerRegister() {
     </div>
   );
 }
-

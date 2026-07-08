@@ -33,11 +33,20 @@ export default function CustomerLogin() {
       toast("Bem-vindo(a) de volta!", { description: "Login realizado com sucesso." });
       setLocation("/conta");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Não foi possível entrar";
-      toast("Erro ao entrar", { description: message });
+      toast("Erro ao entrar", {
+        description: error instanceof Error ? error.message : "Não foi possível entrar",
+      });
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F0E8]">
+        <Spinner className="size-8 text-[#C4522A]" />
+      </div>
+    );
   }
 
   return (
@@ -56,7 +65,7 @@ export default function CustomerLogin() {
               </h1>
             </div>
             <p className="mt-1 text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-              Acompanhe sua conta e facilite compras futuras.
+              Acompanhe pedidos e agilize suas próximas compras.
             </p>
           </CardHeader>
           <CardContent>
@@ -79,7 +88,15 @@ export default function CustomerLogin() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="customer-password">Senha</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="customer-password">Senha</Label>
+                  <Link
+                    href="/recuperar-senha"
+                    className="text-xs font-semibold text-[#C4522A] hover:underline"
+                  >
+                    Esqueci minha senha
+                  </Link>
+                </div>
                 <div className="relative">
                   <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8B6F5E]" />
                   <Input
@@ -117,4 +134,3 @@ export default function CustomerLogin() {
     </div>
   );
 }
-

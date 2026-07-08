@@ -1,8 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 
 export interface CustomerAuthRequest extends Request {
   customerUserId?: string;
+  customerUser?: User;
 }
 
 function getBearerToken(req: Request): string | null {
@@ -31,6 +33,6 @@ export async function requireCustomer(req: CustomerAuthRequest, res: Response, n
   }
 
   req.customerUserId = data.user.id;
+  req.customerUser = data.user;
   next();
 }
-
