@@ -89,7 +89,7 @@ function LeafSvg({ variant, size }: { variant: LeafVariant; size: number }) {
 
 export default function AuthFloatingLeaves() {
   return (
-    <div className="auth-floating-leaves pointer-events-none fixed inset-0 z-[1] overflow-hidden" aria-hidden>
+    <div className="auth-floating-leaves pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
       {LEAVES.map((leaf, index) => (
         <div
           key={index}
