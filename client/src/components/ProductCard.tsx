@@ -9,6 +9,7 @@ import { Link } from "wouter";
 import { toast } from "sonner";
 import type { Product } from "@shared/types/product";
 import { formatPrice } from "@/lib/products";
+import { useCart } from "@/contexts/CartContext";
 
 export type ProductCardVariant = "default" | "featured" | "wide" | "tall" | "compact";
 
@@ -17,8 +18,25 @@ interface ProductCardProps {
   variant?: ProductCardVariant;
 }
 
+function getDefaultSize(product: Product): string | null {
+  const available = product.sizes.filter((s) => s.available);
+  if (available.length === 1) return available[0].label;
+  if (available.length === 0) return null;
+  return null;
+}
+
+function getDefaultColor(product: Product): string {
+  return product.colors[0]?.name ?? "";
+}
+
+function hasComplexVariants(product: Product): boolean {
+  const availableSizes = product.sizes.filter((s) => s.available);
+  return availableSizes.length > 1 || product.colors.length > 1;
+}
+
 export default function ProductCard({ product, variant = "default" }: ProductCardProps) {
   const [isFav, setIsFav] = useState(false);
+  const { addItem, openDrawer, isUpdating } = useCart();
 
   const imageAspect = "aspect-[4/5]";
 
@@ -29,10 +47,39 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
     toast(isFav ? "Removido dos favoritos" : "Adicionado aos favoritos!");
   };
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    toast(`${product.name} adicionada!`, { description: "Funcionalidade em breve." });
+
+    if (!product.inStock || product.stockCount <= 0) {
+      toast.error("Produto esgotado");
+      return;
+    }
+
+    if (hasComplexVariants(product)) {
+      toast("Escolha as opções na página do produto", {
+        description: "Este item possui tamanhos ou cores para selecionar.",
+      });
+      return;
+    }
+
+    const size = getDefaultSize(product);
+    if (!size) {
+      toast.error("Nenhum tamanho disponível");
+      return;
+    }
+
+    const ok = await addItem({
+      productSlug: product.slug,
+      quantity: 1,
+      size,
+      color: getDefaultColor(product),
+    });
+
+    if (ok) {
+      toast.success(`${product.name} adicionada!`);
+      openDrawer();
+    }
   };
 
   return (
@@ -73,7 +120,8 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
           <div className="absolute bottom-3 left-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-2 group-hover:translate-y-0">
             <button
               onClick={handleAddToCart}
-              className="w-full py-2 rounded-xl text-white text-xs font-semibold flex items-center justify-center gap-2"
+              disabled={isUpdating}
+              className="w-full py-2 rounded-xl text-white text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
               style={{ background: "linear-gradient(135deg, #C4522A, #E8821A)", fontFamily: "'Nunito', sans-serif" }}
             >
               <ShoppingBag size={13} />

@@ -9,6 +9,7 @@ import { ShoppingBag, Menu, X, Search, Heart, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import NativaLogo from "./NativaLogo";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
+import { useCart } from "@/contexts/CartContext";
 
 const navLinks = [
   { label: "Coleções", href: "#colecoes" },
@@ -31,6 +32,7 @@ export default function Navbar() {
     location.startsWith("/verificar-email");
   const showSolidHeader = scrolled || !isHome || isAuthPage;
   const { user, isLoading } = useCustomerAuth();
+  const { itemCount, openDrawer } = useCart();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
@@ -125,11 +127,19 @@ export default function Navbar() {
                 <Heart size={18} />
               </button>
               <button
-                onClick={() => toast("Carrinho em breve!", { description: "Funcionalidade sendo desenvolvida." })}
+                onClick={openDrawer}
                 className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-[#C4522A]/10 text-[#3D2B1F] hover:text-[#C4522A] transition-all duration-200"
-                aria-label="Carrinho"
+                aria-label={`Carrinho${itemCount > 0 ? `, ${itemCount} itens` : ""}`}
               >
                 <ShoppingBag size={18} />
+                {itemCount > 0 && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white animate-in zoom-in duration-200"
+                    style={{ background: "linear-gradient(135deg, #C4522A, #E8821A)" }}
+                  >
+                    {itemCount > 99 ? "99+" : itemCount}
+                  </span>
+                )}
               </button>
               <button
                 className="md:hidden flex items-center justify-center w-9 h-9 rounded-full hover:bg-[#C4522A]/10 text-[#3D2B1F] transition-all duration-200"

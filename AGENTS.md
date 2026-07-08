@@ -44,8 +44,8 @@ nativa-store/
 │       ├── pages/          # Home, ProductPage, NotFound
 │       │   └── admin/      # AdminLogin, AdminProductsList, AdminProductForm, AdminProductImport
 │       ├── components/     # UI da loja + ui/ (shadcn) + admin/ (AdminLayout, ImageManager...)
-│       ├── contexts/        # ThemeContext, AdminAuthContext
-│       └── lib/products.ts, adminApi.ts # fetch da API (NÃO importa dados fixos)
+│       ├── contexts/        # ThemeContext, AdminAuthContext, CustomerAuthContext, CartContext
+│       └── lib/products.ts, adminApi.ts, cartApi.ts, customerApi.ts
 ├── server/                 # Backend Express
 │   ├── index.ts            # Produção: API + arquivos estáticos
 │   ├── dev.ts              # Dev: só API na porta 3001
@@ -55,8 +55,10 @@ nativa-store/
 │   ├── lib/upload.ts       # Config do multer (upload de imagens)
 │   ├── middleware/requireAdmin.ts
 │   ├── routes/products.ts  # CRUD (GET público; POST/PUT/DELETE/bulk protegidos)
+│   ├── routes/cart.ts      # Carrinho (GET/POST/PATCH/DELETE públicos; merge exige Bearer)
+│   ├── routes/customers.ts # Perfil do cliente (GET/PUT /me)
 │   ├── routes/admin.ts     # login/logout/me/uploads
-│   ├── services/products.ts, uploads.ts
+│   ├── services/products.ts, uploads.ts, cart.ts
 │   └── scripts/
 │       ├── seed-products.ts        # Popula com dados de exemplo (legado)
 │       ├── migrate-tiendanube.ts   # Migra CSV da Nuvemshop → Supabase
@@ -71,6 +73,8 @@ nativa-store/
 │   └── data/products.ts    # ⚠️ LEGADO — produtos fictícios de demo (não usado no site)
 ├── docs/importacao-em-massa.md # Guia da importação em massa de produtos
 ├── supabase/setup.sql      # DDL da tabela products
+├── supabase/customers.sql  # Perfis de clientes (Supabase Auth)
+├── supabase/cart.sql       # Carrinho (carts + cart_items)
 ├── .env                    # Segredos (NÃO commitar)
 ├── .env.example
 ├── vite.config.ts          # Proxy /api → localhost:3001 em dev
@@ -87,6 +91,7 @@ nativa-store/
 2. `pnpm install` na raiz
 3. Arquivo `.env` configurado (copiar de `.env.example`)
 4. Tabela `products` criada no Supabase (`supabase/setup.sql`)
+5. Tabelas de cliente e carrinho (`supabase/customers.sql`, `supabase/cart.sql`)
 
 ### Variáveis de ambiente (`.env`)
 
@@ -198,6 +203,15 @@ Base: `/api`
 | `POST` | `/api/admin/logout` | Limpa o cookie de sessão | Pública |
 | `GET` | `/api/admin/me` | Verifica se o cookie atual é válido | Admin |
 | `POST` | `/api/admin/uploads` | Upload de imagem (`multipart/form-data`, campo `file`) → sobe para o Supabase Storage e retorna `{ url }` | Admin |
+| `GET` | `/api/customers/me` | Perfil do cliente logado | Cliente (Bearer) |
+| `PUT` | `/api/customers/me` | Atualiza perfil do cliente | Cliente (Bearer) |
+| `GET` | `/api/cart` | Carrinho completo + resumo (subtotal, frete grátis) | Pública (cookie ou Bearer) |
+| `POST` | `/api/cart/items` | Adiciona item `{ productSlug, quantity, size, color? }` | Pública |
+| `PATCH` | `/api/cart/items/:itemId` | Atualiza quantidade `{ quantity }` | Pública |
+| `DELETE` | `/api/cart/items/:itemId` | Remove item | Pública |
+| `DELETE` | `/api/cart` | Esvazia carrinho | Pública |
+| `PATCH` | `/api/cart/coupon` | Salva cupom `{ couponCode }` (validação no checkout) | Pública |
+| `POST` | `/api/cart/merge` | Une carrinho convidado ao do cliente logado | Cliente (Bearer) |
 
 **Ordem das rotas em `server/index.ts`:** rotas `/api` **antes** do `app.get("*")` que serve o `index.html`.
 
@@ -210,6 +224,11 @@ válido, emitido em `/api/admin/login`).
 // client/src/lib/products.ts
 fetchProducts()           // GET /api/products
 fetchProductBySlug(slug)  // GET /api/products/:slug
+
+// client/src/lib/cartApi.ts
+fetchCart()               // GET /api/cart (credentials: include)
+addCartItem(...)          // POST /api/cart/items
+mergeCart(token)          // POST /api/cart/merge (após login)
 ```
 
 **Não** fazer o React importar `@shared/data/products` nem acessar Supabase diretamente.
@@ -251,6 +270,11 @@ Lê `tiendanube-6418246-17834446675007348008384088291.csv` (ou `TIENDANUBE_CSV_P
 |------|--------|-----------|
 | `/` | `Home` | Landing com seções (hero, coleções, sobre, etc.) |
 | `/produto/:slug` | `ProductPage` | PDP completa |
+| `/carrinho` | `CartPage` | Página completa do carrinho |
+| `/checkout` | `CheckoutPage` | Placeholder — checkout em breve |
+| `/entrar` | `CustomerLogin` | Login de cliente |
+| `/cadastro` | `CustomerRegister` | Cadastro de cliente |
+| `/conta` | `CustomerAccount` | Minha conta (dados, pedidos, segurança) |
 | `/admin/login` | `AdminLogin` | Login do painel admin (senha única) |
 | `/admin/produtos` | `AdminProductsList` | Lista/busca/exclui produtos |
 | `/admin/produtos/novo` | `AdminProductForm` | Cadastro de produto |
@@ -299,6 +323,7 @@ flowchart LR
 
 - Navbar, Footer, seções da home (ProductsSection, AboutSection, etc.)
 - ProductCard, ProductPage com galeria, tamanhos, cores, FAQ accordion
+- **Carrinho:** painel lateral (`CartDrawer`), página `/carrinho`, badge na Navbar, persistência no Supabase
 - Design system com cores e fontes (Playfair Display, Lora, Nunito)
 - Toasts (Sonner) para feedback
 
@@ -306,9 +331,9 @@ flowchart LR
 
 | Recurso | Status |
 |---------|--------|
-| Carrinho real | ❌ Só toast "em breve" |
-| Checkout / pagamento | ❌ |
-| Login de cliente | ❌ |
+| Carrinho real | ✅ Persistido no Supabase — visitante (cookie) + cliente logado (merge ao entrar) |
+| Checkout / pagamento | ❌ Rota `/checkout` placeholder |
+| Login de cliente | ✅ Supabase Auth + perfil em `customer_profiles` |
 | Painel admin | ✅ CRUD de produtos em `/admin` (jul/2026) |
 | Pedidos (`orders`) | ❌ Sem tabela — módulo "Pedidos" já aparece no menu do admin como "Em breve" |
 | Configurações da loja | ❌ Módulo "Configurações" já aparece no menu do admin como "Em breve" |
@@ -317,7 +342,19 @@ flowchart LR
 | Avaliações reais | ❌ Campos existem, dados zerados |
 | API de escrita (CRUD admin) | ✅ `POST/PUT/DELETE /api/products` + `/bulk`, protegidos por login admin |
 
-Ao implementar carrinho/pedidos, criar novas tabelas no Supabase e novas rotas em `server/routes/`.
+Ao implementar pedidos, criar novas tabelas no Supabase e novas rotas em `server/routes/`.
+
+### Tabelas `carts` e `cart_items`
+
+Definidas em `supabase/cart.sql`. Escrita/leitura via API Express (service role).
+
+- **Visitante:** cookie httpOnly `nativa_cart_session` (30 dias)
+- **Cliente logado:** carrinho vinculado a `auth.users.id`; merge automático ao login
+- **Snapshots** em `cart_items` (preço, nome, imagem, SKU) — base para pedidos no checkout
+- **Frete grátis:** barra de progresso acima de R$ 299 (`shared/const/cart.ts`)
+- **Cupom:** campo `coupon_code` persistido; validação real no checkout
+
+Mapeamento: `shared/lib/cartMapper.ts` — tipos em `shared/types/cart.ts`, validação em `shared/schemas/cart.ts`.
 
 ---
 
@@ -449,8 +486,9 @@ Antes de codar, confirme:
 4. **Painel admin (jul/2026):** login por senha única (JWT em cookie httpOnly), CRUD completo de
    produtos em `/admin`, upload de imagens via Supabase Storage e importação em massa por
    planilha (CSV/XLSX) com pré-visualização
-5. **Pendente:** carrinho, checkout, pedidos, configurações da loja
+5. **Pendente:** checkout, pedidos, configurações da loja
+6. **Carrinho (jul/2026):** tabelas `carts`/`cart_items`, API `/api/cart/*`, `CartContext`, painel lateral + página `/carrinho`, preparado para checkout
 
 ---
 
-*Última atualização: julho de 2026 (adição do painel admin de produtos)*
+*Última atualização: julho de 2026 (carrinho de compras + painel admin de produtos)*

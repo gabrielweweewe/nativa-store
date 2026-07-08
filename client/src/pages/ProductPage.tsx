@@ -40,6 +40,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { formatPrice, fetchProductBySlug, fetchProducts, getRelatedProducts } from "@/lib/products";
+import { useCart } from "@/contexts/CartContext";
 import type { Product } from "@shared/types/product";
 import NotFound from "@/pages/NotFound";
 
@@ -57,6 +58,7 @@ export default function ProductPage() {
   const [selectedColor, setSelectedColor] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [isFav, setIsFav] = useState(false);
+  const { addItem, openDrawer, isUpdating } = useCart();
 
   useEffect(() => {
     const slug = params.slug ?? "";
@@ -128,14 +130,25 @@ export default function ProductPage() {
       ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
       : null;
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!selectedSize) {
       toast.error("Selecione um tamanho");
       return;
     }
-    toast.success(`${product.name} adicionada ao carrinho!`, {
-      description: `${quantity}x ${selectedSize}${product.colors.length > 1 ? ` · ${selectedColor}` : ""} — Funcionalidade em breve.`,
+
+    const ok = await addItem({
+      productSlug: product.slug,
+      quantity,
+      size: selectedSize,
+      color: selectedColor,
     });
+
+    if (ok) {
+      toast.success(`${product.name} adicionada ao carrinho!`, {
+        description: `${quantity}x ${selectedSize}${product.colors.length > 1 ? ` · ${selectedColor}` : ""}`,
+      });
+      openDrawer();
+    }
   };
 
   return (
@@ -396,7 +409,8 @@ export default function ProductPage() {
               <div className="flex flex-col sm:flex-row gap-3 mb-6">
                 <button
                   onClick={handleAddToCart}
-                  className="flex-1 py-4 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]"
+                  disabled={isUpdating || !product.inStock}
+                  className="flex-1 py-4 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] disabled:opacity-60 disabled:pointer-events-none"
                   style={{
                     background: "linear-gradient(135deg, #C4522A, #E8821A)",
                     fontFamily: "'Nunito', sans-serif",

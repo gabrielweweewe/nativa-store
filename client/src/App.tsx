@@ -16,6 +16,10 @@ import CustomerAccount from "./pages/auth/CustomerAccount";
 import CustomerForgotPassword from "./pages/auth/CustomerForgotPassword";
 import CustomerResetPassword from "./pages/auth/CustomerResetPassword";
 import CustomerVerifyEmail from "./pages/auth/CustomerVerifyEmail";
+import CartPage from "./pages/CartPage";
+import CheckoutPage from "./pages/CheckoutPage";
+import { CartProvider } from "./contexts/CartContext";
+import CartDrawer from "./components/cart/CartDrawer";
 
 // Lazy: o painel admin (e a lib de planilhas usada na importação em massa) só é
 // carregado quando alguém acessa /admin — não pesa o bundle da loja pública.
@@ -51,6 +55,8 @@ function Router() {
       <Route path={"/redefinir-senha"} component={CustomerResetPassword} />
       <Route path={"/verificar-email"} component={CustomerVerifyEmail} />
       <Route path={"/conta"} component={CustomerAccount} />
+      <Route path={"/carrinho"} component={CartPage} />
+      <Route path={"/checkout"} component={CheckoutPage} />
       <Route path={"/produto/:slug"} component={ProductPage} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
@@ -72,11 +78,14 @@ function App() {
         // switchable
       >
         <CustomerAuthProvider>
-          <AuthHashRouter />
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
+          <CartProvider>
+            <AuthHashRouter />
+            <TooltipProvider>
+              <Toaster />
+              <CartDrawer />
+              <Router />
+            </TooltipProvider>
+          </CartProvider>
         </CustomerAuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
