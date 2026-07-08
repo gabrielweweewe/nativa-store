@@ -6,7 +6,6 @@
 
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
-import FeaturesSection from "@/components/FeaturesSection";
 import CategoriesSection from "@/components/CategoriesSection";
 import ProductsSection from "@/components/ProductsSection";
 import AboutSection from "@/components/AboutSection";
@@ -19,7 +18,6 @@ export default function Home() {
     <div className="min-h-screen" style={{ background: "#F5F0E8" }}>
       <Navbar />
       <HeroSection />
-      <FeaturesSection />
       <CategoriesSection />
       <ProductsSection />
       <AboutSection />

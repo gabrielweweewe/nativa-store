@@ -46,14 +46,14 @@ export default function Footer() {
     >
       {/* Main footer content */}
       <div className="container py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 text-center md:text-left">
           {/* Brand column */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 flex flex-col items-center md:items-start">
             <div className="mb-4">
               <NativaLogo className="h-12 sm:h-14 w-auto" taglineClassName="text-white/70" showTagline />
             </div>
             <p
-              className="text-white/65 text-sm leading-relaxed mb-6 max-w-xs"
+              className="text-white/65 text-sm leading-relaxed mb-6 max-w-xs mx-auto md:mx-0"
               style={{ fontFamily: "'Lora', serif", fontStyle: "italic" }}
             >
               Peças autorais e exclusivas, criadas para contar histórias e vestir identidade. Moda artesanal brasileira com alma.
@@ -66,7 +66,7 @@ export default function Footer() {
                 { icon: <Phone size={14} />, text: "(11) 9 9999-9999" },
                 { icon: <MapPin size={14} />, text: "São Paulo, SP — Brasil" },
               ].map((item) => (
-                <div key={item.text} className="flex items-center gap-2 text-white/55">
+                <div key={item.text} className="flex items-center justify-center md:justify-start gap-2 text-white/55">
                   <span className="text-[#E8821A]">{item.icon}</span>
                   <span
                     className="text-xs"
@@ -79,7 +79,7 @@ export default function Footer() {
             </div>
 
             {/* Social links */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 justify-center md:justify-start">
               {[
                 { icon: <Instagram size={16} />, label: "Instagram" },
                 { icon: <Facebook size={16} />, label: "Facebook" },
@@ -103,7 +103,7 @@ export default function Footer() {
 
           {/* Links columns */}
           {Object.entries(footerLinks).map(([section, links]) => (
-            <div key={section}>
+            <div key={section} className="flex flex-col items-center md:items-start">
               <h4
                 className="text-xs font-bold uppercase tracking-widest mb-4"
                 style={{
@@ -137,7 +137,7 @@ export default function Footer() {
         className="border-t py-5"
         style={{ borderColor: "rgba(255,255,255,0.08)" }}
       >
-        <div className="container flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="container flex flex-col md:flex-row items-center justify-center md:justify-between gap-3 text-center">
           <p
             className="text-xs text-white/35"
             style={{ fontFamily: "'Nunito', sans-serif" }}
