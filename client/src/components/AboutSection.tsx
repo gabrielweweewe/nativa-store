@@ -4,9 +4,160 @@
  * Two-column layout: portrait artisan photo left, story text right
  */
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowNativa, FeatherGreen, FeatherRed, WaveDividerDown, WaveDividerUp } from "./NativaDecorations";
 
 const ABOUT_IMAGE = "/images/1cad9ce5-deab-4955-8b80-f93e26115088.jpg";
+const MAX_TILT = 10;
+
+type TiltState = {
+  rotateX: number;
+  rotateY: number;
+  glareX: number;
+  glareY: number;
+  isHovering: boolean;
+};
+
+const TILT_RESET: TiltState = {
+  rotateX: 0,
+  rotateY: 0,
+  glareX: 50,
+  glareY: 50,
+  isHovering: false,
+};
+
+function AboutPhotoCard() {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState<TiltState>(TILT_RESET);
+  const [motionReduced, setMotionReduced] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setMotionReduced(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  const handleMouseMove = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (motionReduced) return;
+
+      const element = cardRef.current;
+      if (!element) return;
+
+      const rect = element.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+
+      setTilt({
+        rotateX: ((centerY - y) / centerY) * MAX_TILT,
+        rotateY: ((x - centerX) / centerX) * MAX_TILT,
+        glareX: (x / rect.width) * 100,
+        glareY: (y / rect.height) * 100,
+        isHovering: true,
+      });
+    },
+    [motionReduced],
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    setTilt(TILT_RESET);
+  }, []);
+
+  const cardTransform = tilt.isHovering
+    ? `rotateX(${tilt.rotateX}deg) rotateY(${tilt.rotateY}deg) scale3d(1.03, 1.03, 1.03)`
+    : "rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)";
+
+  const backdropTransform = tilt.isHovering
+    ? `translate3d(${12 + tilt.rotateY * 0.6}px, ${12 - tilt.rotateX * 0.6}px, -40px) rotateY(${-tilt.rotateY * 0.35}deg)`
+    : "translate3d(12px, 12px, -40px)";
+
+  return (
+    <div
+      ref={cardRef}
+      className="relative w-full max-w-[280px] sm:max-w-[300px] lg:max-w-[340px]"
+      style={{ perspective: "1200px" }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div
+        className="absolute top-5 left-5 right-0 bottom-0 rounded-3xl hidden sm:block"
+        style={{
+          background: "linear-gradient(145deg, #C4522A22, #2D6A4F18)",
+          transform: backdropTransform,
+          transformStyle: "preserve-3d",
+          transition: tilt.isHovering ? "none" : "transform 0.55s ease-out",
+        }}
+        aria-hidden
+      />
+
+      <div
+        className="relative will-change-transform"
+        style={{
+          transform: cardTransform,
+          transformStyle: "preserve-3d",
+          transition: tilt.isHovering
+            ? "box-shadow 0.15s ease"
+            : "transform 0.55s ease-out, box-shadow 0.55s ease-out",
+          boxShadow: tilt.isHovering
+            ? `${tilt.rotateY * -1.2}px ${24 + tilt.rotateX * -0.8}px 56px oklch(0.52 0.14 38 / 0.28)`
+            : "0 24px 64px oklch(0.52 0.14 38 / 0.18)",
+        }}
+      >
+        <div className="relative rounded-3xl overflow-hidden ring-[3px] ring-white/90">
+          <img
+            src={ABOUT_IMAGE}
+            alt="Artesã Nativa no ateliê, com bolsa artesanal e máquina de costura"
+            className="w-full h-auto block"
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+          />
+          {tilt.isHovering && !motionReduced && (
+            <div
+              className="pointer-events-none absolute inset-0 rounded-3xl transition-opacity duration-300"
+              style={{
+                background: `radial-gradient(circle at ${tilt.glareX}% ${tilt.glareY}%, rgba(255,255,255,0.28) 0%, transparent 55%)`,
+                mixBlendMode: "soft-light",
+              }}
+              aria-hidden
+            />
+          )}
+        </div>
+
+        <div
+          className="absolute -bottom-5 -right-3 sm:-right-6 bg-white rounded-2xl p-4 shadow-xl border border-[#E8D5C4] z-10"
+          style={{
+            maxWidth: "168px",
+            transform: tilt.isHovering
+              ? "translateZ(36px) rotateX(-2deg)"
+              : "translateZ(0)",
+            transition: tilt.isHovering ? "none" : "transform 0.55s ease-out",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xl">🪡</span>
+            <span
+              className="text-xs font-bold text-[#C4522A] uppercase tracking-wide"
+              style={{ fontFamily: "'Nunito', sans-serif" }}
+            >
+              Feito à mão
+            </span>
+          </div>
+          <p
+            className="text-xs text-[#8B6F5E] leading-snug"
+            style={{ fontFamily: "'Lora', serif" }}
+          >
+            Cada peça costurada com carinho no nosso ateliê
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const values = [
   {
@@ -45,51 +196,9 @@ export default function AboutSection() {
 
         <div className="container">
           <div className="grid md:grid-cols-[minmax(0,340px)_1fr] lg:grid-cols-[minmax(0,380px)_1fr] gap-12 lg:gap-16 xl:gap-20 items-center">
-            {/* Portrait photo — natural aspect ratio with decorative frame */}
-            <div className="relative order-2 md:order-1 flex justify-center md:justify-start">
-              <div
-                className="absolute top-5 left-5 right-0 bottom-0 rounded-3xl hidden sm:block"
-                style={{
-                  background: "linear-gradient(145deg, #C4522A22, #2D6A4F18)",
-                  transform: "translate(12px, 12px)",
-                }}
-                aria-hidden
-              />
-              <div className="relative w-full max-w-[280px] sm:max-w-[300px] lg:max-w-[340px]">
-                <div
-                  className="rounded-3xl overflow-hidden shadow-2xl ring-[3px] ring-white/90"
-                  style={{ boxShadow: "0 24px 64px oklch(0.52 0.14 38 / 0.18)" }}
-                >
-                  <img
-                    src={ABOUT_IMAGE}
-                    alt="Artesã Nativa no ateliê, com bolsa artesanal e máquina de costura"
-                    className="w-full h-auto block"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-                {/* Floating accent card */}
-                <div
-                  className="absolute -bottom-5 -right-3 sm:-right-6 bg-white rounded-2xl p-4 shadow-xl border border-[#E8D5C4] z-10"
-                  style={{ maxWidth: "168px" }}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xl">🪡</span>
-                    <span
-                      className="text-xs font-bold text-[#C4522A] uppercase tracking-wide"
-                      style={{ fontFamily: "'Nunito', sans-serif" }}
-                    >
-                      Feito à mão
-                    </span>
-                  </div>
-                  <p
-                    className="text-xs text-[#8B6F5E] leading-snug"
-                    style={{ fontFamily: "'Lora', serif" }}
-                  >
-                    Cada peça costurada com carinho no nosso ateliê
-                  </p>
-                </div>
-              </div>
+            {/* Portrait photo — 3D tilt on hover */}
+            <div className="relative order-2 md:order-1 flex justify-center md:justify-start py-2">
+              <AboutPhotoCard />
             </div>
 
             {/* Text side */}
