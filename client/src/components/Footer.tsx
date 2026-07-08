@@ -7,7 +7,9 @@
 import { toast } from "sonner";
 import { Instagram, Facebook, Youtube, Mail, MapPin, Phone } from "lucide-react";
 import NativaLogo from "./NativaLogo";
-import { WaveDividerUp } from "./NativaDecorations";
+import { WaveDividerDown } from "./NativaDecorations";
+
+const FOOTER_BG = "#1A3D2B";
 
 const footerLinks = {
   loja: [
@@ -42,10 +44,10 @@ export default function Footer() {
 
   return (
     <>
-      <WaveDividerUp color="#FAF7F2" />
+      <WaveDividerDown color={FOOTER_BG} />
       <footer
         id="contato"
-        style={{ background: "#1A3D2B" }}
+        style={{ background: FOOTER_BG }}
       >
       {/* Main footer content */}
       <div className="container py-16">
