@@ -1,11 +1,24 @@
 import RequireAdminAuth from "@/components/admin/RequireAdminAuth";
 import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
+import { AdminNotificationsProvider } from "@/contexts/AdminNotificationsContext";
 import NotFound from "@/pages/NotFound";
 import { Redirect, Route, Switch } from "wouter";
+import AdminCustomerDetail from "./AdminCustomerDetail";
+import AdminCustomersList from "./AdminCustomersList";
 import AdminLogin from "./AdminLogin";
+import AdminOrderDetail from "./AdminOrderDetail";
+import AdminOrdersList from "./AdminOrdersList";
 import AdminProductForm from "./AdminProductForm";
 import AdminProductImport from "./AdminProductImport";
 import AdminProductsList from "./AdminProductsList";
+
+function ProtectedAdmin({ children }: { children: React.ReactNode }) {
+  return (
+    <RequireAdminAuth>
+      <AdminNotificationsProvider>{children}</AdminNotificationsProvider>
+    </RequireAdminAuth>
+  );
+}
 
 /** Roteador do painel admin — carregado sob demanda (lazy) para não pesar o bundle da loja. */
 export default function AdminRouter() {
@@ -17,29 +30,49 @@ export default function AdminRouter() {
           <Redirect to="/admin/produtos" />
         </Route>
         <Route path="/admin/produtos">
-          <RequireAdminAuth>
+          <ProtectedAdmin>
             <AdminProductsList />
-          </RequireAdminAuth>
+          </ProtectedAdmin>
         </Route>
         <Route path="/admin/produtos/importar">
-          <RequireAdminAuth>
+          <ProtectedAdmin>
             <AdminProductImport />
-          </RequireAdminAuth>
+          </ProtectedAdmin>
         </Route>
         <Route path="/admin/produtos/novo">
-          <RequireAdminAuth>
+          <ProtectedAdmin>
             <AdminProductForm />
-          </RequireAdminAuth>
+          </ProtectedAdmin>
         </Route>
         <Route path="/admin/produtos/:slug/editar">
-          <RequireAdminAuth>
+          <ProtectedAdmin>
             <AdminProductForm />
-          </RequireAdminAuth>
+          </ProtectedAdmin>
+        </Route>
+        <Route path="/admin/pedidos">
+          <ProtectedAdmin>
+            <AdminOrdersList />
+          </ProtectedAdmin>
+        </Route>
+        <Route path="/admin/pedidos/:id">
+          <ProtectedAdmin>
+            <AdminOrderDetail />
+          </ProtectedAdmin>
+        </Route>
+        <Route path="/admin/clientes">
+          <ProtectedAdmin>
+            <AdminCustomersList />
+          </ProtectedAdmin>
+        </Route>
+        <Route path="/admin/clientes/:id">
+          <ProtectedAdmin>
+            <AdminCustomerDetail />
+          </ProtectedAdmin>
         </Route>
         <Route>
-          <RequireAdminAuth>
+          <ProtectedAdmin>
             <NotFound />
-          </RequireAdminAuth>
+          </ProtectedAdmin>
         </Route>
       </Switch>
     </AdminAuthProvider>

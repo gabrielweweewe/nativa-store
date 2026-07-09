@@ -3,7 +3,7 @@ import cookieParser from "cookie-parser";
 import express from "express";
 
 // server/routes/admin.ts
-import { Router } from "express";
+import { Router as Router4 } from "express";
 
 // server/lib/adminAuth.ts
 import crypto from "node:crypto";
@@ -119,8 +119,604 @@ async function uploadProductImage(file) {
   return data.publicUrl;
 }
 
-// server/routes/admin.ts
+// server/routes/adminCustomers.ts
+import { Router } from "express";
+
+// shared/lib/orderMapper.ts
+function toNumber(value) {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") return parseFloat(value);
+  return 0;
+}
+function mapOrderItemRowToOrderItem(row) {
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    productSlug: row.product_slug,
+    name: row.name,
+    quantity: row.quantity,
+    price: toNumber(row.price),
+    size: row.size,
+    color: row.color,
+    image: row.image
+  };
+}
+function mapOrderRowToOrder(row, items) {
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    status: row.status,
+    totalAmount: toNumber(row.total_amount),
+    shippingAmount: toNumber(row.shipping_amount),
+    couponCode: row.coupon_code,
+    shippingAddress: row.shipping_address,
+    paymentMethod: row.payment_method,
+    items,
+    createdAt: row.created_at
+  };
+}
+function mapOrderRowToSummary(row, itemCount) {
+  return {
+    id: row.id,
+    status: row.status,
+    totalAmount: toNumber(row.total_amount),
+    shippingAmount: toNumber(row.shipping_amount),
+    couponCode: row.coupon_code,
+    paymentMethod: row.payment_method,
+    itemCount,
+    createdAt: row.created_at
+  };
+}
+function mapCartItemToOrderItemPayload(item) {
+  return {
+    product_slug: item.product_slug,
+    name: item.product_name,
+    quantity: item.quantity,
+    price: toNumber(item.unit_price),
+    size: item.size_label,
+    color: item.color_name || null,
+    image: item.product_image
+  };
+}
+
+// shared/lib/addressMapper.ts
+function mapCustomerAddressRowToCustomerAddress(row) {
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    label: row.label,
+    cep: row.cep,
+    rua: row.rua,
+    numero: row.numero,
+    complemento: row.complemento,
+    bairro: row.bairro,
+    cidade: row.cidade,
+    estado: row.estado,
+    isDefault: row.is_default,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+function mapCustomerAddressToRow(customerId, input) {
+  return {
+    customer_id: customerId,
+    label: input.label,
+    cep: input.cep,
+    rua: input.rua,
+    numero: input.numero,
+    complemento: input.complemento ?? null,
+    bairro: input.bairro,
+    cidade: input.cidade,
+    estado: input.estado,
+    is_default: input.isDefault ?? false
+  };
+}
+
+// server/services/addresses.ts
+async function clearDefaultAddress(customerId, exceptId) {
+  let query = supabase.from("customer_addresses").update({ is_default: false }).eq("customer_id", customerId).eq("is_default", true);
+  if (exceptId) {
+    query = query.neq("id", exceptId);
+  }
+  const { error } = await query;
+  if (error) throw new Error(error.message);
+}
+async function listCustomerAddresses(customerId) {
+  const { data, error } = await supabase.from("customer_addresses").select("*").eq("customer_id", customerId).order("is_default", { ascending: false }).order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => mapCustomerAddressRowToCustomerAddress(row));
+}
+async function createCustomerAddress(customerId, input) {
+  if (input.isDefault) {
+    await clearDefaultAddress(customerId);
+  }
+  const { data: existing } = await supabase.from("customer_addresses").select("id").eq("customer_id", customerId).limit(1);
+  const shouldBeDefault = input.isDefault || !existing?.length;
+  const { data, error } = await supabase.from("customer_addresses").insert(mapCustomerAddressToRow(customerId, { ...input, isDefault: shouldBeDefault })).select("*").single();
+  if (error) throw new Error(error.message);
+  return mapCustomerAddressRowToCustomerAddress(data);
+}
+async function updateCustomerAddress(customerId, addressId, input) {
+  const { data: current, error: fetchError } = await supabase.from("customer_addresses").select("*").eq("id", addressId).eq("customer_id", customerId).maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+  if (!current) throw new Error("Endere\xE7o n\xE3o encontrado");
+  if (input.isDefault) {
+    await clearDefaultAddress(customerId, addressId);
+  }
+  const payload = {};
+  if (input.label !== void 0) payload.label = input.label;
+  if (input.cep !== void 0) payload.cep = input.cep;
+  if (input.rua !== void 0) payload.rua = input.rua;
+  if (input.numero !== void 0) payload.numero = input.numero;
+  if (input.complemento !== void 0) payload.complemento = input.complemento ?? null;
+  if (input.bairro !== void 0) payload.bairro = input.bairro;
+  if (input.cidade !== void 0) payload.cidade = input.cidade;
+  if (input.estado !== void 0) payload.estado = input.estado;
+  if (input.isDefault !== void 0) payload.is_default = input.isDefault;
+  const { data, error } = await supabase.from("customer_addresses").update(payload).eq("id", addressId).eq("customer_id", customerId).select("*").single();
+  if (error) throw new Error(error.message);
+  return mapCustomerAddressRowToCustomerAddress(data);
+}
+async function deleteCustomerAddress(customerId, addressId) {
+  const { data: current, error: fetchError } = await supabase.from("customer_addresses").select("*").eq("id", addressId).eq("customer_id", customerId).maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+  if (!current) throw new Error("Endere\xE7o n\xE3o encontrado");
+  const { error } = await supabase.from("customer_addresses").delete().eq("id", addressId).eq("customer_id", customerId);
+  if (error) throw new Error(error.message);
+  if (current.is_default) {
+    const { data: nextDefault } = await supabase.from("customer_addresses").select("id").eq("customer_id", customerId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (nextDefault?.id) {
+      await supabase.from("customer_addresses").update({ is_default: true }).eq("id", nextDefault.id);
+    }
+  }
+}
+async function setDefaultCustomerAddress(customerId, addressId) {
+  return updateCustomerAddress(customerId, addressId, { isDefault: true });
+}
+
+// server/services/adminCustomers.ts
+async function fetchAllProfiles() {
+  const { data, error } = await supabase.from("customer_profiles").select("*").order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+async function fetchAuthUsersByIds(ids) {
+  const users = /* @__PURE__ */ new Map();
+  if (!ids.length) return users;
+  await Promise.all(
+    ids.map(async (id) => {
+      const { data } = await supabase.auth.admin.getUserById(id);
+      if (data?.user) {
+        users.set(id, {
+          email: data.user.email ?? "",
+          emailVerified: Boolean(data.user.email_confirmed_at)
+        });
+      }
+    })
+  );
+  return users;
+}
+async function fetchOrderStatsByCustomer() {
+  const stats = /* @__PURE__ */ new Map();
+  const { data, error } = await supabase.from("orders").select("customer_id, total_amount, status").not("customer_id", "is", null);
+  if (error) throw new Error(error.message);
+  for (const row of data ?? []) {
+    if (!row.customer_id || row.status === "canceled") continue;
+    const current = stats.get(row.customer_id) ?? { orderCount: 0, totalSpent: 0 };
+    current.orderCount += 1;
+    current.totalSpent += Number(row.total_amount);
+    stats.set(row.customer_id, current);
+  }
+  return stats;
+}
+async function listAllCustomers() {
+  const [profiles, orderStats] = await Promise.all([fetchAllProfiles(), fetchOrderStatsByCustomer()]);
+  const authUsers = await fetchAuthUsersByIds(profiles.map((profile) => String(profile.id)));
+  return profiles.map((profile) => {
+    const id = String(profile.id);
+    const authUser = authUsers.get(id);
+    const stats = orderStats.get(id) ?? { orderCount: 0, totalSpent: 0 };
+    return {
+      id,
+      fullName: String(profile.full_name ?? ""),
+      email: authUser?.email ?? "",
+      phone: profile.phone == null ? null : String(profile.phone),
+      emailVerified: authUser?.emailVerified ?? false,
+      orderCount: stats.orderCount,
+      totalSpent: stats.totalSpent,
+      createdAt: String(profile.created_at)
+    };
+  });
+}
+async function getCustomerById(customerId) {
+  const { data: profile, error } = await supabase.from("customer_profiles").select("*").eq("id", customerId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!profile) throw new Error("Cliente n\xE3o encontrado");
+  const [{ data: authData }, addresses, orders, orderStats] = await Promise.all([
+    supabase.auth.admin.getUserById(customerId),
+    listCustomerAddresses(customerId),
+    listCustomerOrdersForAdmin(customerId),
+    fetchOrderStatsByCustomer()
+  ]);
+  const stats = orderStats.get(customerId) ?? { orderCount: 0, totalSpent: 0 };
+  return {
+    id: customerId,
+    fullName: String(profile.full_name ?? ""),
+    phone: profile.phone == null ? null : String(profile.phone),
+    email: authData?.user?.email ?? "",
+    emailVerified: Boolean(authData?.user?.email_confirmed_at),
+    createdAt: String(profile.created_at),
+    updatedAt: String(profile.updated_at),
+    orderCount: stats.orderCount,
+    totalSpent: stats.totalSpent,
+    addresses,
+    orders
+  };
+}
+async function listCustomerOrdersForAdmin(customerId) {
+  const { data: orderRows, error } = await supabase.from("orders").select("*").eq("customer_id", customerId).order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  if (!orderRows?.length) return [];
+  const orderIds = orderRows.map((row) => row.id);
+  const { data: itemRows, error: itemsError } = await supabase.from("order_items").select("order_id, quantity").in("order_id", orderIds);
+  if (itemsError) throw new Error(itemsError.message);
+  const countMap = /* @__PURE__ */ new Map();
+  for (const item of itemRows ?? []) {
+    const current = countMap.get(item.order_id) ?? 0;
+    countMap.set(item.order_id, current + Number(item.quantity));
+  }
+  return orderRows.map(
+    (row) => mapOrderRowToSummary(row, countMap.get(row.id) ?? 0)
+  );
+}
+
+// server/routes/adminCustomers.ts
 var router = Router();
+router.get("/", requireAdmin, async (_req, res) => {
+  try {
+    const customers = await listAllCustomers();
+    res.json(customers);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao carregar clientes"
+    });
+  }
+});
+router.get("/:id", requireAdmin, async (req, res) => {
+  try {
+    const customer = await getCustomerById(req.params.id);
+    res.json(customer);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao carregar cliente";
+    const status = message.includes("n\xE3o encontrado") ? 404 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+var adminCustomers_default = router;
+
+// server/routes/adminNotifications.ts
+import { Router as Router2 } from "express";
+
+// server/services/adminNotifications.ts
+function mapNotificationRow(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    title: row.title,
+    message: row.message,
+    entityType: row.entity_type,
+    entityId: row.entity_id,
+    readAt: row.read_at,
+    createdAt: row.created_at
+  };
+}
+async function listAdminNotifications(limit = 50) {
+  const { data, error } = await supabase.from("admin_notifications").select("*").order("created_at", { ascending: false }).limit(limit);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => mapNotificationRow(row));
+}
+async function getUnreadNotificationCount() {
+  const { count, error } = await supabase.from("admin_notifications").select("id", { count: "exact", head: true }).is("read_at", null);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+async function markNotificationAsRead(notificationId) {
+  const { data, error } = await supabase.from("admin_notifications").update({ read_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", notificationId).select("*").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Notifica\xE7\xE3o n\xE3o encontrada");
+  return mapNotificationRow(data);
+}
+async function markAllNotificationsAsRead() {
+  const { error } = await supabase.from("admin_notifications").update({ read_at: (/* @__PURE__ */ new Date()).toISOString() }).is("read_at", null);
+  if (error) throw new Error(error.message);
+}
+async function getUnreadCountByType() {
+  const { data, error } = await supabase.from("admin_notifications").select("type").is("read_at", null);
+  if (error) throw new Error(error.message);
+  const counts = {
+    new_order: 0,
+    new_customer: 0
+  };
+  for (const row of data ?? []) {
+    const type = row.type;
+    if (type in counts) counts[type] += 1;
+  }
+  return counts;
+}
+
+// server/routes/adminNotifications.ts
+var router2 = Router2();
+router2.get("/", requireAdmin, async (_req, res) => {
+  try {
+    const notifications = await listAdminNotifications();
+    res.json(notifications);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao carregar notifica\xE7\xF5es"
+    });
+  }
+});
+router2.get("/unread-count", requireAdmin, async (_req, res) => {
+  try {
+    const [count, byType] = await Promise.all([
+      getUnreadNotificationCount(),
+      getUnreadCountByType()
+    ]);
+    res.json({ count, byType });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao carregar notifica\xE7\xF5es"
+    });
+  }
+});
+router2.patch("/read-all", requireAdmin, async (_req, res) => {
+  try {
+    await markAllNotificationsAsRead();
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao marcar notifica\xE7\xF5es"
+    });
+  }
+});
+router2.patch("/:id/read", requireAdmin, async (req, res) => {
+  try {
+    const notification = await markNotificationAsRead(req.params.id);
+    res.json(notification);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao marcar notifica\xE7\xE3o";
+    const status = message.includes("n\xE3o encontrada") ? 404 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+var adminNotifications_default = router2;
+
+// shared/schemas/order.ts
+import { z as z2 } from "zod";
+
+// shared/schemas/address.ts
+import { z } from "zod";
+function normalizeCep(value) {
+  return value.replace(/\D/g, "").slice(0, 8);
+}
+var shippingAddressSchema = z.object({
+  cep: z.string().trim().min(1, "Informe o CEP").transform(normalizeCep).refine((value) => value.length === 8, { message: "CEP deve ter 8 d\xEDgitos" }),
+  rua: z.string().trim().min(2, "Informe a rua").max(200, "Rua muito longa"),
+  numero: z.string().trim().min(1, "Informe o n\xFAmero").max(20, "N\xFAmero muito longo"),
+  complemento: z.string().trim().max(100, "Complemento muito longo").optional().transform((value) => value || void 0),
+  bairro: z.string().trim().min(2, "Informe o bairro").max(100, "Bairro muito longo"),
+  cidade: z.string().trim().min(2, "Informe a cidade").max(100, "Cidade muito longa"),
+  estado: z.string().trim().length(2, "Informe a UF com 2 letras").transform((value) => value.toUpperCase())
+});
+var customerAddressSchema = shippingAddressSchema.extend({
+  label: z.string().trim().min(1, "Informe um nome para o endere\xE7o").max(40, "Nome muito longo"),
+  isDefault: z.boolean().optional().default(false)
+});
+var customerAddressUpdateSchema = customerAddressSchema.partial();
+
+// shared/schemas/order.ts
+var checkoutSchema = z2.object({
+  shippingAddress: shippingAddressSchema,
+  paymentMethod: z2.enum(["pix", "credit_card", "boleto"])
+});
+var orderStatusUpdateSchema = z2.object({
+  status: z2.enum(["pending", "paid", "canceled"])
+});
+
+// server/routes/adminOrders.ts
+import { Router as Router3 } from "express";
+
+// shared/const/cart.ts
+var FREE_SHIPPING_THRESHOLD = 299;
+var STANDARD_SHIPPING_COST = 15;
+function calculateShippingAmount(subtotal) {
+  return subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_COST;
+}
+var CART_SESSION_COOKIE = "nativa_cart_session";
+var CART_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1e3;
+var CART_STATUS_ACTIVE = "active";
+
+// server/services/orders.ts
+async function fetchCustomerCartRow(customerId) {
+  const { data, error } = await supabase.from("carts").select("*").eq("customer_id", customerId).eq("status", CART_STATUS_ACTIVE).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+async function fetchCartItems(cartId) {
+  const { data, error } = await supabase.from("cart_items").select("*").eq("cart_id", cartId).order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+async function fetchOrderWithItems(orderId, customerId) {
+  let query = supabase.from("orders").select("*").eq("id", orderId);
+  if (customerId) query = query.eq("customer_id", customerId);
+  const { data: orderRow, error: orderError } = await query.single();
+  if (orderError) throw new Error(orderError.message);
+  const { data: itemRows, error: itemsError } = await supabase.from("order_items").select("*").eq("order_id", orderId).order("id", { ascending: true });
+  if (itemsError) throw new Error(itemsError.message);
+  const items = (itemRows ?? []).map(mapOrderItemRowToOrderItem);
+  return mapOrderRowToOrder(orderRow, items);
+}
+async function listCustomerOrders(customerId) {
+  const { data: orderRows, error } = await supabase.from("orders").select("*").eq("customer_id", customerId).order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  if (!orderRows?.length) return [];
+  const orderIds = orderRows.map((row) => row.id);
+  const { data: itemRows, error: itemsError } = await supabase.from("order_items").select("order_id, quantity").in("order_id", orderIds);
+  if (itemsError) throw new Error(itemsError.message);
+  const countMap = /* @__PURE__ */ new Map();
+  for (const item of itemRows ?? []) {
+    const current = countMap.get(item.order_id) ?? 0;
+    countMap.set(item.order_id, current + Number(item.quantity));
+  }
+  return orderRows.map(
+    (row) => mapOrderRowToSummary(row, countMap.get(row.id) ?? 0)
+  );
+}
+async function getCustomerOrder(customerId, orderId) {
+  return fetchOrderWithItems(orderId, customerId);
+}
+async function createOrderFromCheckout(customerId, input) {
+  const cartRow = await fetchCustomerCartRow(customerId);
+  if (!cartRow) {
+    throw new Error("Carrinho vazio");
+  }
+  const cartItems = await fetchCartItems(cartRow.id);
+  if (cartItems.length === 0) {
+    throw new Error("Carrinho vazio");
+  }
+  const subtotal = cartItems.reduce(
+    (sum, item) => sum + Number(item.unit_price) * item.quantity,
+    0
+  );
+  const shippingAmount = calculateShippingAmount(subtotal);
+  const totalAmount = subtotal + shippingAmount;
+  const itemsPayload = cartItems.map(mapCartItemToOrderItemPayload);
+  const { data, error } = await supabase.rpc("checkout_create_order", {
+    p_customer_id: customerId,
+    p_cart_id: cartRow.id,
+    p_status: "paid",
+    p_total_amount: totalAmount,
+    p_shipping_amount: shippingAmount,
+    p_coupon_code: cartRow.coupon_code,
+    p_shipping_address: input.shippingAddress,
+    p_payment_method: input.paymentMethod,
+    p_items: itemsPayload
+  });
+  if (error) throw new Error(error.message);
+  const orderRow = data;
+  return fetchOrderWithItems(orderRow.id);
+}
+async function fetchCustomerInfo(customerId) {
+  if (!customerId) {
+    return { name: null, email: null, phone: null };
+  }
+  const [{ data: profile }, { data: authData }] = await Promise.all([
+    supabase.from("customer_profiles").select("full_name, phone").eq("id", customerId).maybeSingle(),
+    supabase.auth.admin.getUserById(customerId)
+  ]);
+  return {
+    name: profile?.full_name ? String(profile.full_name) : null,
+    email: authData?.user?.email ?? null,
+    phone: profile?.phone == null ? null : String(profile.phone)
+  };
+}
+async function buildItemCountMap(orderIds) {
+  const countMap = /* @__PURE__ */ new Map();
+  if (!orderIds.length) return countMap;
+  const { data: itemRows, error: itemsError } = await supabase.from("order_items").select("order_id, quantity").in("order_id", orderIds);
+  if (itemsError) throw new Error(itemsError.message);
+  for (const item of itemRows ?? []) {
+    const current = countMap.get(item.order_id) ?? 0;
+    countMap.set(item.order_id, current + Number(item.quantity));
+  }
+  return countMap;
+}
+async function listAllOrders() {
+  const { data: orderRows, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  if (!orderRows?.length) return [];
+  const orderIds = orderRows.map((row) => row.id);
+  const countMap = await buildItemCountMap(orderIds);
+  const customerIds = Array.from(
+    new Set(orderRows.map((row) => row.customer_id).filter(Boolean))
+  );
+  const customerInfoMap = /* @__PURE__ */ new Map();
+  await Promise.all(
+    customerIds.map(async (customerId) => {
+      const info = await fetchCustomerInfo(customerId);
+      customerInfoMap.set(customerId, { name: info.name, email: info.email });
+    })
+  );
+  return orderRows.map((row) => {
+    const summary = mapOrderRowToSummary(row, countMap.get(row.id) ?? 0);
+    const customerInfo = row.customer_id ? customerInfoMap.get(row.customer_id) : void 0;
+    return {
+      ...summary,
+      customerId: row.customer_id,
+      customerName: customerInfo?.name ?? null,
+      customerEmail: customerInfo?.email ?? null
+    };
+  });
+}
+async function getOrderById(orderId) {
+  const order = await fetchOrderWithItems(orderId);
+  const customerInfo = await fetchCustomerInfo(order.customerId);
+  return {
+    ...order,
+    customerName: customerInfo.name,
+    customerEmail: customerInfo.email,
+    customerPhone: customerInfo.phone
+  };
+}
+async function updateOrderStatus(orderId, status) {
+  const { data, error } = await supabase.from("orders").update({ status }).eq("id", orderId).select("id").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Pedido n\xE3o encontrado");
+  return getOrderById(orderId);
+}
+
+// server/routes/adminOrders.ts
+var router3 = Router3();
+router3.get("/", requireAdmin, async (_req, res) => {
+  try {
+    const orders = await listAllOrders();
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao carregar pedidos"
+    });
+  }
+});
+router3.get("/:id", requireAdmin, async (req, res) => {
+  try {
+    const order = await getOrderById(req.params.id);
+    res.json(order);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao carregar pedido";
+    const status = message.includes("n\xE3o encontrado") || message.includes("0 rows") ? 404 : 500;
+    res.status(status).json({ error: "Pedido n\xE3o encontrado" });
+  }
+});
+router3.patch("/:id/status", requireAdmin, async (req, res) => {
+  try {
+    const parsed = orderStatusUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inv\xE1lidos", issues: parsed.error.issues });
+      return;
+    }
+    const order = await updateOrderStatus(req.params.id, parsed.data.status);
+    res.json(order);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao atualizar pedido";
+    const status = message.includes("n\xE3o encontrado") ? 404 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+var adminOrders_default = router3;
+
+// server/routes/admin.ts
+var router4 = Router4();
 function handleSingleImageUpload(req, res, next) {
   upload.single("file")(req, res, (error) => {
     if (error) {
@@ -131,7 +727,7 @@ function handleSingleImageUpload(req, res, next) {
     next();
   });
 }
-router.post("/login", (req, res) => {
+router4.post("/login", (req, res) => {
   const password = typeof req.body?.password === "string" ? req.body.password : "";
   if (!password) {
     res.status(400).json({ error: "Informe a senha" });
@@ -160,14 +756,17 @@ router.post("/login", (req, res) => {
   });
   res.json({ authenticated: true });
 });
-router.post("/logout", (_req, res) => {
+router4.post("/logout", (_req, res) => {
   res.clearCookie(ADMIN_COOKIE_NAME, { path: "/" });
   res.json({ authenticated: false });
 });
-router.get("/me", requireAdmin, (_req, res) => {
+router4.get("/me", requireAdmin, (_req, res) => {
   res.json({ authenticated: true });
 });
-router.post("/uploads", requireAdmin, handleSingleImageUpload, async (req, res) => {
+router4.use("/orders", adminOrders_default);
+router4.use("/customers", adminCustomers_default);
+router4.use("/notifications", adminNotifications_default);
+router4.post("/uploads", requireAdmin, handleSingleImageUpload, async (req, res) => {
   try {
     if (!req.file) {
       res.status(400).json({ error: "Nenhum arquivo enviado" });
@@ -181,44 +780,34 @@ router.post("/uploads", requireAdmin, handleSingleImageUpload, async (req, res) 
     });
   }
 });
-var admin_default = router;
+var admin_default = router4;
 
 // shared/schemas/cart.ts
-import { z } from "zod";
-var cartAddItemSchema = z.object({
-  productSlug: z.string().min(1, "Produto inv\xE1lido"),
-  quantity: z.number().int().min(1, "Quantidade m\xEDnima \xE9 1").max(99),
-  size: z.string().min(1, "Selecione um tamanho"),
-  color: z.string().optional().default("")
+import { z as z3 } from "zod";
+var cartAddItemSchema = z3.object({
+  productSlug: z3.string().min(1, "Produto inv\xE1lido"),
+  quantity: z3.number().int().min(1, "Quantidade m\xEDnima \xE9 1").max(99),
+  size: z3.string().min(1, "Selecione um tamanho"),
+  color: z3.string().optional().default("")
 });
-var cartUpdateItemSchema = z.object({
-  quantity: z.number().int().min(1, "Quantidade m\xEDnima \xE9 1").max(99)
+var cartUpdateItemSchema = z3.object({
+  quantity: z3.number().int().min(1, "Quantidade m\xEDnima \xE9 1").max(99)
 });
-var cartApplyCouponSchema = z.object({
-  couponCode: z.string().max(50).optional().default("")
+var cartApplyCouponSchema = z3.object({
+  couponCode: z3.string().max(50).optional().default("")
 });
 
 // server/routes/cart.ts
-import { Router as Router2 } from "express";
-
-// shared/const/cart.ts
-var FREE_SHIPPING_THRESHOLD = 299;
-var STANDARD_SHIPPING_COST = 15;
-function calculateShippingAmount(subtotal) {
-  return subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_COST;
-}
-var CART_SESSION_COOKIE = "nativa_cart_session";
-var CART_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1e3;
-var CART_STATUS_ACTIVE = "active";
+import { Router as Router5 } from "express";
 
 // shared/lib/cartMapper.ts
-function toNumber(value) {
+function toNumber2(value) {
   if (typeof value === "number") return value;
   if (typeof value === "string") return parseFloat(value);
   return 0;
 }
 function mapCartItemRowToCartItem(row, enrichment) {
-  const unitPrice = toNumber(row.unit_price);
+  const unitPrice = toNumber2(row.unit_price);
   const quantity = row.quantity;
   return {
     id: row.id,
@@ -520,7 +1109,7 @@ async function getOrCreateCartRow(identity) {
   if (existing) return existing;
   return createCart(identity);
 }
-async function fetchCartItems(cartId) {
+async function fetchCartItems2(cartId) {
   const { data, error } = await supabase.from("cart_items").select("*").eq("cart_id", cartId).order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
   return data ?? [];
@@ -542,7 +1131,7 @@ async function enrichCartItems(items) {
   );
 }
 async function buildCartResponse(cartRow) {
-  const itemRows = await fetchCartItems(cartRow.id);
+  const itemRows = await fetchCartItems2(cartRow.id);
   const items = await enrichCartItems(itemRows);
   return mapCartRowToCart(cartRow, items);
 }
@@ -584,7 +1173,7 @@ async function addCartItem(identity, input) {
     throw new Error(`Estoque insuficiente. Dispon\xEDvel: ${product.stockCount}`);
   }
   const cartRow = await getOrCreateCartRow(identity);
-  const existingItems = await fetchCartItems(cartRow.id);
+  const existingItems = await fetchCartItems2(cartRow.id);
   const match = existingItems.find(
     (item) => item.product_id === product.id && item.size_label === input.size && item.color_name === color
   );
@@ -677,7 +1266,7 @@ async function mergeGuestCartIntoCustomer(customerId, guestSessionId) {
     return getCart(customerIdentity);
   }
   const userCartRow = await getOrCreateCartRow(customerIdentity);
-  const guestItems = await fetchCartItems(guestCart.id);
+  const guestItems = await fetchCartItems2(guestCart.id);
   for (const guestItem of guestItems) {
     const { data: productRow } = await supabase.from("products").select("*").eq("id", guestItem.product_id).maybeSingle();
     if (!productRow) continue;
@@ -805,9 +1394,9 @@ async function requireCustomerForMerge(req, res, next) {
 }
 
 // server/routes/cart.ts
-var router2 = Router2();
-router2.use(resolveCartIdentity);
-router2.get("/", async (req, res) => {
+var router5 = Router5();
+router5.use(resolveCartIdentity);
+router5.get("/", async (req, res) => {
   try {
     const cart = await getCart(req.cartIdentity);
     res.json(cart);
@@ -817,7 +1406,7 @@ router2.get("/", async (req, res) => {
     });
   }
 });
-router2.post("/items", async (req, res) => {
+router5.post("/items", async (req, res) => {
   try {
     const parsed = cartAddItemSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -832,7 +1421,7 @@ router2.post("/items", async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
-router2.patch("/items/:itemId", async (req, res) => {
+router5.patch("/items/:itemId", async (req, res) => {
   try {
     const parsed = cartUpdateItemSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -847,7 +1436,7 @@ router2.patch("/items/:itemId", async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
-router2.delete("/items/:itemId", async (req, res) => {
+router5.delete("/items/:itemId", async (req, res) => {
   try {
     const cart = await removeCartItem(req.cartIdentity, req.params.itemId);
     res.json(cart);
@@ -857,7 +1446,7 @@ router2.delete("/items/:itemId", async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
-router2.delete("/", async (req, res) => {
+router5.delete("/", async (req, res) => {
   try {
     const cart = await clearCart(req.cartIdentity);
     res.json(cart);
@@ -867,7 +1456,7 @@ router2.delete("/", async (req, res) => {
     });
   }
 });
-router2.patch("/coupon", async (req, res) => {
+router5.patch("/coupon", async (req, res) => {
   try {
     const parsed = cartApplyCouponSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -882,7 +1471,7 @@ router2.patch("/coupon", async (req, res) => {
     });
   }
 });
-router2.post("/merge", requireCustomerForMerge, async (req, res) => {
+router5.post("/merge", requireCustomerForMerge, async (req, res) => {
   try {
     const customerId = req.cartIdentity.customerId;
     const guestSessionId = req.cartIdentity.sessionId;
@@ -895,7 +1484,7 @@ router2.post("/merge", requireCustomerForMerge, async (req, res) => {
     });
   }
 });
-var cart_default = router2;
+var cart_default = router5;
 
 // shared/lib/phoneBr.ts
 function digitsOnly(value) {
@@ -910,16 +1499,16 @@ function normalizePhoneBr(value) {
 }
 
 // shared/schemas/customer.ts
-import { z as z2 } from "zod";
-var customerProfileUpdateSchema = z2.object({
-  fullName: z2.string().trim().min(2, "Informe seu nome completo").max(120, "Nome muito longo"),
-  phone: z2.string().trim().optional().or(z2.literal("")).transform((value) => value ? normalizePhoneBr(value) : "").refine((value) => value === "" || isValidPhoneBr(value), {
+import { z as z4 } from "zod";
+var customerProfileUpdateSchema = z4.object({
+  fullName: z4.string().trim().min(2, "Informe seu nome completo").max(120, "Nome muito longo"),
+  phone: z4.string().trim().optional().or(z4.literal("")).transform((value) => value ? normalizePhoneBr(value) : "").refine((value) => value === "" || isValidPhoneBr(value), {
     message: "Informe um telefone v\xE1lido com DDD"
   })
 });
 
 // server/routes/customers.ts
-import { Router as Router3 } from "express";
+import { Router as Router6 } from "express";
 
 // server/middleware/requireCustomer.ts
 function getBearerToken2(req) {
@@ -946,7 +1535,7 @@ async function requireCustomer(req, res, next) {
 }
 
 // server/routes/customers.ts
-var router3 = Router3();
+var router6 = Router6();
 function getMetadataName(user) {
   const metadata = user.user_metadata ?? {};
   return String(metadata.full_name ?? metadata.fullName ?? "").trim();
@@ -987,7 +1576,7 @@ async function ensureProfileFromMetadata(userId, user, row) {
   }
   return data;
 }
-router3.get("/me", requireCustomer, async (req, res) => {
+router6.get("/me", requireCustomer, async (req, res) => {
   try {
     const userId = req.customerUserId;
     const user = req.customerUser;
@@ -1018,7 +1607,7 @@ router3.get("/me", requireCustomer, async (req, res) => {
     res.status(500).json({ error: error instanceof Error ? error.message : "Erro ao carregar perfil" });
   }
 });
-router3.put("/me", requireCustomer, async (req, res) => {
+router6.put("/me", requireCustomer, async (req, res) => {
   try {
     const userId = req.customerUserId;
     const user = req.customerUser;
@@ -1052,129 +1641,96 @@ router3.put("/me", requireCustomer, async (req, res) => {
     res.status(500).json({ error: error instanceof Error ? error.message : "Erro ao atualizar perfil" });
   }
 });
-var customers_default = router3;
-
-// shared/schemas/order.ts
-import { z as z3 } from "zod";
-function normalizeCep(value) {
-  return value.replace(/\D/g, "").slice(0, 8);
-}
-var shippingAddressSchema = z3.object({
-  cep: z3.string().trim().min(1, "Informe o CEP").transform(normalizeCep).refine((value) => value.length === 8, { message: "CEP deve ter 8 d\xEDgitos" }),
-  rua: z3.string().trim().min(2, "Informe a rua").max(200, "Rua muito longa"),
-  numero: z3.string().trim().min(1, "Informe o n\xFAmero").max(20, "N\xFAmero muito longo"),
-  complemento: z3.string().trim().max(100, "Complemento muito longo").optional().transform((value) => value || void 0),
-  bairro: z3.string().trim().min(2, "Informe o bairro").max(100, "Bairro muito longo"),
-  cidade: z3.string().trim().min(2, "Informe a cidade").max(100, "Cidade muito longa"),
-  estado: z3.string().trim().length(2, "Informe a UF com 2 letras").transform((value) => value.toUpperCase())
+router6.get("/me/addresses", requireCustomer, async (req, res) => {
+  try {
+    const addresses = await listCustomerAddresses(req.customerUserId);
+    res.json(addresses);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao carregar endere\xE7os"
+    });
+  }
 });
-var checkoutSchema = z3.object({
-  shippingAddress: shippingAddressSchema,
-  paymentMethod: z3.enum(["pix", "credit_card", "boleto"])
+router6.post("/me/addresses", requireCustomer, async (req, res) => {
+  try {
+    const parsed = customerAddressSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inv\xE1lidos", issues: parsed.error.issues });
+      return;
+    }
+    const address = await createCustomerAddress(req.customerUserId, parsed.data);
+    res.status(201).json(address);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao salvar endere\xE7o"
+    });
+  }
 });
+router6.put("/me/addresses/:id", requireCustomer, async (req, res) => {
+  try {
+    const parsed = customerAddressUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inv\xE1lidos", issues: parsed.error.issues });
+      return;
+    }
+    const address = await updateCustomerAddress(
+      req.customerUserId,
+      req.params.id,
+      parsed.data
+    );
+    res.json(address);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao atualizar endere\xE7o";
+    const status = message.includes("n\xE3o encontrado") ? 404 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+router6.patch("/me/addresses/:id/default", requireCustomer, async (req, res) => {
+  try {
+    const address = await setDefaultCustomerAddress(req.customerUserId, req.params.id);
+    res.json(address);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao definir endere\xE7o padr\xE3o";
+    const status = message.includes("n\xE3o encontrado") ? 404 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+router6.delete("/me/addresses/:id", requireCustomer, async (req, res) => {
+  try {
+    await deleteCustomerAddress(req.customerUserId, req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao excluir endere\xE7o";
+    const status = message.includes("n\xE3o encontrado") ? 404 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+var customers_default = router6;
 
 // server/routes/orders.ts
-import { Router as Router4 } from "express";
-
-// shared/lib/orderMapper.ts
-function toNumber2(value) {
-  if (typeof value === "number") return value;
-  if (typeof value === "string") return parseFloat(value);
-  return 0;
-}
-function mapOrderItemRowToOrderItem(row) {
-  return {
-    id: row.id,
-    orderId: row.order_id,
-    productSlug: row.product_slug,
-    name: row.name,
-    quantity: row.quantity,
-    price: toNumber2(row.price),
-    size: row.size,
-    color: row.color,
-    image: row.image
-  };
-}
-function mapOrderRowToOrder(row, items) {
-  return {
-    id: row.id,
-    customerId: row.customer_id,
-    status: row.status,
-    totalAmount: toNumber2(row.total_amount),
-    shippingAmount: toNumber2(row.shipping_amount),
-    couponCode: row.coupon_code,
-    shippingAddress: row.shipping_address,
-    paymentMethod: row.payment_method,
-    items,
-    createdAt: row.created_at
-  };
-}
-function mapCartItemToOrderItemPayload(item) {
-  return {
-    product_slug: item.product_slug,
-    name: item.product_name,
-    quantity: item.quantity,
-    price: toNumber2(item.unit_price),
-    size: item.size_label,
-    color: item.color_name || null,
-    image: item.product_image
-  };
-}
-
-// server/services/orders.ts
-async function fetchCustomerCartRow(customerId) {
-  const { data, error } = await supabase.from("carts").select("*").eq("customer_id", customerId).eq("status", CART_STATUS_ACTIVE).maybeSingle();
-  if (error) throw new Error(error.message);
-  return data;
-}
-async function fetchCartItems2(cartId) {
-  const { data, error } = await supabase.from("cart_items").select("*").eq("cart_id", cartId).order("created_at", { ascending: true });
-  if (error) throw new Error(error.message);
-  return data ?? [];
-}
-async function fetchOrderWithItems(orderId) {
-  const { data: orderRow, error: orderError } = await supabase.from("orders").select("*").eq("id", orderId).single();
-  if (orderError) throw new Error(orderError.message);
-  const { data: itemRows, error: itemsError } = await supabase.from("order_items").select("*").eq("order_id", orderId).order("id", { ascending: true });
-  if (itemsError) throw new Error(itemsError.message);
-  const items = (itemRows ?? []).map(mapOrderItemRowToOrderItem);
-  return mapOrderRowToOrder(orderRow, items);
-}
-async function createOrderFromCheckout(customerId, input) {
-  const cartRow = await fetchCustomerCartRow(customerId);
-  if (!cartRow) {
-    throw new Error("Carrinho vazio");
+import { Router as Router7 } from "express";
+var router7 = Router7();
+router7.get("/me", requireCustomer, async (req, res) => {
+  try {
+    const orders = await listCustomerOrders(req.customerUserId);
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao carregar pedidos"
+    });
   }
-  const cartItems = await fetchCartItems2(cartRow.id);
-  if (cartItems.length === 0) {
-    throw new Error("Carrinho vazio");
+});
+router7.get("/:id", requireCustomer, async (req, res) => {
+  try {
+    const order = await getCustomerOrder(req.customerUserId, req.params.id);
+    res.json(order);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao carregar pedido";
+    const status = message.includes("not found") || message.includes("0 rows") ? 404 : 500;
+    res.status(status).json({ error: "Pedido n\xE3o encontrado" });
   }
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + Number(item.unit_price) * item.quantity,
-    0
-  );
-  const shippingAmount = calculateShippingAmount(subtotal);
-  const totalAmount = subtotal + shippingAmount;
-  const itemsPayload = cartItems.map(mapCartItemToOrderItemPayload);
-  const { data, error } = await supabase.rpc("checkout_create_order", {
-    p_customer_id: customerId,
-    p_cart_id: cartRow.id,
-    p_status: "paid",
-    p_total_amount: totalAmount,
-    p_shipping_amount: shippingAmount,
-    p_coupon_code: cartRow.coupon_code,
-    p_shipping_address: input.shippingAddress,
-    p_payment_method: input.paymentMethod,
-    p_items: itemsPayload
-  });
-  if (error) throw new Error(error.message);
-  const orderRow = data;
-  return fetchOrderWithItems(orderRow.id);
-}
-
-// server/routes/orders.ts
-var router4 = Router4();
-router4.post("/checkout", requireCustomer, async (req, res) => {
+});
+router7.post("/checkout", requireCustomer, async (req, res) => {
   try {
     const parsed = checkoutSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -1189,60 +1745,60 @@ router4.post("/checkout", requireCustomer, async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
-var orders_default = router4;
+var orders_default = router7;
 
 // shared/schemas/product.ts
-import { z as z4 } from "zod";
-var productCategorySchema = z4.enum(["Roupas", "Bolsas", "Acess\xF3rios"]);
-var productColorSchema = z4.object({
-  name: z4.string().min(1, "Informe o nome da cor"),
-  hex: z4.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Cor inv\xE1lida (use o formato #RRGGBB)")
+import { z as z5 } from "zod";
+var productCategorySchema = z5.enum(["Roupas", "Bolsas", "Acess\xF3rios"]);
+var productColorSchema = z5.object({
+  name: z5.string().min(1, "Informe o nome da cor"),
+  hex: z5.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Cor inv\xE1lida (use o formato #RRGGBB)")
 });
-var productSizeSchema = z4.object({
-  label: z4.string().min(1, "Informe o tamanho"),
-  available: z4.boolean()
+var productSizeSchema = z5.object({
+  label: z5.string().min(1, "Informe o tamanho"),
+  available: z5.boolean()
 });
-var productFaqSchema = z4.object({
-  question: z4.string().min(1, "Informe a pergunta"),
-  answer: z4.string().min(1, "Informe a resposta")
+var productFaqSchema = z5.object({
+  question: z5.string().min(1, "Informe a pergunta"),
+  answer: z5.string().min(1, "Informe a resposta")
 });
-var productArtisanSchema = z4.object({
-  name: z4.string(),
-  region: z4.string(),
-  story: z4.string()
+var productArtisanSchema = z5.object({
+  name: z5.string(),
+  region: z5.string(),
+  story: z5.string()
 });
 var SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-var productSchema = z4.object({
-  slug: z4.string().min(1, "Slug \xE9 obrigat\xF3rio").regex(SLUG_PATTERN, "Use apenas letras min\xFAsculas, n\xFAmeros e h\xEDfens (ex: bolsa-de-praia)"),
-  name: z4.string().min(2, "Informe o nome do produto"),
+var productSchema = z5.object({
+  slug: z5.string().min(1, "Slug \xE9 obrigat\xF3rio").regex(SLUG_PATTERN, "Use apenas letras min\xFAsculas, n\xFAmeros e h\xEDfens (ex: bolsa-de-praia)"),
+  name: z5.string().min(2, "Informe o nome do produto"),
   category: productCategorySchema,
-  price: z4.number({ error: "Informe um pre\xE7o v\xE1lido" }).nonnegative("O pre\xE7o n\xE3o pode ser negativo"),
-  originalPrice: z4.number().nonnegative("O pre\xE7o original n\xE3o pode ser negativo").nullable(),
-  image: z4.string().min(1, "Adicione ao menos uma imagem"),
-  images: z4.array(z4.string().min(1)).min(1, "Adicione ao menos uma imagem"),
-  badge: z4.string(),
-  badgeColor: z4.string().min(1),
-  rating: z4.number().min(0).max(5),
-  reviews: z4.number().int().min(0),
-  featured: z4.boolean(),
-  shortDescription: z4.string(),
-  description: z4.string(),
-  materials: z4.array(z4.string()),
-  careInstructions: z4.array(z4.string()),
+  price: z5.number({ error: "Informe um pre\xE7o v\xE1lido" }).nonnegative("O pre\xE7o n\xE3o pode ser negativo"),
+  originalPrice: z5.number().nonnegative("O pre\xE7o original n\xE3o pode ser negativo").nullable(),
+  image: z5.string().min(1, "Adicione ao menos uma imagem"),
+  images: z5.array(z5.string().min(1)).min(1, "Adicione ao menos uma imagem"),
+  badge: z5.string(),
+  badgeColor: z5.string().min(1),
+  rating: z5.number().min(0).max(5),
+  reviews: z5.number().int().min(0),
+  featured: z5.boolean(),
+  shortDescription: z5.string(),
+  description: z5.string(),
+  materials: z5.array(z5.string()),
+  careInstructions: z5.array(z5.string()),
   artisan: productArtisanSchema,
-  sizes: z4.array(productSizeSchema),
-  colors: z4.array(productColorSchema),
-  sku: z4.string(),
-  inStock: z4.boolean(),
-  stockCount: z4.number().int().min(0),
-  faq: z4.array(productFaqSchema),
-  highlights: z4.array(z4.string())
+  sizes: z5.array(productSizeSchema),
+  colors: z5.array(productColorSchema),
+  sku: z5.string(),
+  inStock: z5.boolean(),
+  stockCount: z5.number().int().min(0),
+  faq: z5.array(productFaqSchema),
+  highlights: z5.array(z5.string())
 });
 
 // server/routes/products.ts
-import { Router as Router5 } from "express";
-var router5 = Router5();
-router5.get("/", async (req, res) => {
+import { Router as Router8 } from "express";
+var router8 = Router8();
+router8.get("/", async (req, res) => {
   try {
     const category = typeof req.query.category === "string" ? req.query.category : void 0;
     const products = await listProducts(category);
@@ -1253,7 +1809,7 @@ router5.get("/", async (req, res) => {
     });
   }
 });
-router5.get("/:slug", async (req, res) => {
+router8.get("/:slug", async (req, res) => {
   try {
     const product = await getProductBySlug(req.params.slug);
     if (!product) {
@@ -1267,7 +1823,7 @@ router5.get("/:slug", async (req, res) => {
     });
   }
 });
-router5.post("/", requireAdmin, async (req, res) => {
+router8.post("/", requireAdmin, async (req, res) => {
   try {
     const parsed = productSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -1287,7 +1843,7 @@ router5.post("/", requireAdmin, async (req, res) => {
     });
   }
 });
-router5.post("/bulk", requireAdmin, async (req, res) => {
+router8.post("/bulk", requireAdmin, async (req, res) => {
   try {
     const items = Array.isArray(req.body?.products) ? req.body.products : null;
     if (!items) {
@@ -1316,7 +1872,7 @@ router5.post("/bulk", requireAdmin, async (req, res) => {
     });
   }
 });
-router5.put("/:slug", requireAdmin, async (req, res) => {
+router8.put("/:slug", requireAdmin, async (req, res) => {
   try {
     const parsed = productSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -1341,7 +1897,7 @@ router5.put("/:slug", requireAdmin, async (req, res) => {
     });
   }
 });
-router5.delete("/:slug", requireAdmin, async (req, res) => {
+router8.delete("/:slug", requireAdmin, async (req, res) => {
   try {
     const deleted = await deleteProduct(req.params.slug);
     if (!deleted) {
@@ -1355,7 +1911,7 @@ router5.delete("/:slug", requireAdmin, async (req, res) => {
     });
   }
 });
-var products_default = router5;
+var products_default = router8;
 
 // server/app.ts
 function createApiApp() {

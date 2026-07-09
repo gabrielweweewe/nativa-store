@@ -46,3 +46,15 @@ export interface OrderSummary {
   itemCount: number;
   createdAt: string;
 }
+
+export interface AdminOrderSummary extends OrderSummary {
+  customerId: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
+}
+
+export interface AdminOrderDetail extends Order {
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+}

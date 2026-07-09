@@ -9,6 +9,9 @@ import {
 import { upload } from "../lib/upload";
 import { requireAdmin } from "../middleware/requireAdmin";
 import { uploadProductImage } from "../services/uploads";
+import adminCustomersRouter from "./adminCustomers";
+import adminNotificationsRouter from "./adminNotifications";
+import adminOrdersRouter from "./adminOrders";
 
 const router = Router();
 
@@ -68,6 +71,10 @@ router.post("/logout", (_req, res) => {
 router.get("/me", requireAdmin, (_req, res) => {
   res.json({ authenticated: true });
 });
+
+router.use("/orders", adminOrdersRouter);
+router.use("/customers", adminCustomersRouter);
+router.use("/notifications", adminNotificationsRouter);
 
 router.post("/uploads", requireAdmin, handleSingleImageUpload, async (req, res) => {
   try {

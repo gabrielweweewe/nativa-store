@@ -42,9 +42,9 @@ nativa-store/
 │   └── src/
 │       ├── App.tsx         # Rotas (loja + /admin)
 │       ├── pages/          # Home, ProductPage, NotFound
-│       │   └── admin/      # AdminLogin, AdminProductsList, AdminProductForm, AdminProductImport
-│       ├── components/     # UI da loja + ui/ (shadcn) + admin/ (AdminLayout, ImageManager...)
-│       ├── contexts/        # ThemeContext, AdminAuthContext, CustomerAuthContext, CartContext
+│       │   └── admin/      # AdminLogin, AdminProductsList, AdminOrdersList, AdminCustomersList...
+│       ├── components/     # UI da loja + ui/ (shadcn) + admin/ (AdminLayout, AdminNotificationsBell...)
+│       ├── contexts/        # ThemeContext, AdminAuthContext, AdminNotificationsContext, CustomerAuthContext, CartContext
 │       └── lib/products.ts, adminApi.ts, cartApi.ts, customerApi.ts
 ├── server/                 # Backend Express
 │   ├── index.ts            # Produção: API + arquivos estáticos
@@ -56,9 +56,10 @@ nativa-store/
 │   ├── middleware/requireAdmin.ts
 │   ├── routes/products.ts  # CRUD (GET público; POST/PUT/DELETE/bulk protegidos)
 │   ├── routes/cart.ts      # Carrinho (GET/POST/PATCH/DELETE públicos; merge exige Bearer)
-│   ├── routes/customers.ts # Perfil do cliente (GET/PUT /me)
-│   ├── routes/admin.ts     # login/logout/me/uploads
-│   ├── services/products.ts, uploads.ts, cart.ts
+│   ├── routes/customers.ts # Perfil do cliente (GET/PUT /me) + endereços
+│   ├── routes/orders.ts    # Pedidos do cliente (GET /me, checkout)
+│   ├── routes/admin.ts     # login/logout/me/uploads + pedidos/clientes/notificações admin
+│   ├── services/products.ts, uploads.ts, cart.ts, orders.ts, adminCustomers.ts, adminNotifications.ts
 │   └── scripts/
 │       ├── seed-products.ts        # Popula com dados de exemplo (legado)
 │       ├── migrate-tiendanube.ts   # Migra CSV da Nuvemshop → Supabase
@@ -75,6 +76,8 @@ nativa-store/
 ├── supabase/setup.sql      # DDL da tabela products
 ├── supabase/customers.sql  # Perfis de clientes (Supabase Auth)
 ├── supabase/cart.sql       # Carrinho (carts + cart_items)
+├── supabase/orders.sql     # Pedidos (orders + order_items)
+├── supabase/admin_notifications.sql  # Notificações in-app do admin
 ├── .env                    # Segredos (NÃO commitar)
 ├── .env.example
 ├── vite.config.ts          # Proxy /api → localhost:3001 em dev
@@ -203,6 +206,15 @@ Base: `/api`
 | `POST` | `/api/admin/logout` | Limpa o cookie de sessão | Pública |
 | `GET` | `/api/admin/me` | Verifica se o cookie atual é válido | Admin |
 | `POST` | `/api/admin/uploads` | Upload de imagem (`multipart/form-data`, campo `file`) → sobe para o Supabase Storage e retorna `{ url }` | Admin |
+| `GET` | `/api/admin/orders` | Lista todos os pedidos (com dados do cliente) | Admin |
+| `GET` | `/api/admin/orders/:id` | Detalhe de um pedido | Admin |
+| `PATCH` | `/api/admin/orders/:id/status` | Atualiza status do pedido (`pending`/`paid`/`canceled`) | Admin |
+| `GET` | `/api/admin/customers` | Lista todos os clientes | Admin |
+| `GET` | `/api/admin/customers/:id` | Perfil, endereços e pedidos de um cliente | Admin |
+| `GET` | `/api/admin/notifications` | Últimas notificações in-app | Admin |
+| `GET` | `/api/admin/notifications/unread-count` | Contagem de não lidas por tipo | Admin |
+| `PATCH` | `/api/admin/notifications/:id/read` | Marca notificação como lida | Admin |
+| `PATCH` | `/api/admin/notifications/read-all` | Marca todas como lidas | Admin |
 | `GET` | `/api/customers/me` | Perfil do cliente logado | Cliente (Bearer) |
 | `PUT` | `/api/customers/me` | Atualiza perfil do cliente | Cliente (Bearer) |
 | `GET` | `/api/cart` | Carrinho completo + resumo (subtotal, frete grátis) | Pública (cookie ou Bearer) |
@@ -212,6 +224,9 @@ Base: `/api`
 | `DELETE` | `/api/cart` | Esvazia carrinho | Pública |
 | `PATCH` | `/api/cart/coupon` | Salva cupom `{ couponCode }` (validação no checkout) | Pública |
 | `POST` | `/api/cart/merge` | Une carrinho convidado ao do cliente logado | Cliente (Bearer) |
+| `GET` | `/api/orders/me` | Lista pedidos do cliente logado | Cliente (Bearer) |
+| `GET` | `/api/orders/:id` | Detalhe de um pedido do cliente | Cliente (Bearer) |
+| `POST` | `/api/orders/checkout` | Finaliza compra a partir do carrinho | Cliente (Bearer) |
 
 **Ordem das rotas em `server/index.ts`:** rotas `/api` **antes** do `app.get("*")` que serve o `index.html`.
 
@@ -271,7 +286,7 @@ Lê `tiendanube-6418246-17834446675007348008384088291.csv` (ou `TIENDANUBE_CSV_P
 | `/` | `Home` | Landing com seções (hero, coleções, sobre, etc.) |
 | `/produto/:slug` | `ProductPage` | PDP completa |
 | `/carrinho` | `CartPage` | Página completa do carrinho |
-| `/checkout` | `CheckoutPage` | Placeholder — checkout em breve |
+| `/checkout` | `CheckoutPage` | Checkout com endereço e pagamento simulado |
 | `/entrar` | `CustomerLogin` | Login de cliente |
 | `/cadastro` | `CustomerRegister` | Cadastro de cliente |
 | `/conta` | `CustomerAccount` | Minha conta (dados, pedidos, segurança) |
@@ -280,6 +295,10 @@ Lê `tiendanube-6418246-17834446675007348008384088291.csv` (ou `TIENDANUBE_CSV_P
 | `/admin/produtos/novo` | `AdminProductForm` | Cadastro de produto |
 | `/admin/produtos/:slug/editar` | `AdminProductForm` | Edição de produto |
 | `/admin/produtos/importar` | `AdminProductImport` | Importação em massa (CSV/XLSX) |
+| `/admin/pedidos` | `AdminOrdersList` | Lista/filtra pedidos + cards de resumo |
+| `/admin/pedidos/:id` | `AdminOrderDetail` | Detalhe do pedido + alterar status |
+| `/admin/clientes` | `AdminCustomersList` | Lista/busca clientes |
+| `/admin/clientes/:id` | `AdminCustomerDetail` | Perfil, endereços e pedidos do cliente |
 | `*` | `NotFound` | 404 |
 
 Roteamento: **Wouter** (`client/src/App.tsx`). As rotas `/admin/*` (exceto `/admin/login`) são
@@ -297,33 +316,35 @@ Pensado para deploy serverless no Vercel, por isso não usa sessão em memória.
 flowchart LR
   Browser["/admin (SPA)"] -->|"fetch credentials include"| API["/api/admin/*, /api/products (POST/PUT/DELETE/bulk)"]
   API --> Auth["requireAdmin (JWT no cookie httpOnly nativa_admin_token)"]
-  Auth --> Supabase["Supabase (tabela products + bucket product-images)"]
+  Auth --> Supabase["Supabase (products, orders, customers, admin_notifications)"]
 ```
 
 - **Backend:** `server/lib/adminAuth.ts` (assina/verifica JWT, compara senha em tempo constante),
-  `server/middleware/requireAdmin.ts`, `server/routes/admin.ts` (login/logout/me/uploads),
+  `server/middleware/requireAdmin.ts`, `server/routes/admin.ts` (login/logout/me/uploads/pedidos/clientes/notificações),
   `server/services/uploads.ts` (Supabase Storage).
 - **Validação compartilhada:** `shared/schemas/product.ts` (Zod) — usada tanto no formulário do
   client (`zodResolver`) quanto nas rotas do servidor.
 - **Slug:** gerado automaticamente a partir do nome (`shared/lib/slugify.ts`); só é alterado
   manualmente se o usuário editar o campo.
-- **Frontend:** `client/src/contexts/AdminAuthContext.tsx` + `client/src/components/admin/`
-  (`AdminLayout`, `RequireAdminAuth`, `ImageManager`, `TagsInput`) + `client/src/pages/admin/`.
+- **Frontend:** `client/src/contexts/AdminAuthContext.tsx`, `AdminNotificationsContext.tsx` +
+  `client/src/components/admin/` (`AdminLayout`, `AdminNotificationsBell`, `RequireAdminAuth`, `ImageManager`, `TagsInput`) +
+  `client/src/pages/admin/`.
+- **Notificações in-app:** tabela `admin_notifications` com triggers em novos pedidos/clientes;
+  sino no header do admin com polling a cada 30s; badges nos itens Pedidos e Clientes.
 - **Upload de imagens:** bucket público `product-images` no Supabase Storage (criar 1x com
-  `pnpm setup:storage`). Limite de 4MB por imagem (JPG/PNG/WEBP) — compatível com o limite de
-  corpo de requisição do Vercel.
-- **Importação em massa:** parse de CSV/XLSX feito **no navegador** com a lib `xlsx`
-  (`shared/lib/importProductsMapper.ts` faz o mapeamento e a validação). Ver
-  [`docs/importacao-em-massa.md`](docs/importacao-em-massa.md) para o guia completo e o
-  significado de cada coluna do modelo.
-- **Módulos futuros** (Pedidos, Configurações) já aparecem no menu do admin como "Em breve" —
-  desabilitados, sem rota implementada ainda.
+  `pnpm setup:storage`). Limite de 4MB por imagem (JPG/PNG/WEBP).
+- **Importação em massa:** parse de CSV/XLSX no navegador com `xlsx` — ver
+  [`docs/importacao-em-massa.md`](docs/importacao-em-massa.md).
+- **Módulo futuro:** Configurações ainda aparece no menu como "Em breve".
 
 ## O que JÁ existe (UI)
 
 - Navbar, Footer, seções da home (ProductsSection, AboutSection, etc.)
 - ProductCard, ProductPage com galeria, tamanhos, cores, FAQ accordion
 - **Carrinho:** painel lateral (`CartDrawer`), página `/carrinho`, badge na Navbar, persistência no Supabase
+- **Checkout e pedidos:** `/checkout` funcional, histórico em `/conta`, admin em `/admin/pedidos`
+- **Clientes no admin:** `/admin/clientes` com perfil, endereços e histórico de compras
+- **Notificações admin:** sino com lista de novos pedidos e cadastros
 - Design system com cores e fontes (Playfair Display, Lora, Nunito)
 - Toasts (Sonner) para feedback
 
@@ -332,17 +353,17 @@ flowchart LR
 | Recurso | Status |
 |---------|--------|
 | Carrinho real | ✅ Persistido no Supabase — visitante (cookie) + cliente logado (merge ao entrar) |
-| Checkout / pagamento | ❌ Rota `/checkout` placeholder |
+| Checkout / pagamento | ✅ Checkout funcional com pagamento simulado (pedido nasce como `paid`) |
 | Login de cliente | ✅ Supabase Auth + perfil em `customer_profiles` |
-| Painel admin | ✅ CRUD de produtos em `/admin` (jul/2026) |
-| Pedidos (`orders`) | ❌ Sem tabela — módulo "Pedidos" já aparece no menu do admin como "Em breve" |
-| Configurações da loja | ❌ Módulo "Configurações" já aparece no menu do admin como "Em breve" |
+| Painel admin | ✅ CRUD de produtos + pedidos + clientes + notificações (jul/2026) |
+| Pedidos (`orders`) | ✅ Tabelas `orders`/`order_items`, checkout, admin em `/admin/pedidos` |
+| Configurações da loja | ❌ Módulo "Configurações" ainda aparece no menu do admin como "Em breve" |
 | Supabase Storage para imagens | ✅ Bucket `product-images` (upload pelo admin); CDN Nuvemshop ainda usado nos produtos migrados |
 | Busca / filtros avançados | ❌ Filtro básico por categoria na home |
 | Avaliações reais | ❌ Campos existem, dados zerados |
 | API de escrita (CRUD admin) | ✅ `POST/PUT/DELETE /api/products` + `/bulk`, protegidos por login admin |
 
-Ao implementar pedidos, criar novas tabelas no Supabase e novas rotas em `server/routes/`.
+Ao implementar novos módulos admin, seguir o padrão de `server/routes/adminOrders.ts` etc.
 
 ### Tabelas `carts` e `cart_items`
 
@@ -486,9 +507,11 @@ Antes de codar, confirme:
 4. **Painel admin (jul/2026):** login por senha única (JWT em cookie httpOnly), CRUD completo de
    produtos em `/admin`, upload de imagens via Supabase Storage e importação em massa por
    planilha (CSV/XLSX) com pré-visualização
-5. **Pendente:** checkout, pedidos, configurações da loja
-6. **Carrinho (jul/2026):** tabelas `carts`/`cart_items`, API `/api/cart/*`, `CartContext`, painel lateral + página `/carrinho`, preparado para checkout
+5. **Pendente:** configurações da loja, gateway de pagamento real
+6. **Carrinho (jul/2026):** tabelas `carts`/`cart_items`, API `/api/cart/*`, `CartContext`, painel lateral + página `/carrinho`
+7. **Pedidos e admin (jul/2026):** checkout, tabelas `orders`/`order_items`, admin de pedidos/clientes,
+   notificações in-app (`admin_notifications`)
 
 ---
 
-*Última atualização: julho de 2026 (carrinho de compras + painel admin de produtos)*
+*Última atualização: julho de 2026 (admin de pedidos, clientes e notificações)*

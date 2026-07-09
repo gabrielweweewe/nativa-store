@@ -1,3 +1,6 @@
+import type { AdminCustomerDetail, AdminCustomerSummary } from "@shared/types/customer";
+import type { AdminNotification } from "@shared/types/notification";
+import type { AdminOrderDetail, AdminOrderSummary, OrderStatus } from "@shared/types/order";
 import type { ProductInput } from "@shared/schemas/product";
 import type { Product } from "@shared/types/product";
 
@@ -108,5 +111,54 @@ export function bulkImportProducts(products: ProductInput[]) {
   return request<BulkImportResponse>("/api/products/bulk", {
     method: "POST",
     body: JSON.stringify({ products }),
+  });
+}
+
+export function fetchAdminOrders() {
+  return request<AdminOrderSummary[]>("/api/admin/orders");
+}
+
+export function fetchAdminOrder(orderId: string) {
+  return request<AdminOrderDetail>(`/api/admin/orders/${encodeURIComponent(orderId)}`);
+}
+
+export function updateAdminOrderStatus(orderId: string, status: OrderStatus) {
+  return request<AdminOrderDetail>(`/api/admin/orders/${encodeURIComponent(orderId)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function fetchAdminCustomers() {
+  return request<AdminCustomerSummary[]>("/api/admin/customers");
+}
+
+export function fetchAdminCustomer(customerId: string) {
+  return request<AdminCustomerDetail>(`/api/admin/customers/${encodeURIComponent(customerId)}`);
+}
+
+export interface AdminUnreadCountResponse {
+  count: number;
+  byType: Record<"new_order" | "new_customer", number>;
+}
+
+export function fetchAdminNotifications() {
+  return request<AdminNotification[]>("/api/admin/notifications");
+}
+
+export function fetchAdminUnreadCount() {
+  return request<AdminUnreadCountResponse>("/api/admin/notifications/unread-count");
+}
+
+export function markAdminNotificationRead(notificationId: string) {
+  return request<AdminNotification>(
+    `/api/admin/notifications/${encodeURIComponent(notificationId)}/read`,
+    { method: "PATCH" },
+  );
+}
+
+export function markAllAdminNotificationsRead() {
+  return request<{ success: true }>("/api/admin/notifications/read-all", {
+    method: "PATCH",
   });
 }

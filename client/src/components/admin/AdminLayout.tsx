@@ -1,4 +1,5 @@
 import NativaLogo from "@/components/NativaLogo";
+import AdminNotificationsBell from "@/components/admin/AdminNotificationsBell";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -8,6 +9,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { useAdminNotifications } from "@/contexts/AdminNotificationsContext";
 import {
   LayoutGrid,
   LogOut,
@@ -16,6 +18,7 @@ import {
   Settings,
   ShoppingCart,
   Upload,
+  Users,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
@@ -25,16 +28,24 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   disabled?: boolean;
+  badgeKey?: "new_order" | "new_customer";
 }
 
 const navItems: NavItem[] = [
   { label: "Produtos", href: "/admin/produtos", icon: Package },
   { label: "Importar produtos", href: "/admin/produtos/importar", icon: Upload },
-  { label: "Pedidos", href: "/admin/pedidos", icon: ShoppingCart, disabled: true },
+  { label: "Pedidos", href: "/admin/pedidos", icon: ShoppingCart, badgeKey: "new_order" },
+  { label: "Clientes", href: "/admin/clientes", icon: Users, badgeKey: "new_customer" },
   { label: "Configurações", href: "/admin/configuracoes", icon: Settings, disabled: true },
 ];
 
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+function NavLinks({
+  onNavigate,
+  unreadByType,
+}: {
+  onNavigate?: () => void;
+  unreadByType: { new_order: number; new_customer: number };
+}) {
   const [location] = useLocation();
 
   return (
@@ -42,6 +53,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       {navItems.map((item) => {
         const isActive = location === item.href || location.startsWith(`${item.href}/`);
         const Icon = item.icon;
+        const badgeCount = item.badgeKey ? unreadByType[item.badgeKey] : 0;
 
         if (item.disabled) {
           return (
@@ -72,6 +84,15 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           >
             <Icon className="size-4" />
             {item.label}
+            {badgeCount > 0 && (
+              <span
+                className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                  isActive ? "bg-white/20 text-white" : "bg-[#C4522A] text-white"
+                }`}
+              >
+                {badgeCount > 99 ? "99+" : badgeCount}
+              </span>
+            )}
           </Link>
         );
       })}
@@ -89,6 +110,7 @@ export default function AdminLayout({
   actions?: ReactNode;
 }) {
   const { logout } = useAdminAuth();
+  const { unreadByType } = useAdminNotifications();
   const [, setLocation] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -99,7 +121,6 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-[#FAF7F2]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-      {/* Sidebar — desktop */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-[#E8D5C4] bg-white lg:flex">
         <div className="flex items-center gap-2 border-b border-[#E8D5C4] px-4 py-4">
           <NativaLogo className="h-9 w-auto" />
@@ -107,7 +128,7 @@ export default function AdminLayout({
             Admin
           </span>
         </div>
-        <NavLinks />
+        <NavLinks unreadByType={unreadByType} />
         <div className="border-t border-[#E8D5C4] p-3">
           <Button
             variant="ghost"
@@ -120,7 +141,6 @@ export default function AdminLayout({
         </div>
       </aside>
 
-      {/* Topbar + content */}
       <div className="lg:pl-64">
         <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-[#E8D5C4] bg-white/90 px-4 py-3 backdrop-blur-sm sm:px-6">
           <div className="flex items-center gap-3">
@@ -141,7 +161,7 @@ export default function AdminLayout({
                     </div>
                   </SheetTitle>
                 </SheetHeader>
-                <NavLinks onNavigate={() => setMobileOpen(false)} />
+                <NavLinks onNavigate={() => setMobileOpen(false)} unreadByType={unreadByType} />
                 <div className="border-t border-[#E8D5C4] p-3">
                   <Button
                     variant="ghost"
@@ -164,7 +184,10 @@ export default function AdminLayout({
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">{actions}</div>
+          <div className="flex items-center gap-2">
+            <AdminNotificationsBell />
+            {actions}
+          </div>
         </header>
 
         <main className="p-4 sm:p-6">{children}</main>

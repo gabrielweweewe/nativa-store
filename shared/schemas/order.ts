@@ -6,4 +6,9 @@ export const checkoutSchema = z.object({
   paymentMethod: z.enum(["pix", "credit_card", "boleto"]),
 });
 
+export const orderStatusUpdateSchema = z.object({
+  status: z.enum(["pending", "paid", "canceled"]),
+});
+
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+export type OrderStatusUpdateInput = z.infer<typeof orderStatusUpdateSchema>;

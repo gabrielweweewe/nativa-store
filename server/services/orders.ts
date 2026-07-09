@@ -8,7 +8,7 @@ import {
   type OrderRow,
 } from "@shared/lib/orderMapper";
 import type { CheckoutInput } from "@shared/schemas/order";
-import type { Order, OrderSummary } from "@shared/types/order";
+import type { AdminOrderDetail, AdminOrderSummary, Order, OrderSummary } from "@shared/types/order";
 import { supabase } from "../lib/supabase";
 
 async function fetchCustomerCartRow(customerId: string): Promise<CartRow | null> {
@@ -128,4 +128,110 @@ export async function createOrderFromCheckout(
 
   const orderRow = data as OrderRow;
   return fetchOrderWithItems(orderRow.id);
+}
+
+async function fetchCustomerInfo(customerId: string | null): Promise<{
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+}> {
+  if (!customerId) {
+    return { name: null, email: null, phone: null };
+  }
+
+  const [{ data: profile }, { data: authData }] = await Promise.all([
+    supabase.from("customer_profiles").select("full_name, phone").eq("id", customerId).maybeSingle(),
+    supabase.auth.admin.getUserById(customerId),
+  ]);
+
+  return {
+    name: profile?.full_name ? String(profile.full_name) : null,
+    email: authData?.user?.email ?? null,
+    phone: profile?.phone == null ? null : String(profile.phone),
+  };
+}
+
+async function buildItemCountMap(orderIds: string[]): Promise<Map<string, number>> {
+  const countMap = new Map<string, number>();
+  if (!orderIds.length) return countMap;
+
+  const { data: itemRows, error: itemsError } = await supabase
+    .from("order_items")
+    .select("order_id, quantity")
+    .in("order_id", orderIds);
+
+  if (itemsError) throw new Error(itemsError.message);
+
+  for (const item of itemRows ?? []) {
+    const current = countMap.get(item.order_id) ?? 0;
+    countMap.set(item.order_id, current + Number(item.quantity));
+  }
+
+  return countMap;
+}
+
+export async function listAllOrders(): Promise<AdminOrderSummary[]> {
+  const { data: orderRows, error } = await supabase
+    .from("orders")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  if (!orderRows?.length) return [];
+
+  const orderIds = orderRows.map((row) => row.id);
+  const countMap = await buildItemCountMap(orderIds);
+
+  const customerIds = Array.from(
+    new Set(orderRows.map((row) => row.customer_id).filter(Boolean)),
+  ) as string[];
+  const customerInfoMap = new Map<string, { name: string | null; email: string | null }>();
+
+  await Promise.all(
+    customerIds.map(async (customerId) => {
+      const info = await fetchCustomerInfo(customerId);
+      customerInfoMap.set(customerId, { name: info.name, email: info.email });
+    }),
+  );
+
+  return orderRows.map((row) => {
+    const summary = mapOrderRowToSummary(row as OrderRow, countMap.get(row.id) ?? 0);
+    const customerInfo = row.customer_id ? customerInfoMap.get(row.customer_id) : undefined;
+
+    return {
+      ...summary,
+      customerId: row.customer_id,
+      customerName: customerInfo?.name ?? null,
+      customerEmail: customerInfo?.email ?? null,
+    };
+  });
+}
+
+export async function getOrderById(orderId: string): Promise<AdminOrderDetail> {
+  const order = await fetchOrderWithItems(orderId);
+  const customerInfo = await fetchCustomerInfo(order.customerId);
+
+  return {
+    ...order,
+    customerName: customerInfo.name,
+    customerEmail: customerInfo.email,
+    customerPhone: customerInfo.phone,
+  };
+}
+
+export async function updateOrderStatus(
+  orderId: string,
+  status: Order["status"],
+): Promise<AdminOrderDetail> {
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ status })
+    .eq("id", orderId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Pedido não encontrado");
+
+  return getOrderById(orderId);
 }
