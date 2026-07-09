@@ -1,4 +1,6 @@
 import AdminLayout from "@/components/admin/AdminLayout";
+import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import { AdminDesktopTable, AdminMobileList } from "@/components/admin/AdminMobileCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -110,19 +112,19 @@ export default function AdminProductsList() {
         </>
       }
     >
-      <Card className="border-[#E8D5C4] p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="border-[#E8D5C4] p-3 sm:p-4">
+        <div className="flex flex-col gap-3">
           <div className="relative w-full sm:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8B6F5E]" />
             <Input
               placeholder="Buscar por nome, SKU ou slug..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className="h-11 rounded-xl pl-9"
             />
           </div>
           <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger className="w-full sm:w-48">
+            <SelectTrigger className="h-11 w-full rounded-xl sm:w-48">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
@@ -137,19 +139,78 @@ export default function AdminProductsList() {
         </div>
       </Card>
 
-      <Card className="mt-4 border-[#E8D5C4]">
+      <Card className="mt-4 overflow-hidden border-[#E8D5C4]">
         {isLoading ? (
           <div className="flex items-center justify-center gap-2 p-12 text-[#8B6F5E]">
             <Spinner className="size-5" />
             Carregando produtos...
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 p-12 text-center text-[#8B6F5E]">
-            <Package className="size-8 opacity-50" />
-            <p className="font-medium text-[#3D2B1F]">Nenhum produto encontrado</p>
-            <p className="text-sm">Ajuste os filtros ou cadastre um novo produto.</p>
-          </div>
+          <AdminEmptyState
+            icon={<Package className="size-8" />}
+            title="Nenhum produto encontrado"
+            description="Ajuste os filtros ou cadastre um novo produto."
+          />
         ) : (
+          <>
+            <AdminMobileList>
+              {filteredProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="flex items-center gap-3 rounded-2xl border border-[#E8D5C4] bg-white p-3 shadow-sm"
+                >
+                  <Link
+                    href={`/admin/produtos/${product.slug}/editar`}
+                    className="flex min-w-0 flex-1 items-center gap-3 active:opacity-80"
+                  >
+                    <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E8D5C4] bg-[#F5F0E8]">
+                      {product.image ? (
+                        <img src={product.image} alt={product.name} className="size-full object-cover" />
+                      ) : (
+                        <ImageOff className="size-4 text-[#8B6F5E]" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate font-semibold text-[#3D2B1F]">{product.name}</p>
+                        {product.featured && <Sparkles className="size-3.5 shrink-0 text-[#E8821A]" />}
+                      </div>
+                      <p className="truncate text-xs text-[#8B6F5E]">{product.sku || product.slug}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-bold text-[#C4522A]">{formatPrice(product.price)}</span>
+                        <Badge variant="outline" className="border-[#E8D5C4] text-[10px] text-[#3D2B1F]">
+                          {product.category}
+                        </Badge>
+                        <Badge
+                          variant={product.inStock ? "secondary" : "destructive"}
+                          className={`text-[10px] ${product.inStock ? "bg-[#2D6A4F]/10 text-[#2D6A4F]" : ""}`}
+                        >
+                          {product.inStock ? "Em estoque" : "Sem estoque"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </Link>
+                  <div className="flex shrink-0 flex-col gap-1">
+                    <Button variant="ghost" size="icon-sm" asChild title="Editar">
+                      <Link href={`/admin/produtos/${product.slug}/editar`}>
+                        <Pencil className="size-4" />
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      title="Excluir"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setProductToDelete(product)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </AdminMobileList>
+
+            <AdminDesktopTable>
           <Table>
             <TableHeader>
               <TableRow>
@@ -225,8 +286,19 @@ export default function AdminProductsList() {
               ))}
             </TableBody>
           </Table>
+            </AdminDesktopTable>
+          </>
         )}
       </Card>
+
+      <Button
+        asChild
+        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-30 size-14 rounded-full shadow-lg lg:hidden nativa-btn-primary"
+      >
+        <Link href="/admin/produtos/novo" aria-label="Novo produto">
+          <Plus className="size-6" />
+        </Link>
+      </Button>
 
       <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
         <AlertDialogContent>

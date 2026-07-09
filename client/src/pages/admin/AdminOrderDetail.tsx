@@ -65,7 +65,7 @@ export default function AdminOrderDetail() {
 
   if (isLoading) {
     return (
-      <AdminLayout title="Pedido">
+      <AdminLayout title="Pedido" backHref="/admin/pedidos">
         <div className="flex justify-center py-16">
           <Spinner className="size-7 text-[#C4522A]" />
         </div>
@@ -75,7 +75,7 @@ export default function AdminOrderDetail() {
 
   if (!order) {
     return (
-      <AdminLayout title="Pedido">
+      <AdminLayout title="Pedido" backHref="/admin/pedidos">
         <Card className="border-[#E8D5C4] p-8 text-center">
           <p className="font-medium text-[#3D2B1F]">Pedido não encontrado</p>
           <Button asChild variant="outline" className="mt-4">
@@ -93,7 +93,8 @@ export default function AdminOrderDetail() {
 
   return (
     <AdminLayout
-      title={`Pedido #${formatOrderShortId(order.id)}`}
+      title={`#${formatOrderShortId(order.id)}`}
+      backHref="/admin/pedidos"
       actions={
         <Button variant="outline" asChild>
           <Link href="/admin/pedidos">
@@ -103,12 +104,15 @@ export default function AdminOrderDetail() {
         </Button>
       }
     >
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="border-[#E8D5C4] p-5 lg:col-span-2">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="space-y-4 pb-24 lg:pb-0">
+        <Card className="border-[#E8D5C4] p-4 sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-sm text-[#8B6F5E]">{orderDate}</p>
-              <p className="mt-1 text-2xl font-bold text-[#3D2B1F]" style={{ fontFamily: "'Playfair Display', serif" }}>
+              <p className="text-xs text-[#8B6F5E] sm:text-sm">{orderDate}</p>
+              <p
+                className="mt-1 text-2xl font-bold text-[#3D2B1F] sm:text-3xl"
+                style={{ fontFamily: "'Playfair Display', serif" }}
+              >
                 {formatPrice(order.totalAmount)}
               </p>
               <p className="mt-1 text-sm text-[#8B6F5E]">
@@ -116,10 +120,10 @@ export default function AdminOrderDetail() {
                 {order.items.length === 1 ? "item" : "itens"}
               </p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="hidden flex-col gap-2 sm:flex-row sm:items-center lg:flex">
               <Badge
                 variant="outline"
-                className={`border-0 ring-1 ${ORDER_STATUS_STYLES[order.status]}`}
+                className={`w-fit border-0 ring-1 ${ORDER_STATUS_STYLES[order.status]}`}
               >
                 {ORDER_STATUS_LABELS[order.status]}
               </Badge>
@@ -128,7 +132,7 @@ export default function AdminOrderDetail() {
                 onValueChange={(value) => handleStatusChange(value as OrderStatus)}
                 disabled={isSaving}
               >
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="h-11 w-full rounded-xl sm:w-44">
                   <SelectValue placeholder="Alterar status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -143,9 +147,9 @@ export default function AdminOrderDetail() {
           </div>
         </Card>
 
-        <Card className="border-[#E8D5C4] p-5">
+        <Card className="border-[#E8D5C4] p-4 sm:p-5">
           <h2
-            className="mb-4 text-lg font-bold text-[#3D2B1F]"
+            className="mb-4 text-base font-bold text-[#3D2B1F] sm:text-lg"
             style={{ fontFamily: "'Playfair Display', serif" }}
           >
             Cliente
@@ -153,22 +157,22 @@ export default function AdminOrderDetail() {
           {order.customerId ? (
             <div className="space-y-3 text-sm" style={{ fontFamily: "'Nunito', sans-serif" }}>
               <div className="flex items-center gap-2 text-[#3D2B1F]">
-                <User className="size-4 text-[#C4522A]" />
-                <span>{order.customerName || "Sem nome"}</span>
+                <User className="size-4 shrink-0 text-[#C4522A]" />
+                <span className="truncate">{order.customerName || "Sem nome"}</span>
               </div>
               {order.customerEmail && (
                 <div className="flex items-center gap-2 text-[#8B6F5E]">
-                  <Mail className="size-4" />
-                  <span>{order.customerEmail}</span>
+                  <Mail className="size-4 shrink-0" />
+                  <span className="truncate">{order.customerEmail}</span>
                 </div>
               )}
               {order.customerPhone && (
                 <div className="flex items-center gap-2 text-[#8B6F5E]">
-                  <Phone className="size-4" />
+                  <Phone className="size-4 shrink-0" />
                   <span>{order.customerPhone}</span>
                 </div>
               )}
-              <Button asChild variant="outline" className="mt-2 w-full">
+              <Button asChild variant="outline" className="mt-2 h-11 w-full rounded-xl">
                 <Link href={`/admin/clientes/${order.customerId}`}>Ver perfil do cliente</Link>
               </Button>
             </div>
@@ -176,11 +180,40 @@ export default function AdminOrderDetail() {
             <p className="text-sm text-[#8B6F5E]">Cliente não vinculado a este pedido.</p>
           )}
         </Card>
+
+        <Card className="border-[#E8D5C4] p-4 sm:p-5">
+          <OrderDetailContent order={order} />
+        </Card>
       </div>
 
-      <Card className="mt-4 border-[#E8D5C4] p-5">
-        <OrderDetailContent order={order} />
-      </Card>
+      <div
+        className="fixed inset-x-0 bottom-[calc(3.25rem+env(safe-area-inset-bottom))] z-30 border-t border-[#E8D5C4] bg-white/95 p-3 backdrop-blur-md lg:hidden"
+      >
+        <div className="mx-auto flex max-w-lg items-center gap-2">
+          <Badge
+            variant="outline"
+            className={`shrink-0 border-0 ring-1 ${ORDER_STATUS_STYLES[order.status]}`}
+          >
+            {ORDER_STATUS_LABELS[order.status]}
+          </Badge>
+          <Select
+            value={order.status}
+            onValueChange={(value) => handleStatusChange(value as OrderStatus)}
+            disabled={isSaving}
+          >
+            <SelectTrigger className="h-11 flex-1 rounded-xl">
+              <SelectValue placeholder="Alterar status" />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(ORDER_STATUS_LABELS) as OrderStatus[]).map((value) => (
+                <SelectItem key={value} value={value}>
+                  {ORDER_STATUS_LABELS[value]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
     </AdminLayout>
   );
 }

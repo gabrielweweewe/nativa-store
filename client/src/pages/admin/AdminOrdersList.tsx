@@ -1,4 +1,7 @@
 import AdminLayout from "@/components/admin/AdminLayout";
+import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import AdminMobileCard, { AdminDesktopTable, AdminMobileList } from "@/components/admin/AdminMobileCard";
+import AdminStatGrid from "@/components/admin/AdminStatGrid";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,35 +36,6 @@ import { toast } from "sonner";
 import { Link } from "wouter";
 
 type PeriodFilter = "all" | "7d" | "30d";
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value: string;
-  icon: React.ComponentType<{ className?: string }>;
-}) {
-  return (
-    <Card className="border-[#E8D5C4] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#8B6F5E]">{label}</p>
-          <p
-            className="mt-1 text-2xl font-bold text-[#3D2B1F]"
-            style={{ fontFamily: "'Playfair Display', serif" }}
-          >
-            {value}
-          </p>
-        </div>
-        <div className="flex size-10 items-center justify-center rounded-xl bg-[#C4522A]/10">
-          <Icon className="size-5 text-[#C4522A]" />
-        </div>
-      </div>
-    </Card>
-  );
-}
 
 export default function AdminOrdersList() {
   const [orders, setOrders] = useState<AdminOrderSummary[]>([]);
@@ -122,114 +96,158 @@ export default function AdminOrdersList() {
 
   return (
     <AdminLayout title="Pedidos">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total de pedidos" value={String(stats.total)} icon={ShoppingCart} />
-        <StatCard label="Confirmados" value={String(stats.paid)} icon={CheckCircle2} />
-        <StatCard label="Pendentes" value={String(stats.pending)} icon={Clock} />
-        <StatCard label="Faturamento" value={formatPrice(stats.revenue)} icon={Wallet} />
-      </div>
+      <AdminStatGrid
+        items={[
+          { label: "Total", value: String(stats.total), icon: ShoppingCart },
+          { label: "Confirmados", value: String(stats.paid), icon: CheckCircle2, accent: "green" },
+          { label: "Pendentes", value: String(stats.pending), icon: Clock },
+          { label: "Faturamento", value: formatPrice(stats.revenue), icon: Wallet },
+        ]}
+      />
 
-      <Card className="mt-4 border-[#E8D5C4] p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="relative w-full lg:max-w-sm">
+      <Card className="mt-4 border-[#E8D5C4] p-3 sm:p-4">
+        <div className="flex flex-col gap-3">
+          <div className="relative w-full">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8B6F5E]" />
             <Input
-              placeholder="Buscar por ID, cliente ou e-mail..."
+              placeholder="Buscar pedido, cliente ou e-mail..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className="h-11 rounded-xl pl-9"
             />
           </div>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-full lg:w-44">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              {(Object.keys(ORDER_STATUS_LABELS) as OrderStatus[]).map((value) => (
-                <SelectItem key={value} value={value}>
-                  {ORDER_STATUS_LABELS[value]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={period} onValueChange={(value) => setPeriod(value as PeriodFilter)}>
-            <SelectTrigger className="w-full lg:w-44">
-              <SelectValue placeholder="Período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todo o período</SelectItem>
-              <SelectItem value="7d">Últimos 7 dias</SelectItem>
-              <SelectItem value="30d">Últimos 30 dias</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="grid grid-cols-2 gap-2 lg:flex lg:gap-3">
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="h-11 w-full rounded-xl lg:w-44">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                {(Object.keys(ORDER_STATUS_LABELS) as OrderStatus[]).map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {ORDER_STATUS_LABELS[value]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={period} onValueChange={(value) => setPeriod(value as PeriodFilter)}>
+              <SelectTrigger className="h-11 w-full rounded-xl lg:w-44">
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todo o período</SelectItem>
+                <SelectItem value="7d">Últimos 7 dias</SelectItem>
+                <SelectItem value="30d">Últimos 30 dias</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </Card>
 
-      <Card className="mt-4 border-[#E8D5C4]">
+      <Card className="mt-4 overflow-hidden border-[#E8D5C4]">
         {isLoading ? (
           <div className="flex items-center justify-center gap-2 p-12 text-[#8B6F5E]">
             <Spinner className="size-5" />
             Carregando pedidos...
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 p-12 text-center text-[#8B6F5E]">
-            <Package className="size-8 opacity-50" />
-            <p className="font-medium text-[#3D2B1F]">Nenhum pedido encontrado</p>
-            <p className="text-sm">Ajuste os filtros ou aguarde novas compras na loja.</p>
-          </div>
+          <AdminEmptyState
+            icon={<Package className="size-8" />}
+            title="Nenhum pedido encontrado"
+            description="Ajuste os filtros ou aguarde novas compras na loja."
+          />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Pedido</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Itens</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Pagamento</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            <AdminMobileList>
               {filteredOrders.map((order) => (
-                <TableRow key={order.id} className="cursor-pointer hover:bg-[#FAF7F2]/80">
-                  <TableCell>
-                    <Link
-                      href={`/admin/pedidos/${order.id}`}
-                      className="font-semibold text-[#C4522A] hover:underline"
-                    >
-                      #{formatOrderShortId(order.id)}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium text-[#3D2B1F]">
-                      {order.customerName || "Cliente removido"}
+                <AdminMobileCard key={order.id} href={`/admin/pedidos/${order.id}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[#C4522A]">
+                        #{formatOrderShortId(order.id)}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm font-medium text-[#3D2B1F]">
+                        {order.customerName || "Cliente removido"}
+                      </p>
+                      <p className="truncate text-xs text-[#8B6F5E]">
+                        {new Date(order.createdAt).toLocaleDateString("pt-BR")} ·{" "}
+                        {PAYMENT_METHOD_LABELS[order.paymentMethod]} · {order.itemCount}{" "}
+                        {order.itemCount === 1 ? "item" : "itens"}
+                      </p>
                     </div>
-                    <div className="text-xs text-[#8B6F5E]">{order.customerEmail || "—"}</div>
-                  </TableCell>
-                  <TableCell className="text-[#8B6F5E]">
-                    {new Date(order.createdAt).toLocaleDateString("pt-BR")}
-                  </TableCell>
-                  <TableCell>{order.itemCount}</TableCell>
-                  <TableCell className="font-medium text-[#3D2B1F]">
-                    {formatPrice(order.totalAmount)}
-                  </TableCell>
-                  <TableCell className="text-[#8B6F5E]">
-                    {PAYMENT_METHOD_LABELS[order.paymentMethod]}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={`border-0 ring-1 ${ORDER_STATUS_STYLES[order.status]}`}
-                    >
-                      {ORDER_STATUS_LABELS[order.status]}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                      <p
+                        className="text-base font-bold text-[#3D2B1F]"
+                        style={{ fontFamily: "'Playfair Display', serif" }}
+                      >
+                        {formatPrice(order.totalAmount)}
+                      </p>
+                      <Badge
+                        variant="outline"
+                        className={`border-0 ring-1 ${ORDER_STATUS_STYLES[order.status]}`}
+                      >
+                        {ORDER_STATUS_LABELS[order.status]}
+                      </Badge>
+                    </div>
+                  </div>
+                </AdminMobileCard>
               ))}
-            </TableBody>
-          </Table>
+            </AdminMobileList>
+
+            <AdminDesktopTable>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Pedido</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Itens</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Pagamento</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredOrders.map((order) => (
+                    <TableRow key={order.id} className="cursor-pointer hover:bg-[#FAF7F2]/80">
+                      <TableCell>
+                        <Link
+                          href={`/admin/pedidos/${order.id}`}
+                          className="font-semibold text-[#C4522A] hover:underline"
+                        >
+                          #{formatOrderShortId(order.id)}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium text-[#3D2B1F]">
+                          {order.customerName || "Cliente removido"}
+                        </div>
+                        <div className="text-xs text-[#8B6F5E]">{order.customerEmail || "—"}</div>
+                      </TableCell>
+                      <TableCell className="text-[#8B6F5E]">
+                        {new Date(order.createdAt).toLocaleDateString("pt-BR")}
+                      </TableCell>
+                      <TableCell>{order.itemCount}</TableCell>
+                      <TableCell className="font-medium text-[#3D2B1F]">
+                        {formatPrice(order.totalAmount)}
+                      </TableCell>
+                      <TableCell className="text-[#8B6F5E]">
+                        {PAYMENT_METHOD_LABELS[order.paymentMethod]}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={`border-0 ring-1 ${ORDER_STATUS_STYLES[order.status]}`}
+                        >
+                          {ORDER_STATUS_LABELS[order.status]}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </AdminDesktopTable>
+          </>
         )}
       </Card>
     </AdminLayout>
