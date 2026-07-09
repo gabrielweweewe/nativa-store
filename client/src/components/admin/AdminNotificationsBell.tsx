@@ -21,8 +21,8 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 
 function NotificationIcon({ type }: { type: AdminNotification["type"] }) {
-  if (type === "new_order") return <ShoppingCart className="size-4 text-[#C4522A]" />;
-  return <UserPlus className="size-4 text-[#2D6A4F]" />;
+  if (type === "new_order") return <ShoppingCart className="size-4 text-[var(--admin-accent)]" />;
+  return <UserPlus className="size-4 text-[var(--admin-success)]" />;
 }
 
 function getNotificationHref(notification: AdminNotification): string {
@@ -45,23 +45,23 @@ function NotificationList({
 }) {
   if (notifications.length === 0) {
     return (
-      <div className="px-4 py-10 text-center text-sm text-[#8B6F5E]">
+      <div className="px-4 py-10 text-center text-sm text-[var(--admin-text-muted)]">
         Nenhuma notificação por enquanto.
       </div>
     );
   }
 
   return (
-    <div className="divide-y divide-[#E8D5C4]/80">
+    <div className="divide-y divide-[var(--admin-border)]">
       {unreadCount > 0 && (
         <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-xs font-semibold uppercase tracking-wide text-[#8B6F5E]">
+          <span className="text-xs font-semibold uppercase tracking-wide text-[var(--admin-text-muted)]">
             {unreadCount} não {unreadCount === 1 ? "lida" : "lidas"}
           </span>
           <button
             type="button"
             onClick={onMarkAll}
-            className="text-xs font-semibold text-[#C4522A] active:opacity-70"
+            className="text-xs font-semibold text-[var(--admin-accent)] active:opacity-70"
           >
             Marcar todas como lidas
           </button>
@@ -72,26 +72,26 @@ function NotificationList({
           key={notification.id}
           type="button"
           onClick={() => onOpen(notification)}
-          className="flex w-full items-start gap-3 px-4 py-4 text-left transition-colors active:bg-[#FAF7F2]"
+          className="flex w-full items-start gap-3 px-4 py-4 text-left transition-colors active:bg-[var(--admin-surface-hover)]"
         >
-          <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#FAF7F2]">
+          <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--admin-surface-hover)]">
             <NotificationIcon type={notification.type} />
           </div>
           <div className="min-w-0 flex-1">
             <p
-              className={`text-sm leading-snug ${notification.readAt ? "text-[#8B6F5E]" : "font-semibold text-[#3D2B1F]"}`}
+              className={`text-sm leading-snug ${notification.readAt ? "text-[var(--admin-text-muted)]" : "font-semibold text-[var(--admin-text)]"}`}
             >
               {notification.title}
             </p>
-            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[#8B6F5E]">
+            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--admin-text-secondary)]">
               {notification.message}
             </p>
-            <p className="mt-1.5 text-[10px] text-[#8B6F5E]/80">
+            <p className="mt-1.5 text-[10px] text-[var(--admin-text-muted)]">
               {new Date(notification.createdAt).toLocaleString("pt-BR")}
             </p>
           </div>
           {!notification.readAt && (
-            <span className="mt-2 size-2 shrink-0 rounded-full bg-[#C4522A]" />
+            <span className="mt-2 size-2 shrink-0 rounded-full bg-[var(--admin-accent)]" />
           )}
         </button>
       ))}
@@ -117,10 +117,14 @@ export default function AdminNotificationsBell() {
   }
 
   const triggerButton = (
-        <Button variant="outline" size="icon-sm" className="relative border-[var(--admin-border)] sm:size-9">
+    <Button
+      variant="outline"
+      size="icon-sm"
+      className="relative border-[var(--admin-border)] bg-[var(--admin-surface)] text-[var(--admin-text-secondary)] hover:bg-[var(--admin-surface-hover)] sm:size-9"
+    >
       <Bell className="size-4" />
       {unreadCount > 0 && (
-        <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[#C4522A] px-1 text-[9px] font-bold text-white">
+        <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[var(--admin-accent)] px-1 text-[9px] font-bold text-white">
           {unreadCount > 99 ? "99+" : unreadCount}
         </span>
       )}
@@ -134,13 +138,11 @@ export default function AdminNotificationsBell() {
           <SheetTrigger asChild>{triggerButton}</SheetTrigger>
           <SheetContent
             side="bottom"
-            className="max-h-[88dvh] rounded-t-3xl p-0"
+            className="admin-sheet max-h-[88dvh] rounded-t-3xl border-t p-0 shadow-2xl"
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
           >
-            <SheetHeader className="border-b border-[#E8D5C4] px-4 py-4">
-              <SheetTitle style={{ fontFamily: "'Playfair Display', serif" }}>
-                Notificações
-              </SheetTitle>
+            <SheetHeader className="border-b border-[var(--admin-border)] px-4 py-4">
+              <SheetTitle className="admin-sheet-title text-base">Notificações</SheetTitle>
             </SheetHeader>
             <div className="overflow-y-auto">
               <NotificationList
@@ -157,47 +159,47 @@ export default function AdminNotificationsBell() {
       <div className="hidden lg:block">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel className="flex items-center justify-between gap-2">
-              <span>Notificações</span>
+          <DropdownMenuContent align="end" className="admin-sheet w-80 border-[var(--admin-border)] p-0">
+            <DropdownMenuLabel className="flex items-center justify-between gap-2 px-3 py-3">
+              <span className="font-semibold text-[var(--admin-text)]">Notificações</span>
               {unreadCount > 0 && (
                 <button
                   type="button"
                   onClick={() => markAllAsRead()}
-                  className="text-xs font-medium text-[#C4522A] hover:underline"
+                  className="text-xs font-medium text-[var(--admin-accent)] hover:underline"
                 >
                   Marcar todas como lidas
                 </button>
               )}
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="bg-[var(--admin-border)]" />
             {notifications.length === 0 ? (
-              <div className="px-3 py-6 text-center text-sm text-[#8B6F5E]">
+              <div className="px-3 py-6 text-center text-sm text-[var(--admin-text-muted)]">
                 Nenhuma notificação por enquanto.
               </div>
             ) : (
               notifications.slice(0, 8).map((notification) => (
                 <DropdownMenuItem
                   key={notification.id}
-                  className="cursor-pointer items-start gap-3 p-3"
+                  className="cursor-pointer items-start gap-3 rounded-none p-3 focus:bg-[var(--admin-surface-hover)]"
                   onClick={() => handleOpenNotification(notification)}
                 >
                   <NotificationIcon type={notification.type} />
                   <div className="min-w-0 flex-1">
                     <p
-                      className={`text-sm ${notification.readAt ? "text-[#8B6F5E]" : "font-semibold text-[#3D2B1F]"}`}
+                      className={`text-sm ${notification.readAt ? "text-[var(--admin-text-muted)]" : "font-semibold text-[var(--admin-text)]"}`}
                     >
                       {notification.title}
                     </p>
-                    <p className="mt-0.5 line-clamp-2 text-xs text-[#8B6F5E]">
+                    <p className="mt-0.5 line-clamp-2 text-xs text-[var(--admin-text-secondary)]">
                       {notification.message}
                     </p>
-                    <p className="mt-1 text-[10px] text-[#8B6F5E]/80">
+                    <p className="mt-1 text-[10px] text-[var(--admin-text-muted)]">
                       {new Date(notification.createdAt).toLocaleString("pt-BR")}
                     </p>
                   </div>
                   {!notification.readAt && (
-                    <span className="mt-1 size-2 shrink-0 rounded-full bg-[#C4522A]" />
+                    <span className="mt-1 size-2 shrink-0 rounded-full bg-[var(--admin-accent)]" />
                   )}
                 </DropdownMenuItem>
               ))

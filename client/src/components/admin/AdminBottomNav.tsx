@@ -51,22 +51,21 @@ export default function AdminBottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-semibold transition-colors active:scale-95 ${
-                isActive ? "text-[var(--admin-text)]" : "text-[var(--admin-text-muted)]"
+              className={`admin-bottom-nav-link relative flex min-h-[3.5rem] flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] font-semibold transition-transform active:scale-95 ${
+                isActive ? "admin-bottom-nav-link-active" : "admin-bottom-nav-link-inactive"
               }`}
             >
               <span className="relative">
-                <Icon className={`size-5 ${isActive ? "stroke-[2.5px]" : ""}`} />
+                <span className={`admin-bottom-nav-icon-wrap ${isActive ? "" : "bg-transparent"}`}>
+                  <Icon className={`size-[18px] ${isActive ? "stroke-[2.5px]" : ""}`} />
+                </span>
                 {badgeCount > 0 && (
-                  <span className="absolute -right-2 -top-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[var(--admin-accent)] px-1 text-[9px] font-bold text-white">
+                  <span className="absolute -right-2.5 -top-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[var(--admin-accent)] px-1 text-[9px] font-bold text-white">
                     {badgeCount > 9 ? "9+" : badgeCount}
                   </span>
                 )}
               </span>
               <span>{tab.label}</span>
-              {isActive && (
-                <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-[var(--admin-text)]" />
-              )}
             </Link>
           );
         })}

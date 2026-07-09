@@ -74,14 +74,16 @@ function isNavActive(item: NavItem, location: string) {
 function NavLinks({
   onNavigate,
   unreadByType,
+  variant = "sidebar",
 }: {
   onNavigate?: () => void;
   unreadByType: { new_order: number; new_customer: number };
+  variant?: "sidebar" | "sheet";
 }) {
   const [location] = useLocation();
 
   return (
-    <nav className="flex flex-1 flex-col gap-1 p-3">
+    <nav className="flex flex-1 flex-col gap-1.5 p-3">
       {navItems.map((item) => {
         const isActive = isNavActive(item, location);
         const Icon = item.icon;
@@ -103,22 +105,29 @@ function NavLinks({
           );
         }
 
+        const linkClass =
+          variant === "sheet"
+            ? `admin-mobile-nav-link ${
+                isActive ? "admin-mobile-nav-link-active" : "admin-mobile-nav-link-inactive"
+              }`
+            : `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                isActive
+                  ? "admin-nav-active shadow-sm"
+                  : "text-[var(--admin-text-secondary)] hover:bg-[var(--admin-surface-hover)]"
+              }`;
+
         return (
           <Link
             key={item.href}
             href={item.href}
             onClick={onNavigate}
-            className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
-              isActive
-                ? "admin-nav-active shadow-sm"
-                : "text-[var(--admin-text-secondary)] hover:bg-[var(--admin-surface-hover)]"
-            }`}
+            className={linkClass}
           >
-            <Icon className="size-4" />
-            {item.label}
+            <Icon className="size-4 shrink-0" />
+            <span className="flex-1">{item.label}</span>
             {badgeCount > 0 && (
               <span
-                className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                   isActive ? "bg-white/20 text-white" : "bg-[var(--admin-accent)] text-white"
                 }`}
               >
@@ -198,22 +207,27 @@ export default function AdminLayout({
                       <MoreHorizontal className="size-5" />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="bottom" className="max-h-[85dvh] rounded-t-3xl p-0">
+                  <SheetContent
+                    side="bottom"
+                    className="admin-sheet max-h-[85dvh] rounded-t-3xl border-t p-0 shadow-2xl"
+                  >
                     <SheetHeader className="border-b border-[var(--admin-border)] px-4 py-4">
                       <SheetTitle asChild>
                         <div className="flex items-center gap-2">
                           <NativaLogo className="h-8 w-auto" />
-                          <span className="text-sm font-bold text-[var(--admin-text)]">
-                            Menu admin
-                          </span>
+                          <span className="admin-sheet-title text-sm">Menu admin</span>
                         </div>
                       </SheetTitle>
                     </SheetHeader>
-                    <NavLinks onNavigate={() => setMenuOpen(false)} unreadByType={unreadByType} />
-                    <div className="border-t border-[var(--admin-border)] p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+                    <NavLinks
+                      variant="sheet"
+                      onNavigate={() => setMenuOpen(false)}
+                      unreadByType={unreadByType}
+                    />
+                    <div className="border-t border-[var(--admin-border)] bg-[var(--admin-surface)] p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
                       <Button
                         variant="ghost"
-                        className="h-12 w-full justify-start gap-3 rounded-xl text-[var(--admin-text-secondary)] hover:bg-[var(--admin-surface-hover)]"
+                        className="h-12 w-full justify-start gap-3 rounded-xl font-medium text-[var(--admin-text-secondary)] hover:bg-[var(--admin-surface-hover)]"
                         onClick={handleLogout}
                       >
                         <LogOut className="size-4" />

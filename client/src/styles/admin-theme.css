@@ -103,9 +103,97 @@
 }
 
 .admin-bottom-nav {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.96);
   border-top: 1px solid var(--admin-border);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.admin-bottom-nav-link {
+  font-family: inherit;
+  letter-spacing: -0.01em;
+}
+
+.admin-bottom-nav-link-active {
+  color: var(--admin-text);
+}
+
+.admin-bottom-nav-link-active .admin-bottom-nav-icon-wrap {
+  background: var(--admin-text);
+  color: white;
+}
+
+.admin-bottom-nav-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.75rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-bottom-nav-link-inactive {
+  color: var(--admin-text-muted);
+}
+
+/* Sheets/dropdowns do admin renderizam via portal — precisam do tema próprio */
+.admin-sheet {
+  --admin-bg: #eef1f6;
+  --admin-bg-subtle: #e4e9f0;
+  --admin-surface: #ffffff;
+  --admin-surface-hover: #f8fafc;
+  --admin-border: #e2e8f0;
+  --admin-border-strong: #cbd5e1;
+  --admin-text: #0f172a;
+  --admin-text-secondary: #475569;
+  --admin-text-muted: #94a3b8;
+  --admin-accent: #c4522a;
+  --admin-accent-soft: rgba(196, 82, 42, 0.1);
+  --admin-success: #059669;
+  --admin-success-soft: rgba(5, 150, 105, 0.1);
+  font-family: "Inter", system-ui, -apple-system, sans-serif !important;
+  background: var(--admin-surface) !important;
+  color: var(--admin-text);
+  border-color: var(--admin-border) !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+.admin-sheet * {
+  font-family: inherit;
+}
+
+.admin-sheet-title {
+  font-family: "Inter", system-ui, sans-serif !important;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--admin-text);
+}
+
+.admin-mobile-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-mobile-nav-link-active {
+  background: var(--admin-text);
+  color: white;
+}
+
+.admin-mobile-nav-link-inactive {
+  color: var(--admin-text-secondary);
+}
+
+.admin-mobile-nav-link-inactive:hover,
+.admin-mobile-nav-link-inactive:active {
+  background: var(--admin-surface-hover);
 }
 
 .admin-sidebar {
