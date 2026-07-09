@@ -1,5 +1,5 @@
 import type { CheckoutInput } from "@shared/schemas/order";
-import type { CheckoutResponse } from "@shared/types/order";
+import type { CheckoutResponse, Order, OrderSummary } from "@shared/types/order";
 
 export class OrderApiError extends Error {
   issues?: unknown;
@@ -42,4 +42,12 @@ export function checkoutOrder(token: string, input: CheckoutInput) {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function fetchCustomerOrders(token: string) {
+  return request<OrderSummary[]>("/api/orders/me", token);
+}
+
+export function fetchCustomerOrder(token: string, orderId: string) {
+  return request<Order>("/api/orders/" + encodeURIComponent(orderId), token);
 }

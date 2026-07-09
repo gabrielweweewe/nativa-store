@@ -1,11 +1,22 @@
 import type { CustomerProfileUpdateInput } from "@shared/schemas/customer";
 import { customerProfileUpdateSchema } from "@shared/schemas/customer";
+import {
+  customerAddressSchema,
+  customerAddressUpdateSchema,
+} from "@shared/schemas/address";
 import type { CustomerProfile } from "@shared/types/customer";
 import type { User } from "@supabase/supabase-js";
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import type { CustomerAuthRequest } from "../middleware/requireCustomer";
 import { requireCustomer } from "../middleware/requireCustomer";
+import {
+  createCustomerAddress,
+  deleteCustomerAddress,
+  listCustomerAddresses,
+  setDefaultCustomerAddress,
+  updateCustomerAddress,
+} from "../services/addresses";
 
 const router = Router();
 
@@ -156,6 +167,77 @@ router.put("/me", requireCustomer, async (req: CustomerAuthRequest, res) => {
     res.json(mapCustomerProfileRowToCustomerProfile(data, refreshedUser?.user ?? user));
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : "Erro ao atualizar perfil" });
+  }
+});
+
+router.get("/me/addresses", requireCustomer, async (req: CustomerAuthRequest, res) => {
+  try {
+    const addresses = await listCustomerAddresses(req.customerUserId!);
+    res.json(addresses);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao carregar endereços",
+    });
+  }
+});
+
+router.post("/me/addresses", requireCustomer, async (req: CustomerAuthRequest, res) => {
+  try {
+    const parsed = customerAddressSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inválidos", issues: parsed.error.issues });
+      return;
+    }
+
+    const address = await createCustomerAddress(req.customerUserId!, parsed.data);
+    res.status(201).json(address);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao salvar endereço",
+    });
+  }
+});
+
+router.put("/me/addresses/:id", requireCustomer, async (req: CustomerAuthRequest, res) => {
+  try {
+    const parsed = customerAddressUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inválidos", issues: parsed.error.issues });
+      return;
+    }
+
+    const address = await updateCustomerAddress(
+      req.customerUserId!,
+      req.params.id,
+      parsed.data,
+    );
+    res.json(address);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao atualizar endereço";
+    const status = message.includes("não encontrado") ? 404 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+
+router.patch("/me/addresses/:id/default", requireCustomer, async (req: CustomerAuthRequest, res) => {
+  try {
+    const address = await setDefaultCustomerAddress(req.customerUserId!, req.params.id);
+    res.json(address);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao definir endereço padrão";
+    const status = message.includes("não encontrado") ? 404 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+
+router.delete("/me/addresses/:id", requireCustomer, async (req: CustomerAuthRequest, res) => {
+  try {
+    await deleteCustomerAddress(req.customerUserId!, req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao excluir endereço";
+    const status = message.includes("não encontrado") ? 404 : 500;
+    res.status(status).json({ error: message });
   }
 });
 

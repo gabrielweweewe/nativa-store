@@ -4,10 +4,11 @@ import {
   mapCartItemToOrderItemPayload,
   mapOrderItemRowToOrderItem,
   mapOrderRowToOrder,
+  mapOrderRowToSummary,
   type OrderRow,
 } from "@shared/lib/orderMapper";
 import type { CheckoutInput } from "@shared/schemas/order";
-import type { Order } from "@shared/types/order";
+import type { Order, OrderSummary } from "@shared/types/order";
 import { supabase } from "../lib/supabase";
 
 async function fetchCustomerCartRow(customerId: string): Promise<CartRow | null> {
@@ -33,12 +34,11 @@ async function fetchCartItems(cartId: string): Promise<CartItemRow[]> {
   return (data ?? []) as CartItemRow[];
 }
 
-async function fetchOrderWithItems(orderId: string): Promise<Order> {
-  const { data: orderRow, error: orderError } = await supabase
-    .from("orders")
-    .select("*")
-    .eq("id", orderId)
-    .single();
+async function fetchOrderWithItems(orderId: string, customerId?: string): Promise<Order> {
+  let query = supabase.from("orders").select("*").eq("id", orderId);
+  if (customerId) query = query.eq("customer_id", customerId);
+
+  const { data: orderRow, error: orderError } = await query.single();
 
   if (orderError) throw new Error(orderError.message);
 
@@ -52,6 +52,39 @@ async function fetchOrderWithItems(orderId: string): Promise<Order> {
 
   const items = (itemRows ?? []).map(mapOrderItemRowToOrderItem);
   return mapOrderRowToOrder(orderRow as OrderRow, items);
+}
+
+export async function listCustomerOrders(customerId: string): Promise<OrderSummary[]> {
+  const { data: orderRows, error } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  if (!orderRows?.length) return [];
+
+  const orderIds = orderRows.map((row) => row.id);
+  const { data: itemRows, error: itemsError } = await supabase
+    .from("order_items")
+    .select("order_id, quantity")
+    .in("order_id", orderIds);
+
+  if (itemsError) throw new Error(itemsError.message);
+
+  const countMap = new Map<string, number>();
+  for (const item of itemRows ?? []) {
+    const current = countMap.get(item.order_id) ?? 0;
+    countMap.set(item.order_id, current + Number(item.quantity));
+  }
+
+  return orderRows.map((row) =>
+    mapOrderRowToSummary(row as OrderRow, countMap.get(row.id) ?? 0),
+  );
+}
+
+export async function getCustomerOrder(customerId: string, orderId: string): Promise<Order> {
+  return fetchOrderWithItems(orderId, customerId);
 }
 
 export async function createOrderFromCheckout(

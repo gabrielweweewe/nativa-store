@@ -1,6 +1,7 @@
 import AuthInputField from "@/components/auth/AuthInputField";
+import CustomerAddressesSection from "@/components/account/CustomerAddressesSection";
+import CustomerOrdersSection from "@/components/account/CustomerOrdersSection";
 import AuthPageShell from "@/components/auth/AuthPageShell";
-import OrdersEmptyState from "@/components/auth/OrdersEmptyState";
 import RequireCustomerAuth from "@/components/RequireCustomerAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
 import { fetchCustomerProfile, updateCustomerProfile } from "@/lib/customerApi";
 import type { CustomerProfile } from "@shared/types/customer";
 import { displayPhoneBr, formatPhoneBr, isValidPhoneBr, normalizePhoneBr } from "@shared/lib/phoneBr";
-import { BadgeCheck, Lock, LogOut, Package, Phone, Shield, UserCircle } from "lucide-react";
+import { BadgeCheck, Lock, LogOut, MapPin, Package, Phone, Shield, UserCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -210,6 +211,13 @@ function CustomerAccountContent() {
               Meus dados
             </TabsTrigger>
             <TabsTrigger
+              value="addresses"
+              className="flex-1 rounded-xl px-4 py-2.5 data-[state=active]:bg-[#C4522A] data-[state=active]:text-white data-[state=active]:shadow-md sm:flex-none"
+            >
+              <MapPin className="size-4" />
+              Endereços
+            </TabsTrigger>
+            <TabsTrigger
               value="orders"
               className="flex-1 rounded-xl px-4 py-2.5 data-[state=active]:bg-[#C4522A] data-[state=active]:text-white data-[state=active]:shadow-md sm:flex-none"
             >
@@ -306,6 +314,28 @@ function CustomerAccountContent() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="addresses">
+            <Card className="border-[#E8D5C4]/90 bg-white/95 shadow-lg">
+              <CardContent className="p-6 md:p-8">
+                <div className="mb-6">
+                  <h2
+                    className="text-lg font-semibold text-[#3D2B1F]"
+                    style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                  >
+                    Meus endereços
+                  </h2>
+                  <p
+                    className="mt-1 text-sm text-[#8B6F5E]"
+                    style={{ fontFamily: "'Nunito', sans-serif" }}
+                  >
+                    Cadastre e gerencie endereços para entregas mais rápidas no checkout.
+                  </p>
+                </div>
+                {session?.access_token && <CustomerAddressesSection token={session.access_token} />}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="orders">
             <Card className="border-[#E8D5C4]/90 bg-white/95 shadow-lg">
               <CardContent className="p-6 md:p-8">
@@ -323,7 +353,9 @@ function CustomerAccountContent() {
                     Acompanhe compras, status e entregas — tudo em um só lugar.
                   </p>
                 </div>
-                <OrdersEmptyState />
+                {session?.access_token ? (
+                  <CustomerOrdersSection token={session.access_token} />
+                ) : null}
               </CardContent>
             </Card>
           </TabsContent>

@@ -1,16 +1,10 @@
+import type { ShippingAddress } from "@shared/types/address";
+
+export type { ShippingAddress };
+
 export type OrderStatus = "pending" | "paid" | "canceled";
 
 export type PaymentMethod = "pix" | "credit_card" | "boleto";
-
-export interface ShippingAddress {
-  cep: string;
-  rua: string;
-  numero: string;
-  complemento?: string;
-  bairro: string;
-  cidade: string;
-  estado: string;
-}
 
 export interface OrderItem {
   id: string;
@@ -40,4 +34,15 @@ export interface Order {
 export interface CheckoutResponse {
   success: true;
   order: Order;
+}
+
+export interface OrderSummary {
+  id: string;
+  status: OrderStatus;
+  totalAmount: number;
+  shippingAmount: number;
+  couponCode: string | null;
+  paymentMethod: PaymentMethod;
+  itemCount: number;
+  createdAt: string;
 }

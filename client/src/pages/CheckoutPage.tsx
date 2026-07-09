@@ -1,6 +1,10 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import AuthInputField from "@/components/auth/AuthInputField";
+import AddressForm, {
+  emptyAddressFormValues,
+  shippingAddressFromForm,
+  type AddressFormValues,
+} from "@/components/address/AddressForm";
 import CheckoutOrderSummary from "@/components/checkout/CheckoutOrderSummary";
 import CheckoutSuccessView from "@/components/checkout/CheckoutSuccessView";
 import RequireCustomerAuth from "@/components/RequireCustomerAuth";
@@ -10,10 +14,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Spinner } from "@/components/ui/spinner";
 import { useCart } from "@/contexts/CartContext";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
+import { createCustomerAddress, fetchCustomerAddresses } from "@/lib/addressApi";
 import { fetchCustomerProfile } from "@/lib/customerApi";
 import { OrderApiError, checkoutOrder } from "@/lib/orderApi";
 import { checkoutSchema } from "@shared/schemas/order";
+import { formatCepInput } from "@shared/lib/viacep";
 import type { CustomerProfile } from "@shared/types/customer";
+import type { CustomerAddress } from "@shared/types/address";
+import { customerAddressToShippingAddress, formatAddressLine } from "@shared/types/address";
 import type { Order, PaymentMethod } from "@shared/types/order";
 import {
   Breadcrumb,
@@ -25,34 +33,29 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   Barcode,
-  Building2,
   CreditCard,
-  Hash,
   Mail,
-  MapPin,
   Phone,
+  Plus,
   QrCode,
+  Star,
   User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 
-function formatCepInput(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, 8);
-  if (digits.length <= 5) return digits;
-  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+function addressToFormValues(address: CustomerAddress): AddressFormValues {
+  return {
+    cep: formatCepInput(address.cep),
+    rua: address.rua,
+    numero: address.numero,
+    complemento: address.complemento ?? "",
+    bairro: address.bairro,
+    cidade: address.cidade,
+    estado: address.estado,
+  };
 }
-
-const emptyAddress = {
-  cep: "",
-  rua: "",
-  numero: "",
-  complemento: "",
-  bairro: "",
-  cidade: "",
-  estado: "",
-};
 
 function CheckoutPageContent() {
   const { session } = useCustomerAuth();
@@ -60,8 +63,12 @@ function CheckoutPageContent() {
   const [, setLocation] = useLocation();
 
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
+  const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
   const [profileLoading, setProfileLoading] = useState(true);
-  const [address, setAddress] = useState(emptyAddress);
+  const [addressMode, setAddressMode] = useState<"saved" | "new">("new");
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [addressForm, setAddressForm] = useState<AddressFormValues>(emptyAddressFormValues());
+  const [saveNewAddress, setSaveNewAddress] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,6 +99,21 @@ function CheckoutPageContent() {
       })
       .catch(() => {
         if (!cancelled) toast.error("Não foi possível carregar seus dados");
+      });
+
+    fetchCustomerAddresses(session.access_token)
+      .then((addresses) => {
+        if (cancelled) return;
+        setSavedAddresses(addresses);
+        const defaultAddress = addresses.find((item) => item.isDefault) ?? addresses[0];
+        if (defaultAddress) {
+          setAddressMode("saved");
+          setSelectedAddressId(defaultAddress.id);
+          setAddressForm(addressToFormValues(defaultAddress));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) toast.error("Não foi possível carregar seus endereços");
       })
       .finally(() => {
         if (!cancelled) setProfileLoading(false);
@@ -102,24 +124,19 @@ function CheckoutPageContent() {
     };
   }, [session?.access_token]);
 
-  function updateAddress(field: keyof typeof emptyAddress, value: string) {
-    setAddress((prev) => ({ ...prev, [field]: value }));
-    setFieldErrors((prev) => {
-      const next = { ...prev };
-      delete next[field];
-      delete next[`shippingAddress.${field}`];
-      return next;
-    });
+  function getShippingAddressFromSelection() {
+    if (addressMode === "saved" && selectedAddressId) {
+      const selected = savedAddresses.find((item) => item.id === selectedAddressId);
+      if (selected) return customerAddressToShippingAddress(selected);
+    }
+    return shippingAddressFromForm(addressForm);
   }
 
   async function handleSubmit() {
     if (!session?.access_token) return;
 
     const payload = {
-      shippingAddress: {
-        ...address,
-        complemento: address.complemento || undefined,
-      },
+      shippingAddress: getShippingAddressFromSelection(),
       paymentMethod,
     };
 
@@ -140,6 +157,21 @@ function CheckoutPageContent() {
     setIsSubmitting(true);
 
     try {
+      if (addressMode === "new" && saveNewAddress) {
+        const shipping = shippingAddressFromForm(addressForm);
+        await createCustomerAddress(session.access_token, {
+          label: "Entrega",
+          cep: shipping.cep,
+          rua: shipping.rua,
+          numero: shipping.numero,
+          complemento: shipping.complemento,
+          bairro: shipping.bairro,
+          cidade: shipping.cidade,
+          estado: shipping.estado,
+          isDefault: savedAddresses.length === 0,
+        });
+      }
+
       const response = await checkoutOrder(session.access_token, parsed.data);
       await clearCart();
       setCompletedOrder(response.order);
@@ -282,75 +314,127 @@ function CheckoutPageContent() {
                 >
                   Endereço de entrega
                 </h2>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <AuthInputField
-                    id="checkout-cep"
-                    label="CEP"
-                    icon={MapPin}
-                    value={address.cep}
-                    onChange={(e) => updateAddress("cep", formatCepInput(e.target.value))}
-                    placeholder="00000-000"
-                    maxLength={9}
-                    error={fieldErrors.cep ?? fieldErrors["shippingAddress.cep"]}
-                  />
-                  <AuthInputField
-                    id="checkout-numero"
-                    label="Número"
-                    icon={Hash}
-                    value={address.numero}
-                    onChange={(e) => updateAddress("numero", e.target.value)}
-                    placeholder="123"
-                    error={fieldErrors.numero ?? fieldErrors["shippingAddress.numero"]}
-                  />
-                  <div className="sm:col-span-2">
-                    <AuthInputField
-                      id="checkout-rua"
-                      label="Rua"
-                      icon={MapPin}
-                      value={address.rua}
-                      onChange={(e) => updateAddress("rua", e.target.value)}
-                      placeholder="Nome da rua"
-                      error={fieldErrors.rua ?? fieldErrors["shippingAddress.rua"]}
-                    />
+
+                {savedAddresses.length > 0 && (
+                  <div className="mb-5 space-y-3">
+                    <p className="text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                      Escolha um endereço salvo ou cadastre um novo
+                    </p>
+                    <div className="grid gap-3">
+                      {savedAddresses.map((item) => (
+                        <label
+                          key={item.id}
+                          className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors ${
+                            addressMode === "saved" && selectedAddressId === item.id
+                              ? "border-[#C4522A] bg-[#C4522A]/5"
+                              : "border-[#E8D5C4] hover:border-[#C4522A]/40"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="checkout-address"
+                            checked={addressMode === "saved" && selectedAddressId === item.id}
+                            onChange={() => {
+                              setAddressMode("saved");
+                              setSelectedAddressId(item.id);
+                              setAddressForm(addressToFormValues(item));
+                            }}
+                            className="mt-1"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                                {item.label}
+                              </span>
+                              {item.isDefault && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[#C4522A]">
+                                  <Star className="size-3 fill-current" />
+                                  Padrão
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                              {formatAddressLine(item)}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+
+                      <label
+                        className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors ${
+                          addressMode === "new"
+                            ? "border-[#C4522A] bg-[#C4522A]/5"
+                            : "border-[#E8D5C4] hover:border-[#C4522A]/40"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="checkout-address"
+                          checked={addressMode === "new"}
+                          onChange={() => {
+                            setAddressMode("new");
+                            setSelectedAddressId(null);
+                            setAddressForm(emptyAddressFormValues());
+                          }}
+                        />
+                        <Plus size={18} className="text-[#C4522A]" />
+                        <span className="font-semibold text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                          Usar outro endereço
+                        </span>
+                      </label>
+                    </div>
                   </div>
-                  <AuthInputField
-                    id="checkout-complemento"
-                    label="Complemento"
-                    icon={Building2}
-                    value={address.complemento}
-                    onChange={(e) => updateAddress("complemento", e.target.value)}
-                    placeholder="Apto, bloco (opcional)"
-                    error={fieldErrors.complemento ?? fieldErrors["shippingAddress.complemento"]}
-                  />
-                  <AuthInputField
-                    id="checkout-bairro"
-                    label="Bairro"
-                    icon={MapPin}
-                    value={address.bairro}
-                    onChange={(e) => updateAddress("bairro", e.target.value)}
-                    placeholder="Bairro"
-                    error={fieldErrors.bairro ?? fieldErrors["shippingAddress.bairro"]}
-                  />
-                  <AuthInputField
-                    id="checkout-cidade"
-                    label="Cidade"
-                    icon={MapPin}
-                    value={address.cidade}
-                    onChange={(e) => updateAddress("cidade", e.target.value)}
-                    placeholder="Cidade"
-                    error={fieldErrors.cidade ?? fieldErrors["shippingAddress.cidade"]}
-                  />
-                  <AuthInputField
-                    id="checkout-estado"
-                    label="Estado (UF)"
-                    icon={MapPin}
-                    value={address.estado}
-                    onChange={(e) => updateAddress("estado", e.target.value.toUpperCase().slice(0, 2))}
-                    placeholder="SP"
-                    maxLength={2}
-                    error={fieldErrors.estado ?? fieldErrors["shippingAddress.estado"]}
-                  />
-                </div>
+                )}
+
+                {(addressMode === "new" || savedAddresses.length === 0) && (
+                  <>
+                    <AddressForm
+                      values={addressForm}
+                      onChange={(values) => {
+                        setAddressForm(values);
+                        setFieldErrors((prev) => {
+                          const next = { ...prev };
+                          Object.keys(values).forEach((key) => {
+                            delete next[key];
+                            delete next[`shippingAddress.${key}`];
+                          });
+                          return next;
+                        });
+                      }}
+                      errors={fieldErrors}
+                      showLabel={false}
+                      disabled={isSubmitting}
+                    />
+
+                    <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-[#E8D5C4] bg-[#FAF7F2]/60 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={saveNewAddress}
+                        onChange={(e) => setSaveNewAddress(e.target.checked)}
+                        className="size-4 rounded border-[#C4522A]/40 text-[#C4522A]"
+                      />
+                      <span className="text-sm text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                        Salvar este endereço na minha conta
+                      </span>
+                    </label>
+                  </>
+                )}
+
+                <p className="mt-4 text-xs text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                  CEP preenchido automaticamente via{" "}
+                  <a
+                    href="https://viacep.com.br"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#C4522A] underline-offset-2 hover:underline"
+                  >
+                    ViaCEP
+                  </a>
+                  .{" "}
+                  <Link href="/conta" className="text-[#C4522A] underline-offset-2 hover:underline">
+                    Gerenciar endereços
+                  </Link>
+                </p>
               </section>
 
               {/* Pagamento */}

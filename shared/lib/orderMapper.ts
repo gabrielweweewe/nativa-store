@@ -1,4 +1,5 @@
-import type { Order, OrderItem, ShippingAddress } from "@shared/types/order";
+import type { ShippingAddress } from "@shared/types/address";
+import type { Order, OrderItem, OrderSummary } from "@shared/types/order";
 
 export interface OrderRow {
   id: string;
@@ -63,6 +64,19 @@ export function mapOrderRowToOrder(row: OrderRow, items: OrderItem[]): Order {
     shippingAddress: row.shipping_address,
     paymentMethod: row.payment_method as Order["paymentMethod"],
     items,
+    createdAt: row.created_at,
+  };
+}
+
+export function mapOrderRowToSummary(row: OrderRow, itemCount: number): OrderSummary {
+  return {
+    id: row.id,
+    status: row.status as OrderSummary["status"],
+    totalAmount: toNumber(row.total_amount),
+    shippingAmount: toNumber(row.shipping_amount),
+    couponCode: row.coupon_code,
+    paymentMethod: row.payment_method as OrderSummary["paymentMethod"],
+    itemCount,
     createdAt: row.created_at,
   };
 }
