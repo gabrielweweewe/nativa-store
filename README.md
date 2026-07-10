@@ -2,6 +2,7 @@
   <!-- Substitua por um GIF real (10-15s) navegando Home → Produto → Carrinho → Checkout → Admin -->
   <img src="docs/screenshots/demo.gif" alt="Demo do Nativa Store" width="800" />
 </p>
+<p align="center"><sub>Fluxo demonstrado: Home → Produto → Carrinho → Checkout</sub></p>
 
 <h1 align="center">Nativa Store</h1>
 <p align="center"><i>Liberdade em cada detalhe</i> — marca Nativa / Quintiluz</p>
@@ -25,9 +26,26 @@
 
 <p align="center"><b>Loja de referência:</b> <a href="https://www.nativa.art.br">nativa.art.br</a></p>
 
-> Projeto desenvolvido para uma operação real de e-commerce de artesanato, com loja pública, painel administrativo completo e arquitetura pensada para produção — não um CRUD de tutorial.
+> Este projeto foi desenvolvido para atender uma operação real de e-commerce de artesanato, com loja pública, painel administrativo completo e arquitetura pensada para produção — não um CRUD de tutorial.
 
 **Plataforma completa de e-commerce** — loja pública, painel administrativo, autenticação de clientes, carrinho persistente, checkout, migração de catálogo a partir da Nuvemshop e deploy na Vercel.
+
+---
+
+## Índice
+
+- [Por que este projeto?](#por-que-este-projeto)
+- [Funcionalidades](#funcionalidades)
+- [Principais desafios](#principais-desafios)
+- [Arquitetura](#arquitetura)
+- [Stack](#stack)
+- [Segurança](#segurança)
+- [Resultados](#resultados)
+- [Screenshots](#screenshots)
+- [Como rodar localmente](#como-rodar-localmente)
+- [Decisões técnicas](#decisões-técnicas)
+- [O que aprendi](#o-que-aprendi)
+- [Roadmap](#roadmap)
 
 ---
 
@@ -41,7 +59,7 @@ Este projeto representa uma operação real de e-commerce: autenticação, persi
 - Carrinho híbrido: sessão anônima por cookie, unificada ao histórico do cliente no login
 - Deploy serverless na Vercel, com frontend e API no mesmo repositório
 
-Demonstra domínio de **produto end-to-end**: UX de e-commerce, arquitetura modular, autenticação, persistência e operação de loja.
+O objetivo deste projeto foi reproduzir os principais desafios encontrados em uma operação real de e-commerce, indo além de uma aplicação de demonstração.
 
 ---
 
@@ -88,37 +106,6 @@ Demonstra domínio de **produto end-to-end**: UX de e-commerce, arquitetura modu
 
 ---
 
-## Stack
-
-| Área | Tecnologia |
-|------|------------|
-| Linguagem | TypeScript |
-| Frontend | React 19, Vite 7 |
-| Estilo / UI | Tailwind CSS 4, Radix UI, shadcn-style, Framer Motion |
-| Roteamento | Wouter |
-| Gráficos | Recharts |
-| Backend | Node.js, Express 4 |
-| Banco de dados | PostgreSQL (Supabase) |
-| Autenticação | Supabase Auth |
-| Armazenamento | Supabase Storage |
-| Validação | Zod (compartilhada entre client e server) |
-| Deploy | Vercel (SPA + API serverless) |
-| Package manager | pnpm |
-
-```
-             React (Loja + Admin)
-                     │
-                     ▼
-              Express REST API
-                     │
-      ┌──────────────┼──────────────┐
-      ▼              ▼              ▼
- PostgreSQL       Auth          Storage
- (Supabase)    (Supabase)     (Supabase)
-```
-
----
-
 ## Arquitetura
 
 Monorepo com fronteiras claras:
@@ -135,6 +122,14 @@ nativa-store/
 
 **Princípio:** o React não acessa o banco. Toda escrita passa pela API, com service role restrita ao servidor.
 
+```mermaid
+flowchart TD
+    A["React (Loja + Admin)"] --> B["Express REST API"]
+    B --> C["PostgreSQL (Supabase)"]
+    B --> D["Auth (Supabase)"]
+    B --> E["Storage (Supabase)"]
+```
+
 ### Arquitetura de domínio (backend)
 
 ```
@@ -148,6 +143,25 @@ Supabase           → PostgreSQL + Auth + Storage
 ```
 
 Notas de engenharia adicionais: admin carregado via **lazy route**, scripts de seed/migração/setup de storage, e analytics leve de page views por sessão de visitante.
+
+---
+
+## Stack
+
+| Área | Tecnologia |
+|------|------------|
+| Linguagem | TypeScript |
+| Frontend | React 19, Vite 7 |
+| Estilo / UI | Tailwind CSS 4, Radix UI, shadcn-style, Framer Motion |
+| Roteamento | Wouter |
+| Gráficos | Recharts |
+| Backend | Node.js, Express 4 |
+| Banco de dados | PostgreSQL (Supabase) |
+| Autenticação | Supabase Auth |
+| Armazenamento | Supabase Storage |
+| Validação | Zod (compartilhada entre client e server) |
+| Deploy | Vercel (SPA + API serverless) |
+| Package manager | pnpm |
 
 ---
 
