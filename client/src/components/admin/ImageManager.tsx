@@ -97,13 +97,42 @@ export default function ImageManager({ value, onChange }: ImageManagerProps) {
               <img src={url} alt={`Imagem ${index + 1}`} className="size-full object-cover" />
 
               {index === 0 && (
-                <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-[#C4522A] px-2 py-0.5 text-[10px] font-semibold text-white">
+                <span className="absolute left-1.5 top-1.5 z-10 flex items-center gap-1 rounded-full bg-[#C4522A] px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
                   <Star className="size-3 fill-current" />
                   Capa
                 </span>
               )}
 
-              <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/0 opacity-0 transition-opacity group-hover:bg-black/40 group-hover:opacity-100">
+              {/* Mobile: botões sempre visíveis */}
+              <div className="absolute right-1.5 top-1.5 z-10 flex gap-1.5 sm:hidden">
+                {index !== 0 && (
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="secondary"
+                    className="size-8 rounded-full bg-white/95 shadow-md backdrop-blur-sm"
+                    title="Tornar capa"
+                    aria-label="Tornar capa"
+                    onClick={() => makeCover(index)}
+                  >
+                    <Star className="size-3.5" />
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="destructive"
+                  className="size-8 rounded-full shadow-md"
+                  title="Remover"
+                  aria-label="Remover imagem"
+                  onClick={() => removeImage(index)}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+
+              {/* Desktop: overlay no hover */}
+              <div className="absolute inset-0 hidden items-center justify-center gap-1.5 bg-black/0 opacity-0 transition-opacity group-hover:bg-black/40 group-hover:opacity-100 sm:flex">
                 {index !== 0 && (
                   <Button
                     type="button"
@@ -126,7 +155,7 @@ export default function ImageManager({ value, onChange }: ImageManagerProps) {
                 </Button>
               </div>
 
-              <GripVertical className="pointer-events-none absolute bottom-1 right-1 size-4 text-white/70 drop-shadow" />
+              <GripVertical className="pointer-events-none absolute bottom-1 right-1 hidden size-4 text-white/70 drop-shadow sm:block" />
             </div>
           ))}
         </div>
