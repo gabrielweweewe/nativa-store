@@ -212,28 +212,28 @@ function CustomerAccountContent() {
           <TabsList className="grid h-auto w-full grid-cols-2 gap-1.5 rounded-2xl border border-[#E8D5C4] bg-white/80 p-1.5 shadow-sm lg:inline-flex lg:w-full lg:justify-start lg:gap-1">
             <TabsTrigger
               value="profile"
-              className="flex min-h-11 w-full flex-none items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold sm:gap-2 sm:px-4 sm:text-sm lg:flex-none data-[state=active]:bg-[#C4522A] data-[state=active]:text-white data-[state=active]:shadow-md"
+              className="flex min-h-11 w-full flex-none items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold sm:gap-2 sm:px-4 sm:text-sm lg:w-auto lg:flex-none data-[state=active]:bg-[#C4522A] data-[state=active]:text-white data-[state=active]:shadow-md"
             >
               <UserCircle className="size-4 shrink-0" />
               <span>Meus dados</span>
             </TabsTrigger>
             <TabsTrigger
               value="addresses"
-              className="flex min-h-11 w-full flex-none items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold sm:gap-2 sm:px-4 sm:text-sm lg:flex-none data-[state=active]:bg-[#C4522A] data-[state=active]:text-white data-[state=active]:shadow-md"
+              className="flex min-h-11 w-full flex-none items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold sm:gap-2 sm:px-4 sm:text-sm lg:w-auto lg:flex-none data-[state=active]:bg-[#C4522A] data-[state=active]:text-white data-[state=active]:shadow-md"
             >
               <MapPin className="size-4 shrink-0" />
               <span>Endereços</span>
             </TabsTrigger>
             <TabsTrigger
               value="orders"
-              className="flex min-h-11 w-full flex-none items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold sm:gap-2 sm:px-4 sm:text-sm lg:flex-none data-[state=active]:bg-[#C4522A] data-[state=active]:text-white data-[state=active]:shadow-md"
+              className="flex min-h-11 w-full flex-none items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold sm:gap-2 sm:px-4 sm:text-sm lg:w-auto lg:flex-none data-[state=active]:bg-[#C4522A] data-[state=active]:text-white data-[state=active]:shadow-md"
             >
               <Package className="size-4 shrink-0" />
               <span>Pedidos</span>
             </TabsTrigger>
             <TabsTrigger
               value="security"
-              className="flex min-h-11 w-full flex-none items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold sm:gap-2 sm:px-4 sm:text-sm lg:flex-none data-[state=active]:bg-[#C4522A] data-[state=active]:text-white data-[state=active]:shadow-md"
+              className="flex min-h-11 w-full flex-none items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold sm:gap-2 sm:px-4 sm:text-sm lg:w-auto lg:flex-none data-[state=active]:bg-[#C4522A] data-[state=active]:text-white data-[state=active]:shadow-md"
             >
               <Shield className="size-4 shrink-0" />
               <span>Segurança</span>
