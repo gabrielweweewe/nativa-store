@@ -1,19 +1,25 @@
-# Nativa Store
+<p align="center">
+  <!-- Substitua por um GIF real (10-15s) navegando Home → Produto → Carrinho → Checkout → Admin -->
+  <img src="docs/screenshots/demo.gif" alt="Demo do Nativa Store" width="800" />
+</p>
 
-**Plataforma completa de e-commerce construída para uma operação real de artesanato brasileiro** — loja pública, painel administrativo, autenticação de clientes, carrinho persistente, checkout, migração de catálogo a partir da Nuvemshop e deploy serverless na Vercel.
+<h1 align="center">Nativa Store</h1>
+<p align="center"><i>Liberdade em cada detalhe</i> — marca Nativa / Quintiluz</p>
 
-> *Liberdade em cada detalhe* — marca Nativa / Quintiluz
+<p align="center">
+  <a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white"></a>
+  <a href="https://react.dev/"><img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black"></a>
+  <a href="https://vitejs.dev/"><img alt="Vite" src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white"></a>
+  <a href="https://expressjs.com/"><img alt="Express" src="https://img.shields.io/badge/Express-4-000000?logo=express&logoColor=white"></a>
+  <a href="https://supabase.com/"><img alt="Supabase" src="https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?logo=supabase&logoColor=white"></a>
+  <a href="https://vercel.com/"><img alt="Vercel" src="https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel&logoColor=white"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
+</p>
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Express](https://img.shields.io/badge/Express-4-000000?logo=express&logoColor=white)](https://expressjs.com/)
-[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com/)
-[![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel&logoColor=white)](https://vercel.com/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+<!-- Substitua pela URL do deploy -->
+<p align="center"><b>Demo:</b> <i>adicione a URL do deploy aqui</i> · <b>Loja de referência:</b> <a href="https://www.nativa.art.br">nativa.art.br</a></p>
 
-<!-- Substitua pela URL do deploy e por screenshots reais -->
-**Demo:** _adicione a URL do deploy aqui_ · **Loja de referência:** [nativa.art.br](https://www.nativa.art.br)
+**Plataforma completa de e-commerce construída para uma operação real de artesanato brasileiro** — loja pública, painel administrativo, autenticação de clientes, carrinho persistente, checkout, migração de catálogo a partir da Nuvemshop e deploy na Vercel.
 
 ---
 
@@ -44,6 +50,8 @@ Ideal para demonstrar domínio de **produto end-to-end**: UX de e-commerce, arqu
 | Pedidos | Histórico e detalhe na área logada |
 | Frete / cupom | Barra de frete grátis e cupom persistido no carrinho |
 
+> ⚠️ O checkout demonstra apenas o fluxo de compra. Nenhum pagamento real é processado.
+
 ### Painel administrativo (`/admin`)
 
 | Recurso | Detalhe |
@@ -62,9 +70,9 @@ Ideal para demonstrar domínio de **produto end-to-end**: UX de e-commerce, arqu
 
 - Importar milhares de produtos de uma loja Nuvemshop existente, preservando variações e imagens, a partir de um CSV em `latin1` multilinha
 - Unificar o carrinho de visitantes anônimos com o de clientes autenticados, sem duplicar ou perder itens no momento do login
-- Compartilhar validação e tipos entre client e server sem duplicar schemas (Zod + mappers em `shared/`)
-- Manter o backend stateless para funcionar em ambiente serverless (Vercel), sem sessão em memória
-- Entregar um painel administrativo completo (dashboard, pedidos, clientes, notificações) sem inflar o bundle da loja pública
+- Compartilhar validação e tipos entre client e server sem duplicar schemas
+- Manter o backend sem sessão em memória, compatível com o modelo serverless da Vercel
+- Entregar um painel administrativo completo sem inflar o bundle da loja pública
 
 ---
 
@@ -127,44 +135,31 @@ server/lib/        → acesso ao Supabase, sessão, auth, upload
 Supabase           → PostgreSQL + Auth + Storage
 ```
 
----
-
-## Decisões de arquitetura
-
-- Validação compartilhada com **Zod** (client + server), evitando drift entre formulário e API
-- Tipos e mappers em `shared/` (snake_case DB ↔ camelCase TS)
-- Admin carregado com **lazy route** (não infla o bundle da loja pública)
-- API única no servidor: o client nunca acessa o Supabase diretamente
-- Scripts de seed, migração Nuvemshop e setup de storage
-- Analytics leve de page views por sessão de visitante
+Outras notas de engenharia: admin carregado com **lazy route** (não infla o bundle da loja pública), scripts de seed/migração/setup de storage, e analytics leve de page views por sessão de visitante.
 
 ---
 
 ## Segurança
 
 - Cookies `httpOnly` para sessão de admin e identidade de carrinho — inacessíveis via JavaScript no navegador
-- Validação de entrada com Zod em toda rota da API, antes de qualquer regra de negócio
 - Service Role do Supabase usada apenas no servidor — nunca é exposta ao client
 - Row Level Security (RLS) habilitada nas tabelas sensíveis do Supabase (perfis, endereços, pedidos)
-- Normalização de inputs (trim, formato de telefone/CEP) antes da validação
+- Normalização de inputs (trim, formato de telefone/CEP) antes da validação com Zod
 
 ---
 
-## Métricas do projeto
+## Resultados
 
-- 129 arquivos de componentes e páginas React
-- 38 endpoints REST, organizados em 10 grupos de rotas
-- 9 tabelas no Supabase, com RLS habilitado
-- 100% TypeScript (client, server e shared)
-- Validação compartilhada com Zod entre client e server
-- Deploy automático via Vercel (push → build → produção)
+- Migração completa de um catálogo real da Nuvemshop, sem perda de dados de produto, variações ou imagens
+- Arquitetura pronta para múltiplos frontends consumindo a mesma API (o client nunca acessa o banco diretamente)
+- Código e validação compartilhados entre frontend e backend, reduzindo duplicação e bugs de divergência
+- Deploy automatizado na Vercel, do push à produção
 
 ---
 
 ## Screenshots
 
 > Substitua pelos prints reais do deploy — recrutadores abrem o README e param nos visuais.
-> Um GIF curto (10-15s) mostrando o fluxo Home → Produto → Carrinho → Checkout → Admin costuma chamar mais atenção do que vários prints estáticos.
 
 | Loja | Admin |
 |------|-------|
