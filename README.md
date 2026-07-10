@@ -7,14 +7,8 @@
 <h1 align="center">Nativa Store</h1>
 <p align="center"><i>Liberdade em cada detalhe</i> — marca Nativa / Quintiluz</p>
 
-<!-- Substitua pela URL real do deploy -->
 <p align="center">
-  <a href="https://nativa-store.vercel.app"><img alt="Demo" src="https://img.shields.io/badge/Demo-Online-4CAF50?logo=vercel&logoColor=white"></a>
-  <a href="https://github.com/gabrielweweewe/nativa-store"><img alt="Repositório" src="https://img.shields.io/badge/Repositório-GitHub-181717?logo=github&logoColor=white"></a>
-  <a href="AGENTS.md"><img alt="Documentação" src="https://img.shields.io/badge/Documentação-AGENTS.md-blue?logo=readthedocs&logoColor=white"></a>
-</p>
-
-<p align="center">
+  <img alt="Status" src="https://img.shields.io/badge/status-em%20desenvolvimento-yellow">
   <a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white"></a>
   <a href="https://react.dev/"><img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black"></a>
   <a href="https://vitejs.dev/"><img alt="Vite" src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white"></a>
@@ -24,7 +18,14 @@
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
 </p>
 
-<p align="center"><b>Loja de referência:</b> <a href="https://www.nativa.art.br">nativa.art.br</a></p>
+<!-- Substitua pela URL real do deploy -->
+<p align="center">
+  <a href="https://nativa-store.vercel.app"><img alt="Demo" src="https://img.shields.io/badge/Demo-Online-4CAF50?logo=vercel&logoColor=white"></a>
+  <a href="https://github.com/gabrielweweewe/nativa-store"><img alt="Repositório" src="https://img.shields.io/badge/Repositório-GitHub-181717?logo=github&logoColor=white"></a>
+  <a href="AGENTS.md"><img alt="Documentação" src="https://img.shields.io/badge/Documentação-AGENTS.md-blue?logo=readthedocs&logoColor=white"></a>
+</p>
+
+<p align="center"><b>Projeto inspirado na operação da marca:</b> <a href="https://www.nativa.art.br">nativa.art.br</a></p>
 
 > Este projeto foi desenvolvido para atender uma operação real de e-commerce de artesanato, com loja pública, painel administrativo completo e arquitetura pensada para produção — não um CRUD de tutorial.
 
@@ -132,14 +133,12 @@ flowchart TD
 
 ### Arquitetura de domínio (backend)
 
-```
-server/routes/     → validação de entrada (Zod) e parsing da request
-        ↓
-server/services/   → regras de negócio
-        ↓
-server/lib/        → acesso ao Supabase, sessão, auth, upload
-        ↓
-Supabase           → PostgreSQL + Auth + Storage
+```mermaid
+flowchart TD
+    REQ["HTTP Request"] --> ROUTES["Routes — validação (Zod) e parsing"]
+    ROUTES --> SERVICES["Services — regras de negócio"]
+    SERVICES --> LIB["Lib — acesso a Supabase, sessão, auth, upload"]
+    LIB --> DB[("Supabase — PostgreSQL + Auth + Storage")]
 ```
 
 Notas de engenharia adicionais: admin carregado via **lazy route**, scripts de seed/migração/setup de storage, e analytics leve de page views por sessão de visitante.
