@@ -227,6 +227,18 @@
     animation: float-feather 4s ease-in-out infinite 2.6s;
   }
 
+  /* Hero banner carousel — fade suave entre slides */
+  .hero-banner-slide {
+    transition: opacity 1.1s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-banner-slide {
+      transition: none;
+    }
+  }
+
   /* Auth pages — folhas flutuantes */
   @keyframes auth-leaf-drift-a {
     0%, 100% {

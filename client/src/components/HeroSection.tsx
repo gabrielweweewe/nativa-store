@@ -1,6 +1,6 @@
 /**
  * Nativa Store — Hero Section
- * Carrossel de banners full-width com fallback para o banner clássico.
+ * Carrossel de banners com transição em fade (mais elegante que slide).
  */
 
 import {
@@ -12,9 +12,8 @@ import {
 } from "./NativaDecorations";
 import { fetchActiveBanners } from "@/lib/banners";
 import type { Banner } from "@shared/types/banner";
-import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const feathers = [
   { Feather: FeatherOrange, top: "8%", left: "5%", size: "w-6 h-14", rotate: "rotate-[-20deg]", anim: "feather-float", opacity: 70 },
@@ -37,7 +36,8 @@ const feathers = [
 const IMAGE_CLASS =
   "w-full h-[50vh] max-h-[330px] sm:h-[52vh] sm:max-h-[380px] md:h-auto md:max-h-none object-cover block select-none";
 
-const AUTOPLAY_MS = 5500;
+const AUTOPLAY_MS = 6500;
+const SWIPE_THRESHOLD_PX = 48;
 
 function BannerSlide({ banner }: { banner: Banner }) {
   const mobileSrc = banner.imageUrlMobile || banner.imageUrl;
@@ -66,6 +66,7 @@ function BannerSlide({ banner }: { banner: Banner }) {
       <a
         href={banner.linkUrl}
         className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C4522A] focus-visible:ring-inset"
+        tabIndex={-1}
       >
         {content}
       </a>
@@ -78,12 +79,9 @@ function BannerSlide({ banner }: { banner: Banner }) {
 export default function HeroSection() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [emblaRef, emblaApi] = useEmblaCarousel({
-    loop: true,
-    align: "start",
-    skipSnaps: false,
-    duration: 28,
-  });
+  const [isPaused, setIsPaused] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const touchDeltaX = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,70 +93,86 @@ export default function HeroSection() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!emblaApi || banners.length === 0) return;
-    emblaApi.reInit();
-  }, [emblaApi, banners]);
+  const goTo = useCallback(
+    (index: number) => {
+      if (banners.length === 0) return;
+      const next = ((index % banners.length) + banners.length) % banners.length;
+      setSelectedIndex(next);
+    },
+    [banners.length],
+  );
 
-  const onSelect = useCallback(() => {
-    if (!emblaApi) return;
-    setSelectedIndex(emblaApi.selectedScrollSnap());
-  }, [emblaApi]);
-
-  useEffect(() => {
-    if (!emblaApi) return;
-    onSelect();
-    emblaApi.on("select", onSelect);
-    emblaApi.on("reInit", onSelect);
-    return () => {
-      emblaApi.off("select", onSelect);
-      emblaApi.off("reInit", onSelect);
-    };
-  }, [emblaApi, onSelect]);
+  const goNext = useCallback(() => goTo(selectedIndex + 1), [goTo, selectedIndex]);
+  const goPrev = useCallback(() => goTo(selectedIndex - 1), [goTo, selectedIndex]);
 
   useEffect(() => {
-    if (!emblaApi || banners.length <= 1) return;
+    if (banners.length <= 1 || isPaused) return;
 
-    let timer: ReturnType<typeof setInterval> | undefined;
-    const start = () => {
-      timer = setInterval(() => {
-        emblaApi.scrollNext();
-      }, AUTOPLAY_MS);
-    };
-    const stop = () => {
-      if (timer) clearInterval(timer);
-    };
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) return;
 
-    start();
-    emblaApi.on("pointerDown", stop);
-    emblaApi.on("pointerUp", start);
-
-    return () => {
-      stop();
-      emblaApi.off("pointerDown", stop);
-      emblaApi.off("pointerUp", start);
-    };
-  }, [emblaApi, banners.length]);
+    const timer = setInterval(goNext, AUTOPLAY_MS);
+    return () => clearInterval(timer);
+  }, [banners.length, goNext, isPaused]);
 
   const showControls = banners.length > 1;
 
+  function handleTouchStart(event: React.TouchEvent) {
+    touchStartX.current = event.touches[0]?.clientX ?? null;
+    touchDeltaX.current = 0;
+    setIsPaused(true);
+  }
+
+  function handleTouchMove(event: React.TouchEvent) {
+    if (touchStartX.current == null) return;
+    touchDeltaX.current = (event.touches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+  }
+
+  function handleTouchEnd() {
+    if (Math.abs(touchDeltaX.current) >= SWIPE_THRESHOLD_PX) {
+      if (touchDeltaX.current < 0) goNext();
+      else goPrev();
+    }
+    touchStartX.current = null;
+    touchDeltaX.current = 0;
+    setIsPaused(false);
+  }
+
   return (
     <section className="relative w-full overflow-hidden" style={{ background: "#F5F0E8" }}>
-      <div className="relative">
+      <div
+        className="relative"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+      >
         {banners.length === 0 ? (
-          <div
-            className={`${IMAGE_CLASS} animate-pulse bg-[#E8DFD0]`}
-            aria-hidden
-          />
+          <div className={`${IMAGE_CLASS} animate-pulse bg-[#E8DFD0]`} aria-hidden />
         ) : (
-          <div className="overflow-hidden" ref={emblaRef}>
-            <div className="flex touch-pan-y">
-              {banners.map((banner) => (
-                <div key={banner.id} className="min-w-0 shrink-0 grow-0 basis-full">
+          <div className="relative" aria-roledescription="carousel" aria-label="Banners da loja">
+            {banners.map((banner, index) => {
+              const isActive = index === selectedIndex;
+              return (
+                <div
+                  key={banner.id}
+                  role="group"
+                  aria-roledescription="slide"
+                  aria-hidden={!isActive}
+                  className={`hero-banner-slide ${
+                    isActive
+                      ? "relative z-[1] opacity-100"
+                      : "pointer-events-none absolute inset-0 z-0 opacity-0"
+                  }`}
+                >
                   <BannerSlide banner={banner} />
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
 
@@ -179,7 +193,7 @@ export default function HeroSection() {
             <button
               type="button"
               aria-label="Banner anterior"
-              onClick={() => emblaApi?.scrollPrev()}
+              onClick={goPrev}
               className="absolute left-2 top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-full bg-white/85 p-2 text-[#2D2A26] shadow-md backdrop-blur-sm transition hover:bg-white sm:left-3 sm:flex md:left-4"
             >
               <ChevronLeft className="size-5" />
@@ -187,7 +201,7 @@ export default function HeroSection() {
             <button
               type="button"
               aria-label="Próximo banner"
-              onClick={() => emblaApi?.scrollNext()}
+              onClick={goNext}
               className="absolute right-2 top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-full bg-white/85 p-2 text-[#2D2A26] shadow-md backdrop-blur-sm transition hover:bg-white sm:right-3 sm:flex md:right-4"
             >
               <ChevronRight className="size-5" />
@@ -200,8 +214,8 @@ export default function HeroSection() {
                   type="button"
                   aria-label={`Ir para banner ${index + 1}`}
                   aria-current={index === selectedIndex}
-                  onClick={() => emblaApi?.scrollTo(index)}
-                  className={`h-2 rounded-full transition-all ${
+                  onClick={() => goTo(index)}
+                  className={`h-2 rounded-full transition-all duration-500 ease-out ${
                     index === selectedIndex
                       ? "w-6 bg-[#C4522A]"
                       : "w-2 bg-white/80 hover:bg-white"
