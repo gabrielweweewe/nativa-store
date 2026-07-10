@@ -179,6 +179,11 @@ Outras notas de engenharia: admin carregado com **lazy route** (não infla o bun
   <img src="docs/screenshots/admin-orders.webp" alt="Gestão de pedidos no admin" width="850" />
 </p>
 
+<p align="center"><b>Painel admin</b> — gestão de produtos</p>
+<p align="center">
+  <img src="docs/screenshots/admin-products.webp" alt="Gestão de produtos no admin" width="850" />
+</p>
+
 ---
 
 ## Como rodar localmente
