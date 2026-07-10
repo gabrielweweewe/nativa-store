@@ -22,13 +22,62 @@ import { fetchProductBySlug } from "@/lib/products";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { slugify } from "@shared/lib/slugify";
 import { productDefaults, productSchema, type ProductInput } from "@shared/schemas/product";
-import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  ArrowLeft,
+  CircleDollarSign,
+  HelpCircle,
+  ImageIcon,
+  Info,
+  Layers,
+  Plus,
+  Save,
+  TextQuote,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Link, useLocation, useParams } from "wouter";
 
 const CATEGORIES = ["Roupas", "Bolsas", "Acessórios"] as const;
+
+const FORM_TABS = [
+  { value: "geral", label: "Geral", short: "Geral", icon: Info },
+  { value: "preco", label: "Preço & Estoque", short: "Preço", icon: CircleDollarSign },
+  { value: "imagens", label: "Imagens", short: "Fotos", icon: ImageIcon },
+  { value: "variacoes", label: "Variações", short: "Vars.", icon: Layers },
+  { value: "descricao", label: "Descrição & SEO", short: "Texto", icon: TextQuote },
+  { value: "artesao", label: "Artesão & FAQ", short: "FAQ", icon: HelpCircle },
+] as const;
+
+function FormSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card className="overflow-hidden border-[var(--admin-border)] shadow-[var(--admin-shadow)] lg:border-[#E8D5C4] lg:shadow-sm">
+      <CardHeader className="space-y-1 border-b border-[var(--admin-border)] bg-[var(--admin-surface)] px-4 py-3.5 sm:px-6 sm:py-4 lg:border-[#E8D5C4]/">
+        <CardTitle className="text-base font-bold tracking-tight text-[var(--admin-text)] sm:text-lg">
+          {title}
+        </CardTitle>
+        <CardDescription className="text-xs leading-relaxed text-[var(--admin-text-secondary)] sm:text-sm">
+          {description}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="px-4 py-4 sm:px-6 sm:py-5">{children}</CardContent>
+    </Card>
+  );
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <p className="text-sm text-destructive">{message}</p>;
+}
 
 export default function AdminProductForm() {
   const params = useParams<{ slug?: string }>();
@@ -38,6 +87,7 @@ export default function AdminProductForm() {
   const [isSaving, setIsSaving] = useState(false);
   const [slugTouched, setSlugTouched] = useState(isEditing);
   const [descPreview, setDescPreview] = useState(false);
+  const [activeTab, setActiveTab] = useState("geral");
 
   const {
     register,
@@ -108,10 +158,32 @@ export default function AdminProductForm() {
     }
   }
 
+  const actionButtons = (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        className="h-11 flex-1 rounded-xl lg:h-9 lg:flex-none lg:rounded-md"
+        onClick={() => setLocation("/admin/produtos")}
+      >
+        Cancelar
+      </Button>
+      <Button
+        type="submit"
+        disabled={isSaving}
+        className="nativa-btn-primary h-11 flex-[1.4] rounded-xl lg:h-9 lg:flex-none lg:rounded-md"
+      >
+        {isSaving ? <Spinner className="size-4" /> : <Save className="size-4" />}
+        {isEditing ? "Salvar" : "Criar"}
+        <span className="hidden sm:inline">{isEditing ? " alterações" : " produto"}</span>
+      </Button>
+    </>
+  );
+
   if (isLoadingProduct) {
     return (
-      <AdminLayout title={isEditing ? "Editar produto" : "Novo produto"}>
-        <div className="flex items-center justify-center gap-2 p-12 text-[#8B6F5E]">
+      <AdminLayout title={isEditing ? "Editar produto" : "Novo produto"} backHref="/admin/produtos">
+        <div className="flex items-center justify-center gap-2 p-12 text-[var(--admin-text-muted)]">
           <Spinner className="size-5" />
           Carregando produto...
         </div>
@@ -122,6 +194,7 @@ export default function AdminProductForm() {
   return (
     <AdminLayout
       title={isEditing ? "Editar produto" : "Novo produto"}
+      backHref="/admin/produtos"
       actions={
         <Button variant="outline" asChild>
           <Link href="/admin/produtos">
@@ -131,42 +204,69 @@ export default function AdminProductForm() {
         </Button>
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 pb-24">
-        <Tabs defaultValue="geral">
-          <TabsList className="h-auto flex-wrap">
-            <TabsTrigger value="geral">Geral</TabsTrigger>
-            <TabsTrigger value="preco">Preço & Estoque</TabsTrigger>
-            <TabsTrigger value="imagens">Imagens</TabsTrigger>
-            <TabsTrigger value="variacoes">Variações</TabsTrigger>
-            <TabsTrigger value="descricao">Descrição & SEO</TabsTrigger>
-            <TabsTrigger value="artesao">Artesão & FAQ</TabsTrigger>
-          </TabsList>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex flex-col gap-3 pb-[calc(7.5rem+env(safe-area-inset-bottom))] sm:gap-4 lg:pb-24"
+      >
+        {isEditing && name ? (
+          <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] px-4 py-3 shadow-[var(--admin-shadow)] lg:hidden">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--admin-text-muted)]">
+              Editando
+            </p>
+            <p className="mt-0.5 truncate text-sm font-bold text-[var(--admin-text)]">{name}</p>
+          </div>
+        ) : null}
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-3 sm:gap-4">
+          <div className="sticky top-[calc(3.25rem+env(safe-area-inset-top,0px))] z-10 -mx-3 bg-[var(--admin-bg)]/95 px-3 py-2 backdrop-blur-md sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+            <TabsList className="admin-product-tabs-list h-auto w-full justify-start gap-1.5 overflow-x-auto rounded-2xl bg-[var(--admin-surface)] p-1.5 shadow-[var(--admin-shadow)] lg:h-auto lg:w-fit lg:flex-wrap lg:rounded-lg lg:bg-muted lg:p-[3px] lg:shadow-none">
+              {FORM_TABS.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <TabsTrigger
+                    key={tab.value}
+                    value={tab.value}
+                    className="admin-product-tab shrink-0 gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold data-[state=active]:bg-[var(--admin-text)] data-[state=active]:text-white data-[state=active]:shadow-sm lg:rounded-md lg:px-2 lg:py-1 lg:text-sm lg:font-medium lg:data-[state=active]:bg-background lg:data-[state=active]:text-foreground"
+                  >
+                    <Icon className="size-3.5 lg:hidden" />
+                    <span className="lg:hidden">{tab.short}</span>
+                    <span className="hidden lg:inline">{tab.label}</span>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
 
           {/* Geral */}
-          <TabsContent value="geral">
-            <Card className="border-[#E8D5C4]">
-              <CardHeader>
-                <CardTitle>Informações gerais</CardTitle>
-                <CardDescription>Nome, categoria e identificação do produto.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
+          <TabsContent value="geral" className="mt-0">
+            <FormSection
+              title="Informações gerais"
+              description="Nome, categoria e identificação do produto."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2 sm:col-span-2">
                   <Label htmlFor="name">Nome do produto *</Label>
-                  <Input id="name" {...register("name")} placeholder="Ex: Bolsa de Praia Mandala" />
-                  {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                  <Input
+                    id="name"
+                    className="h-11 rounded-xl lg:h-9 lg:rounded-md"
+                    {...register("name")}
+                    placeholder="Ex: Bolsa de Praia Mandala"
+                  />
+                  <FieldError message={errors.name?.message} />
                 </div>
 
                 <div className="flex flex-col gap-2 sm:col-span-2">
                   <Label htmlFor="slug">Slug (URL) *</Label>
                   <Input
                     id="slug"
+                    className="h-11 rounded-xl font-mono text-sm lg:h-9 lg:rounded-md"
                     {...register("slug", { onChange: () => setSlugTouched(true) })}
                     placeholder="bolsa-de-praia-mandala"
                   />
-                  <p className="text-xs text-[#8B6F5E]">
-                    Gerado automaticamente a partir do nome. Usado na URL do produto (/produto/...).
+                  <p className="text-xs text-[var(--admin-text-muted)]">
+                    Gerado automaticamente a partir do nome. Usado na URL (/produto/...).
                   </p>
-                  {errors.slug && <p className="text-sm text-destructive">{errors.slug.message}</p>}
+                  <FieldError message={errors.slug?.message} />
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -176,7 +276,7 @@ export default function AdminProductForm() {
                     name="category"
                     render={({ field }) => (
                       <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="h-11 w-full rounded-xl lg:h-9 lg:rounded-md">
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
@@ -193,12 +293,22 @@ export default function AdminProductForm() {
 
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="sku">SKU</Label>
-                  <Input id="sku" {...register("sku")} placeholder="Ex: BOL-001" />
+                  <Input
+                    id="sku"
+                    className="h-11 rounded-xl lg:h-9 lg:rounded-md"
+                    {...register("sku")}
+                    placeholder="Ex: BOL-001"
+                  />
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="badge">Selo (badge)</Label>
-                  <Input id="badge" {...register("badge")} placeholder="Ex: Mais vendido" />
+                  <Input
+                    id="badge"
+                    className="h-11 rounded-xl lg:h-9 lg:rounded-md"
+                    {...register("badge")}
+                    placeholder="Ex: Mais vendido"
+                  />
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -212,18 +322,24 @@ export default function AdminProductForm() {
                           type="color"
                           value={field.value}
                           onChange={field.onChange}
-                          className="h-9 w-12 shrink-0 cursor-pointer rounded border border-input"
+                          className="h-11 w-12 shrink-0 cursor-pointer rounded-xl border border-input lg:h-9 lg:rounded-md"
                         />
-                        <Input value={field.value} onChange={field.onChange} className="flex-1" />
+                        <Input
+                          value={field.value}
+                          onChange={field.onChange}
+                          className="h-11 flex-1 rounded-xl lg:h-9 lg:rounded-md"
+                        />
                       </div>
                     )}
                   />
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg border border-[#E8D5C4] p-3 sm:col-span-2">
-                  <div>
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface-hover)] p-3.5 sm:col-span-2 lg:rounded-lg lg:border-[#E8D5C4] lg:bg-transparent">
+                  <div className="min-w-0">
                     <Label htmlFor="featured">Produto em destaque</Label>
-                    <p className="text-xs text-[#8B6F5E]">Aparece nas seções de destaque da loja.</p>
+                    <p className="text-xs text-[var(--admin-text-muted)]">
+                      Aparece nas seções de destaque da loja.
+                    </p>
                   </div>
                   <Controller
                     control={control}
@@ -233,18 +349,17 @@ export default function AdminProductForm() {
                     )}
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </FormSection>
           </TabsContent>
 
           {/* Preço & Estoque */}
-          <TabsContent value="preco">
-            <Card className="border-[#E8D5C4]">
-              <CardHeader>
-                <CardTitle>Preço & Estoque</CardTitle>
-                <CardDescription>Defina o valor de venda e o controle de estoque.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
+          <TabsContent value="preco" className="mt-0">
+            <FormSection
+              title="Preço & Estoque"
+              description="Defina o valor de venda e o controle de estoque."
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="price">Preço de venda (R$) *</Label>
                   <Input
@@ -252,9 +367,10 @@ export default function AdminProductForm() {
                     type="number"
                     step="0.01"
                     min="0"
+                    className="h-11 rounded-xl lg:h-9 lg:rounded-md"
                     {...register("price", { valueAsNumber: true })}
                   />
-                  {errors.price && <p className="text-sm text-destructive">{errors.price.message}</p>}
+                  <FieldError message={errors.price?.message} />
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -264,7 +380,8 @@ export default function AdminProductForm() {
                     type="number"
                     step="0.01"
                     min="0"
-                    placeholder="Deixe em branco se não houver promoção"
+                    className="h-11 rounded-xl lg:h-9 lg:rounded-md"
+                    placeholder="Em branco = sem promoção"
                     value={originalPrice ?? ""}
                     onChange={(e) =>
                       setValue("originalPrice", e.target.value === "" ? null : Number(e.target.value))
@@ -278,11 +395,12 @@ export default function AdminProductForm() {
                     id="stockCount"
                     type="number"
                     min="0"
+                    className="h-11 rounded-xl lg:h-9 lg:rounded-md"
                     {...register("stockCount", { valueAsNumber: true })}
                   />
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg border border-[#E8D5C4] p-3">
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface-hover)] p-3.5 lg:rounded-lg lg:border-[#E8D5C4] lg:bg-transparent">
                   <Label htmlFor="inStock">Disponível para venda</Label>
                   <Controller
                     control={control}
@@ -292,85 +410,86 @@ export default function AdminProductForm() {
                     )}
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </FormSection>
           </TabsContent>
 
           {/* Imagens */}
-          <TabsContent value="imagens">
-            <Card className="border-[#E8D5C4]">
-              <CardHeader>
-                <CardTitle>Imagens do produto</CardTitle>
-                <CardDescription>Adicione fotos por upload ou URL. A primeira imagem é a capa.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Controller
-                  control={control}
-                  name="images"
-                  render={({ field }) => <ImageManager value={field.value} onChange={field.onChange} />}
-                />
-                {errors.images && <p className="mt-2 text-sm text-destructive">{errors.images.message}</p>}
-              </CardContent>
-            </Card>
+          <TabsContent value="imagens" className="mt-0">
+            <FormSection
+              title="Imagens do produto"
+              description="Adicione fotos por upload ou URL. A primeira imagem é a capa."
+            >
+              <Controller
+                control={control}
+                name="images"
+                render={({ field }) => <ImageManager value={field.value} onChange={field.onChange} />}
+              />
+              <FieldError message={errors.images?.message} />
+            </FormSection>
           </TabsContent>
 
           {/* Variações */}
-          <TabsContent value="variacoes">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card className="border-[#E8D5C4]">
-                <CardHeader>
-                  <CardTitle>Tamanhos</CardTitle>
-                  <CardDescription>Tamanhos disponíveis para este produto.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
+          <TabsContent value="variacoes" className="mt-0">
+            <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
+              <FormSection title="Tamanhos" description="Tamanhos disponíveis para este produto.">
+                <div className="flex flex-col gap-3">
                   {sizesArray.fields.map((field, index) => (
-                    <div key={field.id} className="flex items-center gap-2">
+                    <div
+                      key={field.id}
+                      className="flex flex-col gap-2 rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface-hover)] p-3 sm:flex-row sm:items-center sm:gap-2 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0"
+                    >
                       <Input
                         {...register(`sizes.${index}.label`)}
                         placeholder="Ex: P, M, G ou Único"
-                        className="flex-1"
+                        className="h-11 flex-1 rounded-xl lg:h-9 lg:rounded-md"
                       />
-                      <div className="flex items-center gap-1.5 whitespace-nowrap text-sm text-[#8B6F5E]">
-                        <Controller
-                          control={control}
-                          name={`sizes.${index}.available`}
-                          render={({ field: switchField }) => (
-                            <Switch checked={switchField.value} onCheckedChange={switchField.onChange} />
-                          )}
-                        />
-                        Disponível
+                      <div className="flex items-center justify-between gap-2 sm:justify-start">
+                        <div className="flex items-center gap-1.5 whitespace-nowrap text-sm text-[var(--admin-text-secondary)]">
+                          <Controller
+                            control={control}
+                            name={`sizes.${index}.available`}
+                            render={({ field: switchField }) => (
+                              <Switch
+                                checked={switchField.value}
+                                onCheckedChange={switchField.onChange}
+                              />
+                            )}
+                          />
+                          Disponível
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="shrink-0"
+                          onClick={() => sizesArray.remove(index)}
+                        >
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => sizesArray.remove(index)}
-                      >
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
                     </div>
                   ))}
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="w-fit"
+                    className="h-11 w-full rounded-xl sm:h-8 sm:w-fit sm:rounded-md"
                     onClick={() => sizesArray.append({ label: "", available: true })}
                   >
                     <Plus className="size-4" />
                     Adicionar tamanho
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </FormSection>
 
-              <Card className="border-[#E8D5C4]">
-                <CardHeader>
-                  <CardTitle>Cores</CardTitle>
-                  <CardDescription>Cores disponíveis (opcional).</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
+              <FormSection title="Cores" description="Cores disponíveis (opcional).">
+                <div className="flex flex-col gap-3">
                   {colorsArray.fields.map((field, index) => (
-                    <div key={field.id} className="flex items-center gap-2">
+                    <div
+                      key={field.id}
+                      className="flex items-center gap-2 rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface-hover)] p-3 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0"
+                    >
                       <Controller
                         control={control}
                         name={`colors.${index}.hex`}
@@ -379,19 +498,20 @@ export default function AdminProductForm() {
                             type="color"
                             value={colorField.value}
                             onChange={colorField.onChange}
-                            className="h-9 w-10 shrink-0 cursor-pointer rounded border border-input"
+                            className="h-11 w-11 shrink-0 cursor-pointer rounded-xl border border-input lg:h-9 lg:w-10 lg:rounded-md"
                           />
                         )}
                       />
                       <Input
                         {...register(`colors.${index}.name`)}
                         placeholder="Nome da cor"
-                        className="flex-1"
+                        className="h-11 flex-1 rounded-xl lg:h-9 lg:rounded-md"
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon-sm"
+                        className="shrink-0"
                         onClick={() => colorsArray.remove(index)}
                       >
                         <Trash2 className="size-4 text-destructive" />
@@ -402,51 +522,55 @@ export default function AdminProductForm() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="w-fit"
+                    className="h-11 w-full rounded-xl sm:h-8 sm:w-fit sm:rounded-md"
                     onClick={() => colorsArray.append({ name: "", hex: "#C4522A" })}
                   >
                     <Plus className="size-4" />
                     Adicionar cor
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </FormSection>
             </div>
           </TabsContent>
 
           {/* Descrição & SEO */}
-          <TabsContent value="descricao">
-            <Card className="border-[#E8D5C4]">
-              <CardHeader>
-                <CardTitle>Descrição & SEO</CardTitle>
-                <CardDescription>Textos exibidos na página do produto.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4">
+          <TabsContent value="descricao" className="mt-0">
+            <FormSection title="Descrição & SEO" description="Textos exibidos na página do produto.">
+              <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="shortDescription">Descrição curta</Label>
                   <Textarea
                     id="shortDescription"
                     rows={2}
+                    className="rounded-xl lg:rounded-md"
                     {...register("shortDescription")}
                     placeholder="Resumo curto, usado em listagens e SEO"
                   />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="description">Descrição completa (aceita HTML simples)</Label>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setDescPreview((p) => !p)}>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="description">Descrição completa</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setDescPreview((p) => !p)}
+                    >
                       {descPreview ? "Editar" : "Pré-visualizar"}
                     </Button>
                   </div>
                   {descPreview ? (
                     <div
-                      className="product-description min-h-[160px] rounded-md border border-input p-3"
+                      className="product-description min-h-[160px] rounded-xl border border-input p-3 lg:rounded-md"
                       dangerouslySetInnerHTML={{ __html: sanitizeProductHtml(description || "") }}
                     />
                   ) : (
                     <Textarea
                       id="description"
                       rows={8}
+                      className="rounded-xl font-mono text-sm lg:rounded-md"
                       {...register("description")}
                       placeholder="<h3>Título</h3><p>Texto do produto...</p>"
                     />
@@ -470,7 +594,11 @@ export default function AdminProductForm() {
                       control={control}
                       name="careInstructions"
                       render={({ field }) => (
-                        <TagsInput value={field.value} onChange={field.onChange} placeholder="Ex: Lavar à mão" />
+                        <TagsInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Ex: Lavar à mão"
+                        />
                       )}
                     />
                   </div>
@@ -480,91 +608,107 @@ export default function AdminProductForm() {
                       control={control}
                       name="highlights"
                       render={({ field }) => (
-                        <TagsInput value={field.value} onChange={field.onChange} placeholder="Ex: Frete grátis" />
+                        <TagsInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Ex: Frete grátis"
+                        />
                       )}
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </FormSection>
           </TabsContent>
 
           {/* Artesão & FAQ */}
-          <TabsContent value="artesao">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card className="border-[#E8D5C4]">
-                <CardHeader>
-                  <CardTitle>Artesão</CardTitle>
-                  <CardDescription>História de quem produziu a peça.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-4">
+          <TabsContent value="artesao" className="mt-0">
+            <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
+              <FormSection title="Artesão" description="História de quem produziu a peça.">
+                <div className="flex flex-col gap-4">
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="artisanName">Nome</Label>
-                    <Input id="artisanName" {...register("artisan.name")} />
+                    <Input
+                      id="artisanName"
+                      className="h-11 rounded-xl lg:h-9 lg:rounded-md"
+                      {...register("artisan.name")}
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="artisanRegion">Região</Label>
-                    <Input id="artisanRegion" {...register("artisan.region")} />
+                    <Input
+                      id="artisanRegion"
+                      className="h-11 rounded-xl lg:h-9 lg:rounded-md"
+                      {...register("artisan.region")}
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="artisanStory">História</Label>
-                    <Textarea id="artisanStory" rows={4} {...register("artisan.story")} />
+                    <Textarea
+                      id="artisanStory"
+                      rows={4}
+                      className="rounded-xl lg:rounded-md"
+                      {...register("artisan.story")}
+                    />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </FormSection>
 
-              <Card className="border-[#E8D5C4]">
-                <CardHeader>
-                  <CardTitle>Perguntas frequentes</CardTitle>
-                  <CardDescription>FAQ exibido na página do produto.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
+              <FormSection title="Perguntas frequentes" description="FAQ exibido na página do produto.">
+                <div className="flex flex-col gap-3">
                   {faqArray.fields.map((field, index) => (
-                    <div key={field.id} className="flex flex-col gap-2 rounded-lg border border-[#E8D5C4] p-3">
+                    <div
+                      key={field.id}
+                      className="flex flex-col gap-2 rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface-hover)] p-3 lg:rounded-lg lg:border-[#E8D5C4] lg:bg-transparent"
+                    >
                       <div className="flex items-center gap-2">
                         <Input
                           {...register(`faq.${index}.question`)}
                           placeholder="Pergunta"
-                          className="flex-1"
+                          className="h-11 flex-1 rounded-xl lg:h-9 lg:rounded-md"
                         />
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon-sm"
+                          className="shrink-0"
                           onClick={() => faqArray.remove(index)}
                         >
                           <Trash2 className="size-4 text-destructive" />
                         </Button>
                       </div>
-                      <Textarea {...register(`faq.${index}.answer`)} placeholder="Resposta" rows={2} />
+                      <Textarea
+                        {...register(`faq.${index}.answer`)}
+                        placeholder="Resposta"
+                        rows={2}
+                        className="rounded-xl lg:rounded-md"
+                      />
                     </div>
                   ))}
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="w-fit"
+                    className="h-11 w-full rounded-xl sm:h-8 sm:w-fit sm:rounded-md"
                     onClick={() => faqArray.append({ question: "", answer: "" })}
                   >
                     <Plus className="size-4" />
                     Adicionar pergunta
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </FormSection>
             </div>
           </TabsContent>
         </Tabs>
 
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[#E8D5C4] bg-white/95 p-3 backdrop-blur-sm lg:pl-64">
-          <div className="flex items-center justify-end gap-2 px-3">
-            <Button type="button" variant="outline" onClick={() => setLocation("/admin/produtos")}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isSaving} className="nativa-btn-primary">
-              {isSaving ? <Spinner className="size-4" /> : <Save className="size-4" />}
-              {isEditing ? "Salvar alterações" : "Criar produto"}
-            </Button>
-          </div>
+        {/* Mobile: acima da bottom nav */}
+        <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 border-t border-[var(--admin-border)] bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur-md lg:hidden">
+          <div className="mx-auto flex max-w-lg items-center gap-2">{actionButtons}</div>
+        </div>
+
+        {/* Desktop: barra inferior padrão */}
+        <div className="fixed inset-x-0 bottom-0 z-20 hidden border-t border-[#E8D5C4] bg-white/95 p-3 backdrop-blur-sm lg:block lg:pl-64">
+          <div className="flex items-center justify-end gap-2 px-3">{actionButtons}</div>
         </div>
       </form>
     </AdminLayout>

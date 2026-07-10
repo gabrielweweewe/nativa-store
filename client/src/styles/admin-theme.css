@@ -226,3 +226,13 @@
 .admin-trend-neutral {
   color: var(--admin-text-muted);
 }
+
+/* Formulário de produto — abas scrolláveis no mobile */
+.admin-product-tabs-list {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.admin-product-tabs-list::-webkit-scrollbar {
+  display: none;
+}
