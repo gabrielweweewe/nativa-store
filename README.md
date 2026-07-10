@@ -199,7 +199,7 @@ Notas de engenharia adicionais: admin carregado via **lazy route**, scripts de s
 <!-- Inserir screenshot do checkout -->
 
 <p align="center">
-  <img src="docs/screenshots/checkout-placeholder.webp"
+  <img src="docs/screenshots/checkout.webp"
        alt="Checkout"
        width="850" />
 </p>
