@@ -44,6 +44,18 @@ export default function ProductsSection() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    function onSetCategory(event: Event) {
+      const detail = (event as CustomEvent<string>).detail;
+      if (detail === "Todos" || detail === "Roupas" || detail === "Bolsas" || detail === "Acessórios") {
+        setActiveFilter(detail);
+      }
+    }
+
+    window.addEventListener("nativa:set-category", onSetCategory);
+    return () => window.removeEventListener("nativa:set-category", onSetCategory);
+  }, []);
+
   const filtered =
     activeFilter === "Todos" ? products : products.filter((p) => p.category === activeFilter);
 
