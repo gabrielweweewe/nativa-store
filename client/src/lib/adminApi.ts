@@ -2,6 +2,7 @@ import type { AdminCustomerDetail, AdminCustomerSummary } from "@shared/types/cu
 import type { DashboardPeriod, DashboardStats } from "@shared/types/dashboard";
 import type { AdminNotification } from "@shared/types/notification";
 import type { AdminOrderDetail, AdminOrderSummary, OrderStatus } from "@shared/types/order";
+import type { Banner, BannerInput } from "@shared/types/banner";
 import type { ProductInput } from "@shared/schemas/product";
 import type { Product } from "@shared/types/product";
 
@@ -57,9 +58,13 @@ export function adminMe() {
   return request<{ authenticated: boolean }>("/api/admin/me");
 }
 
-export async function uploadProductImage(file: File): Promise<{ url: string }> {
+export async function uploadProductImage(
+  file: File,
+  folder: "products" | "banners" = "products",
+): Promise<{ url: string }> {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("folder", folder);
 
   const response = await fetch("/api/admin/uploads", {
     method: "POST",
@@ -165,5 +170,36 @@ export function markAdminNotificationRead(notificationId: string) {
 export function markAllAdminNotificationsRead() {
   return request<{ success: true }>("/api/admin/notifications/read-all", {
     method: "PATCH",
+  });
+}
+
+export function fetchAdminBanners() {
+  return request<Banner[]>("/api/admin/banners");
+}
+
+export function createAdminBanner(input: BannerInput) {
+  return request<Banner>("/api/admin/banners", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateAdminBanner(id: string, input: BannerInput) {
+  return request<Banner>(`/api/admin/banners/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteAdminBanner(id: string) {
+  return request<void>(`/api/admin/banners/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export function reorderAdminBanners(orderedIds: string[]) {
+  return request<Banner[]>("/api/admin/banners/reorder", {
+    method: "PATCH",
+    body: JSON.stringify({ orderedIds }),
   });
 }

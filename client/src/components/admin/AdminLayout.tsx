@@ -14,11 +14,11 @@ import { useAdminNotifications } from "@/contexts/AdminNotificationsContext";
 import "@/styles/admin-theme.css";
 import {
   ChevronLeft,
+  ImageIcon,
   LayoutDashboard,
   LogOut,
   MoreHorizontal,
   Package,
-  Settings,
   ShoppingCart,
   Upload,
   Users,
@@ -63,7 +63,12 @@ const navItems: NavItem[] = [
     badgeKey: "new_customer",
     match: (path) => path.startsWith("/admin/clientes"),
   },
-  { label: "Configurações", href: "/admin/configuracoes", icon: Settings, disabled: true },
+  {
+    label: "Banners",
+    href: "/admin/banners",
+    icon: ImageIcon,
+    match: (path) => path.startsWith("/admin/banners"),
+  },
 ];
 
 function isNavActive(item: NavItem, location: string) {

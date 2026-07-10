@@ -3,6 +3,7 @@ import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
 import { AdminNotificationsProvider } from "@/contexts/AdminNotificationsContext";
 import NotFound from "@/pages/NotFound";
 import { Redirect, Route, Switch } from "wouter";
+import AdminBanners from "./AdminBanners";
 import AdminCustomerDetail from "./AdminCustomerDetail";
 import AdminCustomersList from "./AdminCustomersList";
 import AdminDashboard from "./AdminDashboard";
@@ -73,6 +74,11 @@ export default function AdminRouter() {
         <Route path="/admin/clientes/:id">
           <ProtectedAdmin>
             <AdminCustomerDetail />
+          </ProtectedAdmin>
+        </Route>
+        <Route path="/admin/banners">
+          <ProtectedAdmin>
+            <AdminBanners />
           </ProtectedAdmin>
         </Route>
         <Route>

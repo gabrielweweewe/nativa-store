@@ -9,13 +9,16 @@ const EXTENSION_BY_MIME: Record<string, string> = {
   "image/webp": "webp",
 };
 
-export async function uploadProductImage(file: {
-  buffer: Buffer;
-  mimetype: string;
-  originalname: string;
-}): Promise<string> {
+export async function uploadProductImage(
+  file: {
+    buffer: Buffer;
+    mimetype: string;
+    originalname: string;
+  },
+  folder: "products" | "banners" = "products",
+): Promise<string> {
   const extension = EXTENSION_BY_MIME[file.mimetype] ?? "jpg";
-  const path = `products/${Date.now()}-${nanoid(8)}.${extension}`;
+  const path = `${folder}/${Date.now()}-${nanoid(8)}.${extension}`;
 
   const { error } = await supabase.storage
     .from(PRODUCT_IMAGES_BUCKET)

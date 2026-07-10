@@ -9,6 +9,7 @@ import {
 import { upload } from "../lib/upload";
 import { requireAdmin } from "../middleware/requireAdmin";
 import { uploadProductImage } from "../services/uploads";
+import adminBannersRouter from "./adminBanners";
 import adminCustomersRouter from "./adminCustomers";
 import adminDashboardRouter from "./adminDashboard";
 import adminNotificationsRouter from "./adminNotifications";
@@ -77,6 +78,7 @@ router.use("/orders", adminOrdersRouter);
 router.use("/customers", adminCustomersRouter);
 router.use("/notifications", adminNotificationsRouter);
 router.use("/dashboard", adminDashboardRouter);
+router.use("/banners", adminBannersRouter);
 
 router.post("/uploads", requireAdmin, handleSingleImageUpload, async (req, res) => {
   try {
@@ -85,7 +87,9 @@ router.post("/uploads", requireAdmin, handleSingleImageUpload, async (req, res) 
       return;
     }
 
-    const url = await uploadProductImage(req.file);
+    const folderRaw = typeof req.body?.folder === "string" ? req.body.folder : "products";
+    const folder = folderRaw === "banners" ? "banners" : "products";
+    const url = await uploadProductImage(req.file, folder);
     res.json({ url });
   } catch (error) {
     res.status(500).json({
