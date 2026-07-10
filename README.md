@@ -163,7 +163,7 @@ Outras notas de engenharia: admin carregado com **lazy route** (não infla o bun
 
 | Loja | Admin |
 |------|-------|
-| ![Home](docs/screenshots/home.png) | ![Dashboard](docs/screenshots/admin-dashboard.png) |
+| ![Home](docs/screenshots/Home-Banner.webp) | ![Dashboard](docs/screenshots/admin-dashboard.png) |
 | ![Produto](docs/screenshots/product.png) | ![Pedidos](docs/screenshots/admin-orders.png) |
 | ![Carrinho](docs/screenshots/cart.png) | ![Produtos](docs/screenshots/admin-products.png) |
 
