@@ -6,6 +6,13 @@
 <h1 align="center">Nativa Store</h1>
 <p align="center"><i>Liberdade em cada detalhe</i> — marca Nativa / Quintiluz</p>
 
+<!-- Substitua pela URL real do deploy -->
+<p align="center">
+  <a href="https://nativa-store.vercel.app"><img alt="Demo" src="https://img.shields.io/badge/Demo-Online-4CAF50?logo=vercel&logoColor=white"></a>
+  <a href="https://github.com/gabrielweweewe/nativa-store"><img alt="Repositório" src="https://img.shields.io/badge/Repositório-GitHub-181717?logo=github&logoColor=white"></a>
+  <a href="AGENTS.md"><img alt="Documentação" src="https://img.shields.io/badge/Documentação-AGENTS.md-blue?logo=readthedocs&logoColor=white"></a>
+</p>
+
 <p align="center">
   <a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white"></a>
   <a href="https://react.dev/"><img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black"></a>
@@ -16,24 +23,25 @@
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
 </p>
 
-<!-- Substitua pela URL do deploy -->
-<p align="center"><b>Demo:</b> <i>https://nativa-store.vercel.app</i> · <b>Loja de referência:</b> <a href="https://www.nativa.art.br">nativa.art.br</a></p>
+<p align="center"><b>Loja de referência:</b> <a href="https://www.nativa.art.br">nativa.art.br</a></p>
 
-**Plataforma completa de e-commerce construída para uma operação real de artesanato brasileiro** — loja pública, painel administrativo, autenticação de clientes, carrinho persistente, checkout, migração de catálogo a partir da Nuvemshop e deploy na Vercel.
+> Projeto desenvolvido para uma operação real de e-commerce de artesanato, com loja pública, painel administrativo completo e arquitetura pensada para produção — não um CRUD de tutorial.
+
+**Plataforma completa de e-commerce** — loja pública, painel administrativo, autenticação de clientes, carrinho persistente, checkout, migração de catálogo a partir da Nuvemshop e deploy na Vercel.
 
 ---
 
 ## Por que este projeto?
 
-Diferente de demonstrações simplificadas, este projeto foi desenvolvido para representar uma operação real de e-commerce, incluindo autenticação, persistência de dados, painel administrativo e migração de um catálogo existente — não um CRUD de tutorial.
+Este projeto representa uma operação real de e-commerce: autenticação, persistência de dados, painel administrativo e migração de um catálogo existente.
 
-- Catálogo migrado de uma loja Nuvemshop existente, via parser de CSV e extração controlada de imagens
-- A arquitetura foi desenhada para manter toda a regra de negócio no backend, evitando lógica crítica no cliente e permitindo futura evolução para múltiplos frontends
+- Catálogo migrado de uma loja Nuvemshop real, via parser de CSV e extração controlada de imagens
+- Regra de negócio concentrada no backend, sem lógica crítica no cliente — o que permite evoluir para múltiplos frontends no futuro
 - Painel admin com dashboard, pedidos, clientes, notificações e importação em massa
-- Carrinho híbrido: uma sessão anônima por cookie é unificada ao histórico do cliente no momento do login
+- Carrinho híbrido: sessão anônima por cookie, unificada ao histórico do cliente no login
 - Deploy serverless na Vercel, com frontend e API no mesmo repositório
 
-Ideal para demonstrar domínio de **produto end-to-end**: UX de e-commerce, arquitetura modular, autenticação, persistência e operação de loja.
+Demonstra domínio de **produto end-to-end**: UX de e-commerce, arquitetura modular, autenticação, persistência e operação de loja.
 
 ---
 
@@ -68,11 +76,15 @@ Ideal para demonstrar domínio de **produto end-to-end**: UX de e-commerce, arqu
 
 ## Principais desafios
 
-- Importar milhares de produtos de uma loja Nuvemshop existente, preservando variações e imagens, a partir de um CSV em `latin1` multilinha
-- Unificar o carrinho de visitantes anônimos com o de clientes autenticados, sem duplicar ou perder itens no momento do login
-- Compartilhar validação e tipos entre client e server sem duplicar schemas
-- Manter o backend sem sessão em memória, compatível com o modelo serverless da Vercel
-- Entregar um painel administrativo completo sem inflar o bundle da loja pública
+**Migrar um catálogo real sem perder nada.** O CSV de origem, em `latin1` e multilinha, quebrava parsers convencionais. A solução foi um parser dedicado, aliado à extração controlada de imagens direto da loja publicada, preservando variações de tamanho e cor.
+
+**Unificar carrinho de visitante e de cliente.** Um carrinho anônimo, guardado por cookie, precisa se juntar ao histórico do cliente no login — sem duplicar ou perder itens. O merge foi desenhado para ser idempotente.
+
+**Rodar sem estado em ambiente serverless.** A Vercel não garante memória entre requisições. Sessão de admin e identidade de carrinho vivem inteiramente em cookies `httpOnly` com JWT, nunca em memória do servidor.
+
+**Evitar duplicação entre frontend e backend.** Os schemas Zod em `shared/` são a única fonte de verdade, consumidos tanto pela API quanto pela UI.
+
+**Manter o bundle da loja pública leve.** O admin é carregado via lazy route, garantindo que seu código não chegue ao cliente final da loja.
 
 ---
 
@@ -121,7 +133,7 @@ nativa-store/
 └── api/             # Bundle serverless para a Vercel
 ```
 
-**Princípio:** o React não acessa o banco. Toda escrita passa pela API com service role no servidor.
+**Princípio:** o React não acessa o banco. Toda escrita passa pela API, com service role restrita ao servidor.
 
 ### Arquitetura de domínio (backend)
 
@@ -135,15 +147,15 @@ server/lib/        → acesso ao Supabase, sessão, auth, upload
 Supabase           → PostgreSQL + Auth + Storage
 ```
 
-Outras notas de engenharia: admin carregado com **lazy route** (não infla o bundle da loja pública), scripts de seed/migração/setup de storage, e analytics leve de page views por sessão de visitante.
+Notas de engenharia adicionais: admin carregado via **lazy route**, scripts de seed/migração/setup de storage, e analytics leve de page views por sessão de visitante.
 
 ---
 
 ## Segurança
 
 - Cookies `httpOnly` para sessão de admin e identidade de carrinho — inacessíveis via JavaScript no navegador
-- Service Role do Supabase usada apenas no servidor — nunca é exposta ao client
-- Row Level Security (RLS) habilitada nas tabelas sensíveis do Supabase (perfis, endereços, pedidos)
+- Service Role do Supabase restrita ao servidor, nunca exposta ao client
+- Row Level Security (RLS) habilitada nas tabelas sensíveis (perfis, endereços, pedidos)
 - Normalização de inputs (trim, formato de telefone/CEP) antes da validação com Zod
 
 ---
@@ -151,6 +163,7 @@ Outras notas de engenharia: admin carregado com **lazy route** (não infla o bun
 ## Resultados
 
 - Migração completa de um catálogo real da Nuvemshop, sem perda de dados de produto, variações ou imagens
+- Modelagem de **9 tabelas PostgreSQL** no Supabase (produtos, carrinho, pedidos, clientes, endereços, notificações e analytics)
 - Arquitetura pronta para múltiplos frontends consumindo a mesma API (o client nunca acessa o banco diretamente)
 - Código e validação compartilhados entre frontend e backend, reduzindo duplicação e bugs de divergência
 - Deploy automatizado na Vercel, do push à produção
@@ -167,6 +180,28 @@ Outras notas de engenharia: admin carregado com **lazy route** (não infla o bun
 <p align="center"><b>Página de produto</b> — galeria, variações e informações do artesão</p>
 <p align="center">
   <img src="docs/screenshots/produto.webp" alt="Página de produto" width="850" />
+</p>
+
+### Carrinho
+
+<!-- Inserir screenshot do carrinho -->
+
+<p align="center">
+  <img src="docs/screenshots/cart-placeholder.webp"
+       alt="Carrinho"
+       width="850" />
+</p>
+
+---
+
+### Checkout
+
+<!-- Inserir screenshot do checkout -->
+
+<p align="center">
+  <img src="docs/screenshots/checkout-placeholder.webp"
+       alt="Checkout"
+       width="850" />
 </p>
 
 <p align="center"><b>Painel admin</b> — dashboard com métricas de vendas e gráficos</p>
@@ -231,6 +266,20 @@ Detalhes de variáveis e armadilhas: ver [`.env.example`](.env.example) e [`AGEN
 | Compatibilidade com ambiente serverless | API stateless, com JWT em cookie `httpOnly` em vez de sessão em memória |
 | Migração de plataforma (Nuvemshop → Supabase) | Parser de CSV `latin1` multilinha + extração controlada de imagens da loja publicada |
 | Consistência entre banco (snake_case) e TS (camelCase) | Mappers dedicados em `shared/lib` (`productMapper`, `orderMapper`, `cartMapper`, `addressMapper`) |
+
+---
+
+## O que aprendi
+
+- **Arquitetura de aplicações React** em escala, separando UI de regras de negócio e organizando rotas administrativas por lazy loading
+- **Organização de monorepo**, com fronteiras claras entre client, server e código compartilhado
+- **Desenvolvimento backend** orientado a camadas (routes → services → lib), facilitando testes e manutenção
+- **Integração com Supabase** (PostgreSQL, Auth e Storage) como plataforma completa de backend-as-a-service
+- **Autenticação** de múltiplos perfis (cliente via Supabase Auth, admin via JWT em cookie `httpOnly`)
+- **Deploy serverless**, adaptando uma API tradicionalmente stateful para o modelo de execução da Vercel
+- **Modelagem de banco de dados** relacional, com RLS e tabelas para produtos, carrinho, pedidos e clientes
+- **Compartilhamento de schemas** de validação entre frontend e backend com Zod, eliminando duplicação de regras
+- **Migração de dados** de uma plataforma legada (Nuvemshop), lidando com encoding, parsing de CSV e integridade de imagens
 
 ---
 
