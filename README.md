@@ -187,7 +187,7 @@ Notas de engenharia adicionais: admin carregado via **lazy route**, scripts de s
 <!-- Inserir screenshot do carrinho -->
 
 <p align="center">
-  <img src="docs/screenshots/cart-placeholder.webp"
+  <img src="docs/screenshots/carrinho.webp"
        alt="Carrinho"
        width="850" />
 </p>
