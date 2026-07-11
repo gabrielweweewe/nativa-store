@@ -1,4 +1,5 @@
 import { Input } from "@/components/ui/input";
+import { fetchShippingQuote, ShippingApiError } from "@/lib/shippingApi";
 import { FREE_SHIPPING_THRESHOLD } from "@shared/const/cart";
 import { formatPrice } from "@/lib/products";
 import { Loader2, MapPin, Package, Truck } from "lucide-react";
@@ -11,6 +12,7 @@ export interface ShippingOption {
   daysMin: number;
   daysMax: number;
   isFree?: boolean;
+  company?: string;
 }
 
 function formatCepInput(value: string): string {
@@ -23,43 +25,31 @@ function normalizeCep(value: string): string {
   return value.replace(/\D/g, "").slice(0, 8);
 }
 
-/** Estimativa mock — substituir por Melhor Envio na próxima integração. */
-function estimateShipping(cep: string, orderSubtotal: number): ShippingOption[] {
-  const region = parseInt(cep[0] ?? "0", 10);
-  const basePac = region <= 1 ? 18.9 : region <= 3 ? 24.9 : region <= 5 ? 32.9 : 42.9;
-  const baseSedex = basePac + 14;
-
-  const qualifiesFree = orderSubtotal >= FREE_SHIPPING_THRESHOLD;
-
-  return [
-    {
-      id: "pac",
-      name: "PAC",
-      price: qualifiesFree ? 0 : basePac,
-      daysMin: region <= 1 ? 3 : region <= 3 ? 5 : 8,
-      daysMax: region <= 1 ? 6 : region <= 3 ? 10 : 15,
-      isFree: qualifiesFree,
-    },
-    {
-      id: "sedex",
-      name: "SEDEX",
-      price: baseSedex,
-      daysMin: region <= 1 ? 1 : region <= 3 ? 2 : 4,
-      daysMax: region <= 1 ? 3 : region <= 3 ? 5 : 8,
-    },
-  ];
-}
-
 interface ProductShippingQuoteProps {
+  productId: string;
   productPrice: number;
   quantity: number;
+  /** Dimensões opcionais (cm / kg). Sem elas, o servidor usa o padrão do admin. */
+  widthCm?: number;
+  heightCm?: number;
+  lengthCm?: number;
+  weightKg?: number;
 }
 
-export default function ProductShippingQuote({ productPrice, quantity }: ProductShippingQuoteProps) {
+export default function ProductShippingQuote({
+  productId,
+  productPrice,
+  quantity,
+  widthCm,
+  heightCm,
+  lengthCm,
+  weightKg,
+}: ProductShippingQuoteProps) {
   const [cep, setCep] = useState("");
   const [loading, setLoading] = useState(false);
   const [options, setOptions] = useState<ShippingOption[] | null>(null);
   const [error, setError] = useState("");
+  const [freeShippingApplied, setFreeShippingApplied] = useState(false);
 
   const subtotal = productPrice * quantity;
   const cepDigits = normalizeCep(cep);
@@ -68,6 +58,7 @@ export default function ProductShippingQuote({ productPrice, quantity }: Product
     e.preventDefault();
     setError("");
     setOptions(null);
+    setFreeShippingApplied(false);
 
     if (cepDigits.length !== 8) {
       setError("Informe um CEP válido com 8 dígitos.");
@@ -75,9 +66,50 @@ export default function ProductShippingQuote({ productPrice, quantity }: Product
     }
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setOptions(estimateShipping(cepDigits, subtotal));
-    setLoading(false);
+    try {
+      const result = await fetchShippingQuote({
+        toPostalCode: cepDigits,
+        products: [
+          {
+            id: productId,
+            quantity,
+            insuranceValue: productPrice,
+            width: widthCm,
+            height: heightCm,
+            length: lengthCm,
+            weight: weightKg,
+          },
+        ],
+      });
+
+      setFreeShippingApplied(result.freeShippingApplied);
+      setOptions(
+        result.options.map((opt) => {
+          const days = opt.customDeliveryTime || opt.deliveryTime;
+          return {
+            id: opt.id,
+            name: opt.company ? `${opt.company} — ${opt.name}` : opt.name,
+            company: opt.company,
+            price: opt.customPrice,
+            daysMin: days,
+            daysMax: days,
+            isFree: opt.customPrice === 0 && result.freeShippingApplied,
+          };
+        }),
+      );
+
+      if (result.options.length === 0) {
+        setError("Nenhuma opção de frete disponível para este CEP.");
+      }
+    } catch (err) {
+      setError(
+        err instanceof ShippingApiError
+          ? err.message
+          : "Não foi possível calcular o frete. Tente novamente.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -141,7 +173,10 @@ export default function ProductShippingQuote({ productPrice, quantity }: Product
               <div className="flex items-center gap-2 min-w-0">
                 <Package size={14} className="text-[#2D6A4F] shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                  <p
+                    className="text-sm font-semibold text-[#3D2B1F]"
+                    style={{ fontFamily: "'Nunito', sans-serif" }}
+                  >
                     {opt.name}
                     {opt.isFree && (
                       <span className="ml-2 text-[10px] font-bold uppercase text-[#2D6A4F]">
@@ -149,8 +184,11 @@ export default function ProductShippingQuote({ productPrice, quantity }: Product
                       </span>
                     )}
                   </p>
-                  <p className="text-[10px] text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                    {opt.daysMin} a {opt.daysMax} dias úteis
+                  <p
+                    className="text-[10px] text-[#8B6F5E]"
+                    style={{ fontFamily: "'Nunito', sans-serif" }}
+                  >
+                    {opt.daysMin === 1 ? "1 dia útil" : `${opt.daysMin} dias úteis`}
                   </p>
                 </div>
               </div>
@@ -165,8 +203,15 @@ export default function ProductShippingQuote({ productPrice, quantity }: Product
         </ul>
       )}
 
+      {freeShippingApplied && options && options.length > 0 && (
+        <p className="text-[10px] text-[#2D6A4F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+          Frete grátis aplicado na opção mais econômica (pedido acima de{" "}
+          {formatPrice(FREE_SHIPPING_THRESHOLD)}).
+        </p>
+      )}
+
       <p className="text-[10px] text-[#8B6F5E]/80" style={{ fontFamily: "'Nunito', sans-serif" }}>
-        Valores estimados. Integração Melhor Envio em breve.
+        Cotação via Melhor Envio. Prazos em dias úteis.
       </p>
     </div>
   );

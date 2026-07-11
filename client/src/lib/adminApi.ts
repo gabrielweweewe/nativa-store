@@ -3,6 +3,10 @@ import type { DashboardPeriod, DashboardStats } from "@shared/types/dashboard";
 import type { AdminNotification } from "@shared/types/notification";
 import type { AdminOrderDetail, AdminOrderSummary, OrderStatus } from "@shared/types/order";
 import type { Banner, BannerInput } from "@shared/types/banner";
+import type {
+  MelhorEnvioSettingsInput,
+  MelhorEnvioStatus,
+} from "@shared/types/melhorEnvio";
 import type { ProductInput } from "@shared/schemas/product";
 import type { Product } from "@shared/types/product";
 
@@ -201,5 +205,26 @@ export function reorderAdminBanners(orderedIds: string[]) {
   return request<Banner[]>("/api/admin/banners/reorder", {
     method: "PATCH",
     body: JSON.stringify({ orderedIds }),
+  });
+}
+
+export type MelhorEnvioAdminStatus = MelhorEnvioStatus & {
+  suggestedRedirectUri: string;
+};
+
+export function fetchMelhorEnvioStatus() {
+  return request<MelhorEnvioAdminStatus>("/api/admin/melhor-envio/status");
+}
+
+export function updateMelhorEnvioSettings(input: MelhorEnvioSettingsInput) {
+  return request<MelhorEnvioAdminStatus>("/api/admin/melhor-envio/settings", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function disconnectMelhorEnvio() {
+  return request<MelhorEnvioAdminStatus>("/api/admin/melhor-envio/disconnect", {
+    method: "POST",
   });
 }

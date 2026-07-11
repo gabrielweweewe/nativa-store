@@ -7,6 +7,7 @@ import AdminBanners from "./AdminBanners";
 import AdminCustomerDetail from "./AdminCustomerDetail";
 import AdminCustomersList from "./AdminCustomersList";
 import AdminDashboard from "./AdminDashboard";
+import AdminIntegrations from "./AdminIntegrations";
 import AdminLogin from "./AdminLogin";
 import AdminOrderDetail from "./AdminOrderDetail";
 import AdminOrdersList from "./AdminOrdersList";
@@ -79,6 +80,11 @@ export default function AdminRouter() {
         <Route path="/admin/banners">
           <ProtectedAdmin>
             <AdminBanners />
+          </ProtectedAdmin>
+        </Route>
+        <Route path="/admin/integracoes">
+          <ProtectedAdmin>
+            <AdminIntegrations />
           </ProtectedAdmin>
         </Route>
         <Route>

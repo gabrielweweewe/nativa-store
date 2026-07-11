@@ -489,7 +489,11 @@ export default function ProductPage() {
                   </button>
                 </div>
 
-                <ProductShippingQuote productPrice={product.price} quantity={quantity} />
+                <ProductShippingQuote
+                  productId={product.slug}
+                  productPrice={product.price}
+                  quantity={quantity}
+                />
 
                 <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0">
                   {[

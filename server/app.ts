@@ -7,6 +7,7 @@ import cartRouter from "./routes/cart";
 import customersRouter from "./routes/customers";
 import ordersRouter from "./routes/orders";
 import productsRouter from "./routes/products";
+import shippingRouter from "./routes/shipping";
 
 export function createApiApp() {
   const app = express();
@@ -20,6 +21,7 @@ export function createApiApp() {
   app.use("/api/customers", customersRouter);
   app.use("/api/orders", ordersRouter);
   app.use("/api/products", productsRouter);
+  app.use("/api/shipping", shippingRouter);
 
   return app;
 }

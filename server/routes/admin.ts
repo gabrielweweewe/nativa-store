@@ -12,6 +12,7 @@ import { uploadProductImage } from "../services/uploads";
 import adminBannersRouter from "./adminBanners";
 import adminCustomersRouter from "./adminCustomers";
 import adminDashboardRouter from "./adminDashboard";
+import adminMelhorEnvioRouter from "./adminMelhorEnvio";
 import adminNotificationsRouter from "./adminNotifications";
 import adminOrdersRouter from "./adminOrders";
 
@@ -79,6 +80,7 @@ router.use("/customers", adminCustomersRouter);
 router.use("/notifications", adminNotificationsRouter);
 router.use("/dashboard", adminDashboardRouter);
 router.use("/banners", adminBannersRouter);
+router.use("/melhor-envio", adminMelhorEnvioRouter);
 
 router.post("/uploads", requireAdmin, handleSingleImageUpload, async (req, res) => {
   try {

@@ -100,7 +100,8 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          {/* Desktop: overlay no hover | Mobile: sombra suave sob o botão */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
           <div
             className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-white text-xs font-bold"
@@ -111,18 +112,39 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
 
           <button
             onClick={handleFav}
-            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm transition-all duration-200 hover:scale-110"
+            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm transition-all duration-200 hover:scale-110 active:scale-95"
             aria-label={isFav ? "Remover dos favoritos" : "Adicionar aos favoritos"}
           >
             <Heart size={14} className={isFav ? "fill-[#C4522A] text-[#C4522A]" : "text-[#8B6F5E]"} />
           </button>
 
-          <div className="absolute bottom-3 left-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-2 group-hover:translate-y-0">
+          {/* Mobile: botão circular sempre visível */}
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={isUpdating || !product.inStock}
+            className="absolute bottom-3 right-3 z-10 flex h-11 w-11 items-center justify-center rounded-full text-white shadow-lg transition-transform duration-200 active:scale-95 disabled:opacity-50 md:hidden"
+            style={{
+              background: "linear-gradient(145deg, #C4522A, #E8821A)",
+              boxShadow: "0 8px 20px oklch(0.52 0.14 38 / 0.4)",
+              fontFamily: "'Nunito', sans-serif",
+            }}
+            aria-label="Adicionar ao carrinho"
+          >
+            <ShoppingBag size={18} strokeWidth={2.25} />
+          </button>
+
+          {/* Desktop: barra completa no hover */}
+          <div className="absolute bottom-3 left-3 right-3 hidden translate-y-2 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 md:block">
             <button
+              type="button"
               onClick={handleAddToCart}
-              disabled={isUpdating}
-              className="w-full py-2 rounded-xl text-white text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
-              style={{ background: "linear-gradient(135deg, #C4522A, #E8821A)", fontFamily: "'Nunito', sans-serif" }}
+              disabled={isUpdating || !product.inStock}
+              className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold text-white disabled:opacity-60"
+              style={{
+                background: "linear-gradient(135deg, #C4522A, #E8821A)",
+                fontFamily: "'Nunito', sans-serif",
+              }}
             >
               <ShoppingBag size={13} />
               Adicionar ao Carrinho

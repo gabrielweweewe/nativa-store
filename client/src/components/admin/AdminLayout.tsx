@@ -19,6 +19,7 @@ import {
   LogOut,
   MoreHorizontal,
   Package,
+  Plug,
   ShoppingCart,
   Upload,
   Users,
@@ -68,6 +69,12 @@ const navItems: NavItem[] = [
     href: "/admin/banners",
     icon: ImageIcon,
     match: (path) => path.startsWith("/admin/banners"),
+  },
+  {
+    label: "Integrações",
+    href: "/admin/integracoes",
+    icon: Plug,
+    match: (path) => path.startsWith("/admin/integracoes"),
   },
 ];
 
