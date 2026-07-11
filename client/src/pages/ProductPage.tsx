@@ -1,10 +1,10 @@
 /**
  * Nativa Store — Product Page (PDP)
  * Design: Brasil Vivo — Artesanato com Alma
- * Complete product detail page with gallery, options, and artisan story
+ * Mobile-first editorial layout with sticky purchase bar
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "wouter";
 import { decodeHtmlEntities, sanitizeProductHtml } from "@/lib/productHtml";
 import {
@@ -16,7 +16,6 @@ import {
   RotateCcw,
   Minus,
   Plus,
-  ChevronLeft,
   Sparkles,
   Package,
   MapPin,
@@ -27,7 +26,14 @@ import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import ProductGallery from "@/components/product/ProductGallery";
 import ProductShippingQuote from "@/components/product/ProductShippingQuote";
-import { FeatherOrange, FeatherGreen } from "@/components/NativaDecorations";
+import {
+  FeatherOrange,
+  FeatherGreen,
+  FeatherBlue,
+  WaveDividerDown,
+  WaveDividerUp,
+  ArrowNativa,
+} from "@/components/NativaDecorations";
 import {
   Accordion,
   AccordionContent,
@@ -58,7 +64,12 @@ export default function ProductPage() {
   const [selectedColor, setSelectedColor] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [isFav, setIsFav] = useState(false);
+  const [highlightSizes, setHighlightSizes] = useState(false);
+  const [showStickyCta, setShowStickyCta] = useState(false);
+
   const { addItem, openDrawer, isUpdating } = useCart();
+  const mainCtaRef = useRef<HTMLDivElement>(null);
+  const sizeSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const slug = params.slug ?? "";
@@ -98,6 +109,8 @@ export default function ProductPage() {
       setSelectedSize(product.sizes.find((s) => s.available)?.label ?? "");
       setSelectedColor(product.colors[0]?.name ?? "");
       setQuantity(1);
+      setIsFav(false);
+      setHighlightSizes(false);
       window.scrollTo(0, 0);
     }
     return () => {
@@ -105,33 +118,33 @@ export default function ProductPage() {
     };
   }, [product]);
 
+  useEffect(() => {
+    const target = mainCtaRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowStickyCta(!entry.isIntersecting);
+      },
+      { threshold: 0.15, rootMargin: "-48px 0px 0px 0px" },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [product]);
+
   const descriptionHtml = useMemo(
     () => sanitizeProductHtml(product?.description ?? ""),
     [product?.description],
   );
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#FAF7F2" }}>
-        <p className="text-[#8B6F5E]" style={{ fontFamily: "'Lora', serif" }}>
-          Carregando produto...
-        </p>
-      </div>
-    );
-  }
+  const handleAddToCart = useCallback(async () => {
+    if (!product) return;
 
-  if (notFound || !product) {
-    return <NotFound />;
-  }
-
-  const discount =
-    product.originalPrice
-      ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-      : null;
-
-  const handleAddToCart = async () => {
     if (!selectedSize) {
       toast.error("Selecione um tamanho");
+      setHighlightSizes(true);
+      sizeSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
@@ -148,69 +161,98 @@ export default function ProductPage() {
       });
       openDrawer();
     }
-  };
+  }, [addItem, openDrawer, product, quantity, selectedColor, selectedSize]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center" style={{ background: "#F5F0E8" }}>
+        <p className="text-[#8B6F5E]" style={{ fontFamily: "'Lora', serif" }}>
+          Carregando produto...
+        </p>
+      </div>
+    );
+  }
+
+  if (notFound || !product) {
+    return <NotFound />;
+  }
+
+  const discount = product.originalPrice
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    : null;
 
   return (
-    <div className="min-h-screen" style={{ background: "#FAF7F2" }}>
+    <div className="min-h-screen" style={{ background: "#F5F0E8" }}>
       <Navbar />
 
-      <main className="pt-20 md:pt-24 pb-16 relative overflow-hidden">
-        <div className="absolute top-32 right-8 feather-float opacity-25 pointer-events-none">
-          <FeatherOrange className="w-6 h-14 rotate-[20deg]" />
+      <main className="relative overflow-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-20 md:pb-20 md:pt-24 lg:pb-16">
+        <div className="pointer-events-none absolute right-4 top-28 opacity-25 feather-float sm:right-8 sm:opacity-30">
+          <FeatherOrange className="h-12 w-5 rotate-[20deg] sm:h-14 sm:w-6" />
         </div>
-        <div className="absolute bottom-40 left-6 feather-float-delay opacity-20 pointer-events-none">
-          <FeatherGreen className="w-5 h-12 rotate-[10deg]" />
+        <div className="pointer-events-none absolute bottom-48 left-3 opacity-20 feather-float-delay sm:left-6">
+          <FeatherGreen className="h-11 w-5 rotate-[10deg]" />
+        </div>
+        <div className="pointer-events-none absolute right-[18%] top-[42%] hidden opacity-15 feather-float-delay2 md:block">
+          <FeatherBlue className="h-10 w-4 rotate-[-12deg]" />
         </div>
 
-        <div className="container">
-          {/* Breadcrumb */}
-          <Breadcrumb className="mb-6">
-            <BreadcrumbList>
+        <div className="container relative">
+          {/* Breadcrumb — enxuto no mobile */}
+          <Breadcrumb className="mb-4 sm:mb-6">
+            <BreadcrumbList className="flex-nowrap overflow-hidden">
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
-                  <Link href="/" className="text-[#8B6F5E] hover:text-[#C4522A] transition-colors" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                  <Link
+                    href="/"
+                    className="text-[#8B6F5E] transition-colors hover:text-[#C4522A]"
+                    style={{ fontFamily: "'Nunito', sans-serif" }}
+                  >
                     Início
                   </Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
-              <BreadcrumbItem>
+              <BreadcrumbItem className="hidden sm:inline-flex">
                 <BreadcrumbLink asChild>
-                  <Link href="/#colecoes" className="text-[#8B6F5E] hover:text-[#C4522A] transition-colors" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                  <Link
+                    href="/#colecoes"
+                    className="text-[#8B6F5E] transition-colors hover:text-[#C4522A]"
+                    style={{ fontFamily: "'Nunito', sans-serif" }}
+                  >
                     Coleções
                   </Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
-              <BreadcrumbSeparator />
+              <BreadcrumbSeparator className="hidden sm:block" />
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
-                  <span className="text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                  <Link
+                    href="/#colecoes"
+                    className="text-[#8B6F5E] transition-colors hover:text-[#C4522A]"
+                    style={{ fontFamily: "'Nunito', sans-serif" }}
+                    onClick={() => {
+                      window.dispatchEvent(
+                        new CustomEvent("nativa:set-category", { detail: product.category }),
+                      );
+                    }}
+                  >
                     {product.category}
-                  </span>
+                  </Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="text-[#3D2B1F] font-medium" style={{ fontFamily: "'Nunito', sans-serif" }}>
+              <BreadcrumbItem className="min-w-0">
+                <BreadcrumbPage
+                  className="max-w-[10rem] truncate font-medium text-[#3D2B1F] sm:max-w-[16rem] md:max-w-none"
+                  style={{ fontFamily: "'Nunito', sans-serif" }}
+                >
                   {product.name}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
 
-          {/* Back link — mobile */}
-          <Link
-            href="/#colecoes"
-            className="inline-flex items-center gap-1.5 text-sm text-[#8B6F5E] hover:text-[#C4522A] transition-colors mb-6 md:hidden"
-            style={{ fontFamily: "'Nunito', sans-serif" }}
-          >
-            <ChevronLeft size={16} />
-            Voltar às coleções
-          </Link>
-
-          {/* Main grid — duas colunas equilibradas */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 xl:gap-12 lg:items-start mb-16">
-            {/* Galeria */}
+          <div className="mb-12 grid grid-cols-1 items-start gap-6 lg:mb-16 lg:grid-cols-2 lg:gap-10 xl:gap-14">
             <div className="w-full lg:sticky lg:top-28">
               <ProductGallery
                 images={product.images}
@@ -221,31 +263,34 @@ export default function ProductPage() {
               />
             </div>
 
-            {/* Informações + compra */}
-            <div className="flex flex-col gap-6 w-full">
-              {/* Cabeçalho do produto */}
+            <div className="flex w-full flex-col gap-5 sm:gap-6">
+              {/* Cabeçalho + preço (acima da dobra no mobile) */}
               <div>
                 <p
-                  className="text-xs font-bold uppercase tracking-widest mb-2"
-                  style={{ fontFamily: "'Nunito', sans-serif", color: "#1B7A8C" }}
+                  className="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-[#2D6A4F] sm:text-xs"
+                  style={{ fontFamily: "'Nunito', sans-serif" }}
                 >
                   {product.category}
                 </p>
 
                 <h1
-                  className="text-3xl md:text-4xl xl:text-[2.75rem] font-bold text-[#3D2B1F] leading-tight mb-3"
+                  className="mb-3 text-[1.75rem] font-bold leading-[1.15] text-[#3D2B1F] sm:text-3xl md:text-4xl xl:text-[2.75rem]"
                   style={{ fontFamily: "'Playfair Display', serif" }}
                 >
                   {product.name}
                 </h1>
 
-                <div className="flex items-center gap-3 mb-4">
+                <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
                   <div className="flex gap-0.5">
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        size={16}
-                        className={i < Math.floor(product.rating) ? "fill-[#C9922A] text-[#C9922A]" : "text-[#D4C5B5]"}
+                        size={15}
+                        className={
+                          i < Math.floor(product.rating)
+                            ? "fill-[#C9922A] text-[#C9922A]"
+                            : "text-[#D4C5B5]"
+                        }
                       />
                     ))}
                   </div>
@@ -254,35 +299,24 @@ export default function ProductPage() {
                   </span>
                 </div>
 
-                <p
-                  className="text-[#8B6F5E] text-base leading-relaxed"
-                  style={{ fontFamily: "'Lora', serif" }}
-                >
-                  {decodeHtmlEntities(product.shortDescription)}
-                </p>
-              </div>
-
-              {/* Painel de compra */}
-              <div
-                className="rounded-2xl border border-[#E8D5C4] bg-white p-5 md:p-6 shadow-sm space-y-5"
-                style={{ boxShadow: "0 8px 32px oklch(0.52 0.14 38 / 0.06)" }}
-              >
-                {/* Preço */}
-                <div className="flex items-baseline gap-3 pb-5 border-b border-[#E8D5C4]/80">
+                <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <span
-                    className="text-3xl md:text-4xl font-bold text-[#C4522A]"
+                    className="text-3xl font-bold text-[#C4522A] sm:text-4xl"
                     style={{ fontFamily: "'Playfair Display', serif" }}
                   >
                     {formatPrice(product.price)}
                   </span>
                   {product.originalPrice && (
-                    <span className="text-lg text-[#B0A090] line-through" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                    <span
+                      className="text-base text-[#B0A090] line-through sm:text-lg"
+                      style={{ fontFamily: "'Nunito', sans-serif" }}
+                    >
                       {formatPrice(product.originalPrice)}
                     </span>
                   )}
                   {discount != null && discount > 0 && (
                     <span
-                      className="ml-auto text-xs font-bold text-white px-2.5 py-1 rounded-full"
+                      className="rounded-full px-2.5 py-1 text-xs font-bold text-white"
                       style={{ background: "#E8821A", fontFamily: "'Nunito', sans-serif" }}
                     >
                       Economize {discount}%
@@ -290,13 +324,22 @@ export default function ProductPage() {
                   )}
                 </div>
 
-                {/* Tags */}
+                <p
+                  className="text-[15px] leading-relaxed text-[#8B6F5E] sm:text-base"
+                  style={{ fontFamily: "'Lora', serif" }}
+                >
+                  {decodeHtmlEntities(product.shortDescription)}
+                </p>
+              </div>
+
+              {/* Painel de compra — aberto, sem card pesado */}
+              <div className="space-y-5 rounded-[1.5rem] border border-[#E8D5C4]/70 bg-white/55 p-4 backdrop-blur-[2px] sm:space-y-6 sm:p-6">
                 {product.highlights.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {product.highlights.map((h) => (
                       <span
                         key={h}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[#E8D5C4] bg-[#FAF7F2] px-3 py-1 text-xs font-semibold text-[#3D2B1F]"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[#E8D5C4]/80 bg-[#F5F0E8]/80 px-3 py-1.5 text-xs font-semibold text-[#3D2B1F]"
                         style={{ fontFamily: "'Nunito', sans-serif" }}
                       >
                         <Sparkles size={11} className="text-[#C9922A]" />
@@ -306,21 +349,23 @@ export default function ProductPage() {
                   </div>
                 )}
 
-                {/* Cor */}
                 {product.colors.length > 0 && (
                   <div>
-                    <p className="text-sm font-semibold text-[#3D2B1F] mb-2" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                    <p
+                      className="mb-2.5 text-sm font-semibold text-[#3D2B1F]"
+                      style={{ fontFamily: "'Nunito', sans-serif" }}
+                    >
                       Cor: <span className="font-normal text-[#8B6F5E]">{selectedColor}</span>
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2.5">
                       {product.colors.map((color) => (
                         <button
                           key={color.name}
                           type="button"
                           onClick={() => setSelectedColor(color.name)}
-                          className={`w-9 h-9 rounded-full border-2 transition-all duration-200 ${
+                          className={`h-11 w-11 rounded-full border-2 transition-all duration-200 ${
                             selectedColor === color.name
-                              ? "border-[#C4522A] scale-110 shadow-md"
+                              ? "scale-110 border-[#2D6A4F] shadow-md ring-2 ring-[#2D6A4F]/25"
                               : "border-[#E8D5C4] hover:border-[#C4522A]/50"
                           }`}
                           style={{ background: color.hex }}
@@ -332,10 +377,19 @@ export default function ProductPage() {
                   </div>
                 )}
 
-                {/* Tamanho */}
                 {product.sizes.length > 0 && (
-                  <div>
-                    <p className="text-sm font-semibold text-[#3D2B1F] mb-2" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                  <div
+                    ref={sizeSectionRef}
+                    className={
+                      highlightSizes && !selectedSize
+                        ? "rounded-xl ring-2 ring-[#C4522A]/40 ring-offset-2 ring-offset-[#F5F0E8]"
+                        : ""
+                    }
+                  >
+                    <p
+                      className="mb-2.5 text-sm font-semibold text-[#3D2B1F]"
+                      style={{ fontFamily: "'Nunito', sans-serif" }}
+                    >
                       Tamanho
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -343,11 +397,15 @@ export default function ProductPage() {
                         <button
                           key={size.label}
                           type="button"
-                          onClick={() => size.available && setSelectedSize(size.label)}
+                          onClick={() => {
+                            if (!size.available) return;
+                            setSelectedSize(size.label);
+                            setHighlightSizes(false);
+                          }}
                           disabled={!size.available}
-                          className={`min-w-[3rem] px-4 py-2 rounded-xl text-sm font-semibold border transition-all duration-200 ${
+                          className={`min-w-[3.25rem] rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
                             !size.available
-                              ? "border-[#E8D5C4] text-[#B0A090] line-through cursor-not-allowed opacity-50"
+                              ? "cursor-not-allowed border-[#E8D5C4] text-[#B0A090] line-through opacity-50"
                               : selectedSize === size.label
                                 ? "border-[#C4522A] bg-[#C4522A] text-white shadow-md"
                                 : "border-[#E8D5C4] text-[#3D2B1F] hover:border-[#C4522A]/50"
@@ -361,28 +419,33 @@ export default function ProductPage() {
                   </div>
                 )}
 
-                {/* Quantidade */}
                 <div>
-                  <p className="text-sm font-semibold text-[#3D2B1F] mb-2" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                  <p
+                    className="mb-2.5 text-sm font-semibold text-[#3D2B1F]"
+                    style={{ fontFamily: "'Nunito', sans-serif" }}
+                  >
                     Quantidade
                   </p>
-                  <div className="flex items-center gap-3">
-                    <div className="inline-flex items-center border border-[#E8D5C4] rounded-xl overflow-hidden bg-[#FAF7F2]">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="inline-flex items-center overflow-hidden rounded-xl border border-[#E8D5C4] bg-[#F5F0E8]/70">
                       <button
                         type="button"
                         onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                        className="w-10 h-10 flex items-center justify-center text-[#3D2B1F] hover:bg-[#C4522A]/10 transition-colors"
+                        className="flex h-11 w-11 items-center justify-center text-[#3D2B1F] transition-colors hover:bg-[#C4522A]/10"
                         aria-label="Diminuir quantidade"
                       >
                         <Minus size={16} />
                       </button>
-                      <span className="w-12 text-center font-semibold text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                      <span
+                        className="w-12 text-center font-semibold text-[#3D2B1F]"
+                        style={{ fontFamily: "'Nunito', sans-serif" }}
+                      >
                         {quantity}
                       </span>
                       <button
                         type="button"
                         onClick={() => setQuantity((q) => Math.min(product.stockCount, q + 1))}
-                        className="w-10 h-10 flex items-center justify-center text-[#3D2B1F] hover:bg-[#C4522A]/10 transition-colors"
+                        className="flex h-11 w-11 items-center justify-center text-[#3D2B1F] transition-colors hover:bg-[#C4522A]/10"
                         aria-label="Aumentar quantidade"
                       >
                         <Plus size={16} />
@@ -394,20 +457,20 @@ export default function ProductPage() {
                   </div>
                 </div>
 
-                {/* CTAs */}
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div ref={mainCtaRef} className="flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
                     onClick={handleAddToCart}
                     disabled={isUpdating || !product.inStock}
-                    className="flex-1 py-4 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.01] disabled:opacity-60 disabled:pointer-events-none"
+                    className="nativa-btn-primary flex flex-1 items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold text-white shadow-lg transition-all duration-200 hover:scale-[1.01] hover:shadow-xl disabled:pointer-events-none disabled:opacity-60"
                     style={{
                       background: "linear-gradient(135deg, #C4522A, #E8821A)",
                       fontFamily: "'Nunito', sans-serif",
+                      boxShadow: "0 10px 28px oklch(0.52 0.14 38 / 0.28)",
                     }}
                   >
                     <ShoppingBag size={20} />
-                    Adicionar ao Carrinho
+                    {product.inStock ? "Adicionar ao Carrinho" : "Esgotado"}
                   </button>
                   <button
                     type="button"
@@ -415,7 +478,7 @@ export default function ProductPage() {
                       setIsFav(!isFav);
                       toast(isFav ? "Removido dos favoritos" : "Adicionado aos favoritos!");
                     }}
-                    className={`px-5 py-4 rounded-2xl border-2 flex items-center justify-center transition-all duration-200 ${
+                    className={`flex items-center justify-center rounded-2xl border-2 px-5 py-4 transition-all duration-200 ${
                       isFav
                         ? "border-[#C4522A] bg-[#C4522A]/10 text-[#C4522A]"
                         : "border-[#E8D5C4] text-[#3D2B1F] hover:border-[#C4522A]/50"
@@ -426,51 +489,66 @@ export default function ProductPage() {
                   </button>
                 </div>
 
-                {/* Frete */}
                 <ProductShippingQuote productPrice={product.price} quantity={quantity} />
 
-                {/* Trust badges */}
-                <div className="grid grid-cols-3 gap-3 pt-1">
+                <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0">
                   {[
                     { icon: Truck, label: "Frete grátis", sub: "Acima de R$ 299" },
                     { icon: Shield, label: "Compra segura", sub: "Pagamento protegido" },
                     { icon: RotateCcw, label: "Troca fácil", sub: "Até 30 dias" },
                   ].map(({ icon: Icon, label, sub }) => (
-                    <div key={label} className="text-center rounded-xl bg-[#FAF7F2] border border-[#E8D5C4]/60 py-3 px-1">
-                      <Icon size={18} className="mx-auto mb-1.5 text-[#2D6A4F]" />
-                      <p className="text-[11px] font-bold text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                        {label}
-                      </p>
-                      <p className="text-[9px] text-[#8B6F5E] leading-tight" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                        {sub}
-                      </p>
+                    <div
+                      key={label}
+                      className="flex min-w-[9.5rem] shrink-0 items-center gap-3 rounded-2xl border border-[#E8D5C4]/70 bg-[#F5F0E8]/80 px-3 py-3 sm:min-w-0 sm:flex-col sm:items-center sm:gap-1.5 sm:px-2 sm:text-center"
+                    >
+                      <Icon size={18} className="shrink-0 text-[#2D6A4F]" />
+                      <div>
+                        <p
+                          className="text-xs font-bold text-[#3D2B1F]"
+                          style={{ fontFamily: "'Nunito', sans-serif" }}
+                        >
+                          {label}
+                        </p>
+                        <p
+                          className="text-xs leading-snug text-[#8B6F5E]"
+                          style={{ fontFamily: "'Nunito', sans-serif" }}
+                        >
+                          {sub}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
 
-                <p className="text-xs text-[#8B6F5E] text-center" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                <p
+                  className="text-center text-xs text-[#8B6F5E]"
+                  style={{ fontFamily: "'Nunito', sans-serif" }}
+                >
                   SKU: {product.sku}
                 </p>
               </div>
 
-              {/* Artesã */}
+              {/* Artesã — faixa editorial */}
               {product.artisan?.name && (
-                <div className="rounded-2xl border border-[#E8D5C4] bg-gradient-to-br from-[#F5F0E8] to-white p-5 md:p-6">
-                  <p
-                    className="text-xs font-bold uppercase tracking-widest text-[#1B7A8C] mb-3"
-                    style={{ fontFamily: "'Nunito', sans-serif" }}
-                  >
-                    Feito por
-                  </p>
+                <div className="relative overflow-hidden rounded-[1.5rem] border border-[#E8D5C4]/60 bg-gradient-to-br from-[#F5F0E8] via-white/40 to-[#E8DFD0]/50 p-5 sm:p-6">
+                  <div className="mb-3 flex items-center gap-2">
+                    <ArrowNativa className="h-4 w-8" />
+                    <p
+                      className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#2D6A4F]"
+                      style={{ fontFamily: "'Nunito', sans-serif" }}
+                    >
+                      Feito por mãos brasileiras
+                    </p>
+                  </div>
                   <h3
-                    className="text-xl font-bold text-[#3D2B1F] mb-1"
+                    className="mb-1 text-xl font-bold text-[#3D2B1F] sm:text-2xl"
                     style={{ fontFamily: "'Playfair Display', serif" }}
                   >
                     {product.artisan.name}
                   </h3>
                   {product.artisan.region && (
                     <p
-                      className="flex items-center gap-1.5 text-sm text-[#8B6F5E] mb-3"
+                      className="mb-3 flex items-center gap-1.5 text-sm text-[#8B6F5E]"
                       style={{ fontFamily: "'Nunito', sans-serif" }}
                     >
                       <MapPin size={14} className="text-[#C4522A]" />
@@ -479,7 +557,7 @@ export default function ProductPage() {
                   )}
                   {product.artisan.story && (
                     <p
-                      className="text-sm text-[#8B6F5E] leading-relaxed italic"
+                      className="text-[15px] leading-relaxed text-[#8B6F5E] italic sm:text-base"
                       style={{ fontFamily: "'Lora', serif" }}
                     >
                       {product.artisan.story}
@@ -489,17 +567,32 @@ export default function ProductPage() {
               )}
             </div>
           </div>
+        </div>
 
-          {/* Details accordion */}
-          <section className="mb-16">
-            <h2
-              className="text-2xl md:text-3xl font-bold text-[#3D2B1F] mb-6"
-              style={{ fontFamily: "'Playfair Display', serif" }}
+        <div className="pointer-events-none">
+          <WaveDividerDown color="#FAF7F2" />
+        </div>
+
+        {/* Detalhes */}
+        <section className="nativa-texture relative py-12 md:py-16" style={{ background: "#FAF7F2" }}>
+          <div className="container">
+            <div className="mb-6 flex items-center gap-3 sm:mb-8">
+              <span className="h-px w-8 bg-[#C4522A]/35 sm:w-12" />
+              <h2
+                className="text-2xl font-bold text-[#3D2B1F] md:text-3xl"
+                style={{ fontFamily: "'Playfair Display', serif" }}
+              >
+                Detalhes da Peça
+              </h2>
+            </div>
+
+            <Accordion
+              type="single"
+              collapsible
+              defaultValue="description"
+              className="overflow-hidden rounded-[1.35rem] border border-[#E8D5C4]/80 bg-white/80"
             >
-              Detalhes da Peça
-            </h2>
-            <Accordion type="single" collapsible defaultValue="description" className="rounded-2xl border border-[#E8D5C4] bg-white overflow-hidden">
-              <AccordionItem value="description" className="border-[#E8D5C4] px-6">
+              <AccordionItem value="description" className="border-[#E8D5C4] px-4 sm:px-6">
                 <AccordionTrigger
                   className="text-base font-semibold text-[#3D2B1F] hover:no-underline"
                   style={{ fontFamily: "'Nunito', sans-serif" }}
@@ -515,7 +608,7 @@ export default function ProductPage() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="materials" className="border-[#E8D5C4] px-6">
+              <AccordionItem value="materials" className="border-[#E8D5C4] px-4 sm:px-6">
                 <AccordionTrigger
                   className="text-base font-semibold text-[#3D2B1F] hover:no-underline"
                   style={{ fontFamily: "'Nunito', sans-serif" }}
@@ -525,8 +618,12 @@ export default function ProductPage() {
                 <AccordionContent>
                   <ul className="space-y-2 pb-2">
                     {product.materials.map((m) => (
-                      <li key={m} className="flex items-start gap-2 text-[#8B6F5E]" style={{ fontFamily: "'Lora', serif" }}>
-                        <Package size={14} className="text-[#2D6A4F] mt-1 flex-shrink-0" />
+                      <li
+                        key={m}
+                        className="flex items-start gap-2 text-[#8B6F5E]"
+                        style={{ fontFamily: "'Lora', serif" }}
+                      >
+                        <Package size={14} className="mt-1 flex-shrink-0 text-[#2D6A4F]" />
                         {m}
                       </li>
                     ))}
@@ -534,7 +631,7 @@ export default function ProductPage() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="care" className="border-[#E8D5C4] px-6">
+              <AccordionItem value="care" className="border-[#E8D5C4] px-4 sm:px-6">
                 <AccordionTrigger
                   className="text-base font-semibold text-[#3D2B1F] hover:no-underline"
                   style={{ fontFamily: "'Nunito', sans-serif" }}
@@ -544,8 +641,12 @@ export default function ProductPage() {
                 <AccordionContent>
                   <ul className="space-y-2 pb-2">
                     {product.careInstructions.map((c) => (
-                      <li key={c} className="flex items-start gap-2 text-[#8B6F5E]" style={{ fontFamily: "'Lora', serif" }}>
-                        <span className="text-[#C4522A] mt-0.5">✦</span>
+                      <li
+                        key={c}
+                        className="flex items-start gap-2 text-[#8B6F5E]"
+                        style={{ fontFamily: "'Lora', serif" }}
+                      >
+                        <span className="mt-0.5 text-[#C4522A]">✦</span>
                         {c}
                       </li>
                     ))}
@@ -554,7 +655,7 @@ export default function ProductPage() {
               </AccordionItem>
 
               {product.faq.length > 0 && (
-                <AccordionItem value="faq" className="border-[#E8D5C4] px-6">
+                <AccordionItem value="faq" className="border-[#E8D5C4] px-4 sm:px-6">
                   <AccordionTrigger
                     className="text-base font-semibold text-[#3D2B1F] hover:no-underline"
                     style={{ fontFamily: "'Nunito', sans-serif" }}
@@ -565,10 +666,13 @@ export default function ProductPage() {
                     <div className="space-y-4 pb-2">
                       {product.faq.map((item) => (
                         <div key={item.question}>
-                          <p className="font-semibold text-[#3D2B1F] text-sm mb-1" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                          <p
+                            className="mb-1 text-sm font-semibold text-[#3D2B1F]"
+                            style={{ fontFamily: "'Nunito', sans-serif" }}
+                          >
                             {item.question}
                           </p>
-                          <p className="text-[#8B6F5E] text-sm" style={{ fontFamily: "'Lora', serif" }}>
+                          <p className="text-sm text-[#8B6F5E]" style={{ fontFamily: "'Lora', serif" }}>
                             {item.answer}
                           </p>
                         </div>
@@ -578,21 +682,27 @@ export default function ProductPage() {
                 </AccordionItem>
               )}
             </Accordion>
-          </section>
+          </div>
+        </section>
 
-          {/* Related products */}
-          {relatedProducts.length > 0 && (
-            <section>
-              <div className="flex items-end justify-between mb-8">
+        <div className="pointer-events-none" style={{ background: "#FAF7F2" }}>
+          <WaveDividerUp color="#F5F0E8" />
+        </div>
+
+        {/* Relacionados */}
+        {relatedProducts.length > 0 && (
+          <section className="relative py-12 md:py-16" style={{ background: "#F5F0E8" }}>
+            <div className="container">
+              <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
                 <div>
                   <p
-                    className="text-xs font-bold uppercase tracking-widest text-[#1B7A8C] mb-1"
+                    className="mb-1 text-[11px] font-bold uppercase tracking-[0.22em] text-[#2D6A4F]"
                     style={{ fontFamily: "'Nunito', sans-serif" }}
                   >
                     Você também pode gostar
                   </p>
                   <h2
-                    className="text-2xl md:text-3xl font-bold text-[#3D2B1F]"
+                    className="text-2xl font-bold text-[#3D2B1F] md:text-3xl"
                     style={{ fontFamily: "'Playfair Display', serif" }}
                   >
                     Peças Relacionadas
@@ -600,21 +710,65 @@ export default function ProductPage() {
                 </div>
                 <Link
                   href="/#colecoes"
-                  className="hidden sm:inline text-sm font-semibold text-[#C4522A] hover:underline"
+                  className="shrink-0 text-sm font-semibold text-[#C4522A] hover:underline"
                   style={{ fontFamily: "'Nunito', sans-serif" }}
                 >
                   Ver todas
                 </Link>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+
+              <div className="scrollbar-hide -mx-3 flex snap-x snap-mandatory gap-4 overflow-x-auto px-3 pb-2 md:mx-0 md:grid md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0 md:pb-0">
                 {relatedProducts.map((p) => (
-                  <ProductCard key={p.id} product={p} variant="compact" />
+                  <div
+                    key={p.id}
+                    className="w-[72%] max-w-[280px] shrink-0 snap-start sm:w-[58%] md:w-auto md:max-w-none md:shrink"
+                  >
+                    <ProductCard product={p} variant="compact" />
+                  </div>
                 ))}
               </div>
-            </section>
-          )}
-        </div>
+            </div>
+          </section>
+        )}
       </main>
+
+      {/* Sticky CTA — mobile */}
+      <div
+        className={`fixed inset-x-0 bottom-0 z-40 border-t border-[#E8D5C4]/80 bg-[#F5F0E8]/95 backdrop-blur-md transition-transform duration-300 lg:hidden ${
+          showStickyCta ? "translate-y-0" : "translate-y-full"
+        }`}
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
+        <div className="container flex items-center gap-3 py-3">
+          <div className="min-w-0 flex-1">
+            <p
+              className="truncate text-xs text-[#8B6F5E]"
+              style={{ fontFamily: "'Nunito', sans-serif" }}
+            >
+              {product.name}
+            </p>
+            <p
+              className="text-lg font-bold leading-tight text-[#C4522A]"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            >
+              {formatPrice(product.price)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={isUpdating || !product.inStock}
+            className="flex shrink-0 items-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-bold text-white shadow-md disabled:opacity-60"
+            style={{
+              background: "linear-gradient(135deg, #C4522A, #E8821A)",
+              fontFamily: "'Nunito', sans-serif",
+            }}
+          >
+            <ShoppingBag size={18} />
+            Adicionar
+          </button>
+        </div>
+      </div>
 
       <Footer />
     </div>

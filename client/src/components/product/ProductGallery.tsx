@@ -1,8 +1,9 @@
 import { useFancyboxBind } from "@/hooks/useFancybox";
 import { ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
-import { useCallback, useId, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 
 const imageLabels = ["Visão geral", "Detalhe", "Acabamento", "Galeria"];
+const SWIPE_THRESHOLD_PX = 48;
 
 interface ProductGalleryProps {
   images: string[];
@@ -23,6 +24,8 @@ export default function ProductGallery({
   const fancyboxGroup = `product-${galleryId}`;
   const galleryRef = useFancyboxBind();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const touchDeltaX = useRef(0);
 
   const total = images.length;
   const hasMultiple = total > 1;
@@ -38,46 +41,70 @@ export default function ProductGallery({
   const goPrev = useCallback(() => goTo(selectedIndex - 1), [goTo, selectedIndex]);
   const goNext = useCallback(() => goTo(selectedIndex + 1), [goTo, selectedIndex]);
 
+  function handleTouchStart(event: React.TouchEvent) {
+    if (!hasMultiple) return;
+    touchStartX.current = event.touches[0]?.clientX ?? null;
+    touchDeltaX.current = 0;
+  }
+
+  function handleTouchMove(event: React.TouchEvent) {
+    if (touchStartX.current == null) return;
+    touchDeltaX.current = (event.touches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+  }
+
+  function handleTouchEnd() {
+    if (Math.abs(touchDeltaX.current) >= SWIPE_THRESHOLD_PX) {
+      if (touchDeltaX.current < 0) goNext();
+      else goPrev();
+    }
+    touchStartX.current = null;
+    touchDeltaX.current = 0;
+  }
+
   if (total === 0) return null;
 
   return (
-    <div ref={galleryRef}>
-      <div className="flex flex-col md:flex-row gap-3 md:gap-4 w-full">
-        {/* Thumbnails — vertical no desktop */}
+    <div ref={galleryRef} className="w-full">
+      <div className="flex w-full flex-col gap-3 md:flex-row md:gap-4">
         {hasMultiple && (
-          <div className="hidden md:flex flex-col gap-2.5 order-2 md:order-1 shrink-0">
+          <div className="order-2 hidden shrink-0 flex-col gap-2.5 md:order-1 md:flex">
             {images.map((img, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => setSelectedIndex(i)}
-                className={`relative w-16 h-16 lg:w-[4.5rem] lg:h-[4.5rem] rounded-xl overflow-hidden border-2 transition-all duration-200 ${
+                className={`relative h-16 w-16 overflow-hidden rounded-xl border-2 transition-all duration-200 lg:h-[4.5rem] lg:w-[4.5rem] ${
                   selectedIndex === i
                     ? "border-[#C4522A] shadow-md ring-2 ring-[#C4522A]/20"
-                    : "border-[#E8D5C4] opacity-75 hover:opacity-100 hover:border-[#C4522A]/40"
+                    : "border-[#E8D5C4] opacity-75 hover:border-[#C4522A]/40 hover:opacity-100"
                 }`}
                 aria-label={imageLabels[i] ?? `Imagem ${i + 1}`}
                 aria-current={selectedIndex === i}
               >
-                <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                <img src={img} alt="" className="absolute inset-0 size-full object-cover" />
               </button>
             ))}
           </div>
         )}
 
-        {/* Imagem principal — links Fancybox empilhados; só o ativo recebe clique */}
-        <div className="flex-1 min-w-0 order-1 md:order-2">
-          <div className="group relative rounded-2xl overflow-hidden bg-white border border-[#E8D5C4] aspect-[4/5] shadow-sm">
+        <div className="order-1 min-w-0 flex-1 md:order-2">
+          <div
+            className="group relative aspect-[4/5] overflow-hidden rounded-[1.35rem] border border-[#E8D5C4]/80 bg-[#EDE6DA] shadow-sm sm:rounded-2xl"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
+          >
             {images.map((img, i) => (
               <a
                 key={img + i}
                 data-fancybox={fancyboxGroup}
                 href={img}
                 data-caption={`${productName} — ${imageLabels[i] ?? `Imagem ${i + 1}`}`}
-                className={`absolute inset-0 block transition-opacity duration-300 ${
+                className={`absolute inset-0 block transition-opacity duration-500 ease-out ${
                   i === selectedIndex
-                    ? "z-10 opacity-100 cursor-zoom-in"
-                    : "z-0 opacity-0 pointer-events-none"
+                    ? "z-10 cursor-zoom-in opacity-100"
+                    : "pointer-events-none z-0 opacity-0"
                 }`}
                 aria-hidden={i !== selectedIndex}
                 tabIndex={i === selectedIndex ? 0 : -1}
@@ -86,13 +113,14 @@ export default function ProductGallery({
                 <img
                   src={img}
                   alt={`${productName} — ${imageLabels[i] ?? `Imagem ${i + 1}`}`}
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                  className="absolute inset-0 size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]"
+                  draggable={false}
                 />
               </a>
             ))}
 
             <div
-              className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-sm pointer-events-none"
+              className="pointer-events-none absolute left-3 top-3 z-20 rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-sm sm:left-4 sm:top-4"
               style={{ background: badgeColor, fontFamily: "'Nunito', sans-serif" }}
             >
               {badge}
@@ -100,17 +128,17 @@ export default function ProductGallery({
 
             {discount != null && discount > 0 && (
               <div
-                className="absolute top-4 right-4 z-20 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-sm pointer-events-none"
+                className="pointer-events-none absolute right-3 top-3 z-20 rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-sm sm:right-4 sm:top-4"
                 style={{ background: "#E8821A", fontFamily: "'Nunito', sans-serif" }}
               >
                 -{discount}%
               </div>
             )}
 
-            <div className="absolute inset-0 z-20 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 pointer-events-none" />
+            <div className="pointer-events-none absolute inset-0 z-20 bg-black/0 transition-colors duration-300 group-hover:bg-black/10" />
 
             <div
-              className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 rounded-full bg-white/90 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-[#3D2B1F] opacity-0 group-hover:opacity-100 transition-opacity shadow-sm pointer-events-none"
+              className="pointer-events-none absolute bottom-3 right-3 z-20 flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#3D2B1F] shadow-sm backdrop-blur-sm opacity-100 md:bottom-4 md:right-4 md:opacity-0 md:transition-opacity md:group-hover:opacity-100"
               style={{ fontFamily: "'Nunito', sans-serif" }}
             >
               <ZoomIn size={14} className="text-[#C4522A]" />
@@ -122,7 +150,7 @@ export default function ProductGallery({
                 <button
                   type="button"
                   onClick={goPrev}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm border border-[#E8D5C4] flex items-center justify-center text-[#3D2B1F] hover:bg-white hover:text-[#C4522A] shadow-md opacity-0 group-hover:opacity-100 transition-all"
+                  className="absolute left-2 top-1/2 z-30 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#E8D5C4] bg-white/90 text-[#3D2B1F] shadow-md backdrop-blur-sm transition-all hover:bg-white hover:text-[#C4522A] md:left-3 md:flex md:opacity-0 md:group-hover:opacity-100"
                   aria-label="Imagem anterior"
                 >
                   <ChevronLeft size={20} />
@@ -130,13 +158,29 @@ export default function ProductGallery({
                 <button
                   type="button"
                   onClick={goNext}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm border border-[#E8D5C4] flex items-center justify-center text-[#3D2B1F] hover:bg-white hover:text-[#C4522A] shadow-md opacity-0 group-hover:opacity-100 transition-all"
+                  className="absolute right-2 top-1/2 z-30 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#E8D5C4] bg-white/90 text-[#3D2B1F] shadow-md backdrop-blur-sm transition-all hover:bg-white hover:text-[#C4522A] md:right-3 md:flex md:opacity-0 md:group-hover:opacity-100"
                   aria-label="Próxima imagem"
                 >
                   <ChevronRight size={20} />
                 </button>
+
+                <div className="absolute bottom-3 left-0 right-0 z-20 flex justify-center gap-1.5 md:hidden">
+                  {images.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={`Ir para imagem ${i + 1}`}
+                      aria-current={i === selectedIndex}
+                      onClick={() => goTo(i)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        i === selectedIndex ? "w-5 bg-[#C4522A]" : "w-1.5 bg-white/85"
+                      }`}
+                    />
+                  ))}
+                </div>
+
                 <div
-                  className="absolute bottom-4 left-4 z-20 rounded-full bg-black/50 backdrop-blur-sm px-2.5 py-1 text-[10px] font-semibold text-white pointer-events-none"
+                  className="pointer-events-none absolute bottom-4 left-4 z-20 hidden rounded-full bg-black/50 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-sm md:block"
                   style={{ fontFamily: "'Nunito', sans-serif" }}
                 >
                   {selectedIndex + 1} / {total}
@@ -147,20 +191,19 @@ export default function ProductGallery({
         </div>
       </div>
 
-      {/* Thumbnails — horizontal no mobile */}
       {hasMultiple && (
-        <div className="flex md:hidden gap-2 mt-3 overflow-x-auto pb-1">
+        <div className="scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-1 md:hidden">
           {images.map((img, i) => (
             <button
               key={i}
               type="button"
               onClick={() => setSelectedIndex(i)}
-              className={`relative w-14 h-14 flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all ${
+              className={`relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all ${
                 selectedIndex === i ? "border-[#C4522A]" : "border-[#E8D5C4] opacity-70"
               }`}
               aria-label={imageLabels[i] ?? `Imagem ${i + 1}`}
             >
-              <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              <img src={img} alt="" className="absolute inset-0 size-full object-cover" />
             </button>
           ))}
         </div>

@@ -310,6 +310,8 @@
   .product-description {
     color: #8B6F5E;
     line-height: 1.7;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .product-description h3 {
@@ -346,6 +348,26 @@
   .product-description strong {
     color: #3D2B1F;
     font-weight: 600;
+  }
+
+  .product-description img,
+  .product-description video,
+  .product-description iframe {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.75rem;
+  }
+
+  .product-description table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .product-description a {
+    color: #C4522A;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   @media (prefers-reduced-motion: reduce) {
