@@ -9,6 +9,7 @@ interface CheckoutOrderSummaryProps {
   couponCode: string | null;
   isSubmitting: boolean;
   onSubmit: () => void;
+  showSubmit?: boolean;
 }
 
 export default function CheckoutOrderSummary({
@@ -17,6 +18,7 @@ export default function CheckoutOrderSummary({
   couponCode,
   isSubmitting,
   onSubmit,
+  showSubmit = true,
 }: CheckoutOrderSummaryProps) {
   const shippingAmount = calculateShippingAmount(subtotal);
   const total = subtotal + shippingAmount;
@@ -32,7 +34,7 @@ export default function CheckoutOrderSummary({
       </h2>
 
       <ul className="max-h-64 space-y-3 overflow-y-auto pr-1">
-        {items.map((item) => (
+        {items.map(item => (
           <li key={item.id} className="flex gap-3">
             <img
               src={item.productImage}
@@ -46,7 +48,10 @@ export default function CheckoutOrderSummary({
               >
                 {item.productName}
               </p>
-              <p className="text-xs text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+              <p
+                className="text-xs text-[#8B6F5E]"
+                style={{ fontFamily: "'Nunito', sans-serif" }}
+              >
                 {item.quantity}x · {item.sizeLabel}
                 {item.colorName ? ` · ${item.colorName}` : ""}
               </p>
@@ -61,10 +66,15 @@ export default function CheckoutOrderSummary({
         ))}
       </ul>
 
-      <div className="space-y-2 border-t border-[#E8D5C4] pt-4 text-sm" style={{ fontFamily: "'Nunito', sans-serif" }}>
+      <div
+        className="space-y-2 border-t border-[#E8D5C4] pt-4 text-sm"
+        style={{ fontFamily: "'Nunito', sans-serif" }}
+      >
         <div className="flex justify-between text-[#8B6F5E]">
           <span>Subtotal</span>
-          <span className="font-medium text-[#3D2B1F]">{formatPrice(subtotal)}</span>
+          <span className="font-medium text-[#3D2B1F]">
+            {formatPrice(subtotal)}
+          </span>
         </div>
 
         <div className="flex items-center justify-between">
@@ -75,7 +85,9 @@ export default function CheckoutOrderSummary({
           {freeShipping ? (
             <span className="font-semibold text-[#2D6A4F]">Grátis</span>
           ) : (
-            <span className="font-medium text-[#3D2B1F]">{formatPrice(shippingAmount)}</span>
+            <span className="font-medium text-[#3D2B1F]">
+              {formatPrice(shippingAmount)}
+            </span>
           )}
         </div>
 
@@ -102,18 +114,20 @@ export default function CheckoutOrderSummary({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onSubmit}
-        disabled={isSubmitting}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-        style={{
-          background: "linear-gradient(135deg, #C4522A, #E8821A)",
-          fontFamily: "'Nunito', sans-serif",
-        }}
-      >
-        {isSubmitting ? "Processando..." : "Finalizar Compra"}
-      </button>
+      {showSubmit && (
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={isSubmitting}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          style={{
+            background: "linear-gradient(135deg, #C4522A, #E8821A)",
+            fontFamily: "'Nunito', sans-serif",
+          }}
+        >
+          {isSubmitting ? "Processando..." : "Finalizar Compra"}
+        </button>
+      )}
     </div>
   );
 }

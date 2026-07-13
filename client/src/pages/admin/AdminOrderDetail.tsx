@@ -17,6 +17,7 @@ import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_STYLES,
   PAYMENT_METHOD_LABELS,
+  PAYMENT_STATUS_LABELS,
 } from "@shared/lib/orderLabels";
 import type { AdminOrderDetail, OrderStatus } from "@shared/types/order";
 import {
@@ -91,7 +92,9 @@ export default function AdminOrderDetail() {
     return (
       <AdminLayout title="Pedido" backHref="/admin/pedidos">
         <div className="admin-card p-8 text-center">
-          <p className="font-medium text-[var(--admin-text)]">Pedido não encontrado</p>
+          <p className="font-medium text-[var(--admin-text)]">
+            Pedido não encontrado
+          </p>
           <Button asChild variant="outline" className="mt-4 rounded-xl">
             <Link href="/admin/pedidos">
               <ArrowLeft className="size-4" />
@@ -158,29 +161,38 @@ export default function AdminOrderDetail() {
                   <span className="text-white/40">·</span>
                   <span className="inline-flex items-center gap-1.5">
                     <Package className="size-3.5" />
-                    {PAYMENT_METHOD_LABELS[order.paymentMethod]} · {order.items.length}{" "}
+                    {PAYMENT_METHOD_LABELS[order.paymentMethod]} ·{" "}
+                    {order.items.length}{" "}
                     {order.items.length === 1 ? "item" : "itens"}
                   </span>
+                  <span className="text-white/40">·</span>
+                  <span>{PAYMENT_STATUS_LABELS[order.paymentStatus]}</span>
                 </div>
               </div>
 
               {/* Status no desktop / tablet */}
               <div className="hidden items-center gap-2 border-t border-white/10 pt-4 lg:flex">
-                <p className="text-xs font-medium text-white/60">Alterar status</p>
+                <p className="text-xs font-medium text-white/60">
+                  Alterar status
+                </p>
                 <Select
                   value={order.status}
-                  onValueChange={(value) => handleStatusChange(value as OrderStatus)}
+                  onValueChange={value =>
+                    handleStatusChange(value as OrderStatus)
+                  }
                   disabled={isSaving}
                 >
                   <SelectTrigger className="h-10 w-48 rounded-xl border-white/20 bg-white/10 text-white">
                     <SelectValue placeholder="Alterar status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(Object.keys(ORDER_STATUS_LABELS) as OrderStatus[]).map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {ORDER_STATUS_LABELS[value]}
-                      </SelectItem>
-                    ))}
+                    {(Object.keys(ORDER_STATUS_LABELS) as OrderStatus[]).map(
+                      value => (
+                        <SelectItem key={value} value={value}>
+                          {ORDER_STATUS_LABELS[value]}
+                        </SelectItem>
+                      )
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -191,7 +203,9 @@ export default function AdminOrderDetail() {
         {/* Cliente */}
         <div className="admin-card overflow-hidden">
           <div className="border-b border-[var(--admin-border)] px-4 py-3 sm:px-5">
-            <h3 className="text-sm font-bold text-[var(--admin-text)]">Cliente</h3>
+            <h3 className="text-sm font-bold text-[var(--admin-text)]">
+              Cliente
+            </h3>
           </div>
           {order.customerId ? (
             <div className="p-4 sm:p-5">
@@ -203,7 +217,9 @@ export default function AdminOrderDetail() {
                   <p className="truncate font-semibold text-[var(--admin-text)]">
                     {order.customerName || "Sem nome"}
                   </p>
-                  <p className="text-xs text-[var(--admin-text-muted)]">Cliente da loja</p>
+                  <p className="text-xs text-[var(--admin-text-muted)]">
+                    Cliente da loja
+                  </p>
                 </div>
               </div>
 
@@ -216,7 +232,9 @@ export default function AdminOrderDetail() {
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
                       <Mail className="size-4" />
                     </span>
-                    <span className="min-w-0 truncate">{order.customerEmail}</span>
+                    <span className="min-w-0 truncate">
+                      {order.customerEmail}
+                    </span>
                   </a>
                 )}
                 {order.customerPhone && (
@@ -252,7 +270,9 @@ export default function AdminOrderDetail() {
 
         {/* Detalhes / itens */}
         <div className="admin-card p-4 sm:p-5">
-          <h3 className="mb-4 text-sm font-bold text-[var(--admin-text)]">Detalhes do pedido</h3>
+          <h3 className="mb-4 text-sm font-bold text-[var(--admin-text)]">
+            Detalhes do pedido
+          </h3>
           <OrderDetailContent order={order} variant="admin" />
         </div>
       </div>
@@ -268,18 +288,20 @@ export default function AdminOrderDetail() {
           </Badge>
           <Select
             value={order.status}
-            onValueChange={(value) => handleStatusChange(value as OrderStatus)}
+            onValueChange={value => handleStatusChange(value as OrderStatus)}
             disabled={isSaving}
           >
             <SelectTrigger className="h-11 flex-1 rounded-xl">
               <SelectValue placeholder="Alterar status" />
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(ORDER_STATUS_LABELS) as OrderStatus[]).map((value) => (
-                <SelectItem key={value} value={value}>
-                  {ORDER_STATUS_LABELS[value]}
-                </SelectItem>
-              ))}
+              {(Object.keys(ORDER_STATUS_LABELS) as OrderStatus[]).map(
+                value => (
+                  <SelectItem key={value} value={value}>
+                    {ORDER_STATUS_LABELS[value]}
+                  </SelectItem>
+                )
+              )}
             </SelectContent>
           </Select>
         </div>

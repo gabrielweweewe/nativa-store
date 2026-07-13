@@ -3,7 +3,7 @@ import cookieParser from "cookie-parser";
 import express from "express";
 
 // server/routes/admin.ts
-import { Router as Router5 } from "express";
+import { Router as Router8 } from "express";
 
 // server/lib/adminAuth.ts
 import crypto from "node:crypto";
@@ -75,6 +75,7 @@ function requireAdmin(req, res, next) {
 
 // server/services/uploads.ts
 import { nanoid } from "nanoid";
+import sharp from "sharp";
 
 // server/lib/supabase.ts
 import { createClient } from "@supabase/supabase-js";
@@ -99,16 +100,30 @@ var supabase = createClient(url, secretKey, {
 
 // server/services/uploads.ts
 var PRODUCT_IMAGES_BUCKET = "product-images";
-var EXTENSION_BY_MIME = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp"
+var WEBP_QUALITY = 82;
+var MAX_DIMENSION_BY_FOLDER = {
+  products: 1600,
+  banners: 2400
 };
-async function uploadProductImage(file) {
-  const extension = EXTENSION_BY_MIME[file.mimetype] ?? "jpg";
-  const path = `products/${Date.now()}-${nanoid(8)}.${extension}`;
-  const { error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).upload(path, file.buffer, {
-    contentType: file.mimetype,
+async function toOptimizedWebp(buffer, folder) {
+  const maxSide = MAX_DIMENSION_BY_FOLDER[folder];
+  return sharp(buffer, { failOn: "none" }).rotate().resize({
+    width: maxSide,
+    height: maxSide,
+    fit: "inside",
+    withoutEnlargement: true
+  }).webp({ quality: WEBP_QUALITY, effort: 4 }).toBuffer();
+}
+async function uploadProductImage(file, folder = "products") {
+  let webpBuffer;
+  try {
+    webpBuffer = await toOptimizedWebp(file.buffer, folder);
+  } catch {
+    throw new Error("N\xE3o foi poss\xEDvel processar a imagem. Tente outro arquivo JPG, PNG ou WEBP.");
+  }
+  const path = `${folder}/${Date.now()}-${nanoid(8)}.webp`;
+  const { error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).upload(path, webpBuffer, {
+    contentType: "image/webp",
     cacheControl: "31536000",
     upsert: false
   });
@@ -119,8 +134,209 @@ async function uploadProductImage(file) {
   return data.publicUrl;
 }
 
-// server/routes/adminCustomers.ts
+// shared/schemas/banner.ts
+import { z } from "zod";
+var optionalUrl = z.string().trim().optional().nullable().transform((value) => {
+  if (value == null || value === "") return null;
+  return value;
+});
+var bannerSchema = z.object({
+  title: z.string().trim().max(120, "T\xEDtulo muito longo").default(""),
+  altText: z.string().trim().min(1, "Informe um texto alternativo").max(200, "Texto alternativo muito longo"),
+  imageUrl: z.string().trim().min(1, "Adicione a imagem do banner"),
+  imageUrlMobile: optionalUrl,
+  linkUrl: optionalUrl,
+  objectPosition: z.string().trim().min(1).max(60).default("center center"),
+  objectPositionMobile: z.string().trim().min(1).max(60).default("center 22%"),
+  sortOrder: z.number().int().nonnegative().optional(),
+  isActive: z.boolean().optional().default(true)
+});
+var bannerReorderSchema = z.object({
+  orderedIds: z.array(z.string().uuid()).min(1, "Informe a nova ordem")
+});
+
+// server/routes/adminBanners.ts
 import { Router } from "express";
+
+// shared/lib/bannerMapper.ts
+function mapBannerRowToBanner(row) {
+  return {
+    id: row.id,
+    title: row.title ?? "",
+    altText: row.alt_text ?? "Banner Nativa",
+    imageUrl: row.image_url,
+    imageUrlMobile: row.image_url_mobile,
+    linkUrl: row.link_url,
+    objectPosition: row.object_position || "center center",
+    objectPositionMobile: row.object_position_mobile || "center 22%",
+    sortOrder: row.sort_order ?? 0,
+    isActive: Boolean(row.is_active),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+function mapBannerInputToRow(input) {
+  return {
+    title: input.title ?? "",
+    alt_text: input.altText,
+    image_url: input.imageUrl,
+    image_url_mobile: input.imageUrlMobile ?? null,
+    link_url: input.linkUrl ?? null,
+    object_position: input.objectPosition ?? "center center",
+    object_position_mobile: input.objectPositionMobile ?? "center 22%",
+    sort_order: input.sortOrder ?? 0,
+    is_active: input.isActive ?? true,
+    updated_at: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+
+// server/services/banners.ts
+var BANNER_SELECT = "id, title, alt_text, image_url, image_url_mobile, link_url, object_position, object_position_mobile, sort_order, is_active, created_at, updated_at";
+async function listActiveBanners() {
+  const { data, error } = await supabase.from("banners").select(BANNER_SELECT).eq("is_active", true).order("sort_order", { ascending: true }).order("created_at", { ascending: true });
+  if (error) {
+    throw new Error(`Erro ao listar banners: ${error.message}`);
+  }
+  return (data ?? []).map(mapBannerRowToBanner);
+}
+async function listAllBanners() {
+  const { data, error } = await supabase.from("banners").select(BANNER_SELECT).order("sort_order", { ascending: true }).order("created_at", { ascending: true });
+  if (error) {
+    throw new Error(`Erro ao listar banners: ${error.message}`);
+  }
+  return (data ?? []).map(mapBannerRowToBanner);
+}
+async function getBannerById(id) {
+  const { data, error } = await supabase.from("banners").select(BANNER_SELECT).eq("id", id).single();
+  if (error) {
+    throw new Error(error.code === "PGRST116" ? "Banner n\xE3o encontrado" : error.message);
+  }
+  return mapBannerRowToBanner(data);
+}
+async function createBanner(input) {
+  const sortOrder = input.sortOrder ?? await (async () => {
+    const { data: data2 } = await supabase.from("banners").select("sort_order").order("sort_order", { ascending: false }).limit(1).maybeSingle();
+    return (data2?.sort_order ?? -1) + 1;
+  })();
+  const row = mapBannerInputToRow({ ...input, sortOrder });
+  const { data, error } = await supabase.from("banners").insert(row).select(BANNER_SELECT).single();
+  if (error) {
+    throw new Error(`Erro ao criar banner: ${error.message}`);
+  }
+  return mapBannerRowToBanner(data);
+}
+async function updateBanner(id, input) {
+  const row = mapBannerInputToRow(input);
+  const { data, error } = await supabase.from("banners").update(row).eq("id", id).select(BANNER_SELECT).single();
+  if (error) {
+    throw new Error(
+      error.code === "PGRST116" ? "Banner n\xE3o encontrado" : `Erro ao atualizar banner: ${error.message}`
+    );
+  }
+  return mapBannerRowToBanner(data);
+}
+async function deleteBanner(id) {
+  const { error, count } = await supabase.from("banners").delete({ count: "exact" }).eq("id", id);
+  if (error) {
+    throw new Error(`Erro ao excluir banner: ${error.message}`);
+  }
+  if (count === 0) {
+    throw new Error("Banner n\xE3o encontrado");
+  }
+}
+async function reorderBanners(orderedIds) {
+  const updates = orderedIds.map(
+    (id, index) => supabase.from("banners").update({ sort_order: index, updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", id)
+  );
+  const results = await Promise.all(updates);
+  const failed = results.find((result) => result.error);
+  if (failed?.error) {
+    throw new Error(`Erro ao reordenar banners: ${failed.error.message}`);
+  }
+  return listAllBanners();
+}
+
+// server/routes/adminBanners.ts
+var router = Router();
+router.get("/", requireAdmin, async (_req, res) => {
+  try {
+    const banners = await listAllBanners();
+    res.json(banners);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao carregar banners"
+    });
+  }
+});
+router.patch("/reorder", requireAdmin, async (req, res) => {
+  try {
+    const parsed = bannerReorderSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inv\xE1lidos", issues: parsed.error.issues });
+      return;
+    }
+    const banners = await reorderBanners(parsed.data.orderedIds);
+    res.json(banners);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao reordenar banners"
+    });
+  }
+});
+router.get("/:id", requireAdmin, async (req, res) => {
+  try {
+    const banner = await getBannerById(req.params.id);
+    res.json(banner);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao carregar banner";
+    const status = message.includes("n\xE3o encontrado") ? 404 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+router.post("/", requireAdmin, async (req, res) => {
+  try {
+    const parsed = bannerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inv\xE1lidos", issues: parsed.error.issues });
+      return;
+    }
+    const banner = await createBanner(parsed.data);
+    res.status(201).json(banner);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao criar banner"
+    });
+  }
+});
+router.put("/:id", requireAdmin, async (req, res) => {
+  try {
+    const parsed = bannerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inv\xE1lidos", issues: parsed.error.issues });
+      return;
+    }
+    const banner = await updateBanner(req.params.id, parsed.data);
+    res.json(banner);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao atualizar banner";
+    const status = message.includes("n\xE3o encontrado") ? 404 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+router.delete("/:id", requireAdmin, async (req, res) => {
+  try {
+    await deleteBanner(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao excluir banner";
+    const status = message.includes("n\xE3o encontrado") ? 404 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+var adminBanners_default = router;
+
+// server/routes/adminCustomers.ts
+import { Router as Router2 } from "express";
 
 // shared/lib/orderMapper.ts
 function toNumber(value) {
@@ -151,6 +367,11 @@ function mapOrderRowToOrder(row, items) {
     couponCode: row.coupon_code,
     shippingAddress: row.shipping_address,
     paymentMethod: row.payment_method,
+    paymentStatus: row.payment_status ?? "pending",
+    paymentStatusDetail: row.payment_status_detail ?? null,
+    paymentExpiresAt: row.payment_expires_at ?? null,
+    paidAt: row.paid_at ?? null,
+    paymentInstructions: row.payment_instructions ?? null,
     items,
     createdAt: row.created_at
   };
@@ -163,6 +384,7 @@ function mapOrderRowToSummary(row, itemCount) {
     shippingAmount: toNumber(row.shipping_amount),
     couponCode: row.coupon_code,
     paymentMethod: row.payment_method,
+    paymentStatus: row.payment_status ?? "pending",
     itemCount,
     createdAt: row.created_at
   };
@@ -371,8 +593,8 @@ async function listCustomerOrdersForAdmin(customerId) {
 }
 
 // server/routes/adminCustomers.ts
-var router = Router();
-router.get("/", requireAdmin, async (_req, res) => {
+var router2 = Router2();
+router2.get("/", requireAdmin, async (_req, res) => {
   try {
     const customers = await listAllCustomers();
     res.json(customers);
@@ -382,7 +604,7 @@ router.get("/", requireAdmin, async (_req, res) => {
     });
   }
 });
-router.get("/:id", requireAdmin, async (req, res) => {
+router2.get("/:id", requireAdmin, async (req, res) => {
   try {
     const customer = await getCustomerById(req.params.id);
     res.json(customer);
@@ -392,10 +614,10 @@ router.get("/:id", requireAdmin, async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
-var adminCustomers_default = router;
+var adminCustomers_default = router2;
 
 // server/routes/adminDashboard.ts
-import { Router as Router2 } from "express";
+import { Router as Router3 } from "express";
 
 // shared/const/analytics.ts
 var VISITOR_SESSION_COOKIE = "nativa_visitor_session";
@@ -527,7 +749,7 @@ async function fetchTopProducts(start) {
     current.revenue += Number(item.quantity) * Number(item.price);
     map.set(key, current);
   }
-  return [...map.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+  return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 }
 async function fetchProductStockCounts() {
   const { data, error } = await supabase.from("products").select("in_stock, stock_count");
@@ -698,9 +920,9 @@ async function getDashboardStats(period) {
 }
 
 // server/routes/adminDashboard.ts
-var router2 = Router2();
+var router3 = Router3();
 var VALID_PERIODS = /* @__PURE__ */ new Set(["7d", "30d", "90d", "all"]);
-router2.get("/", requireAdmin, async (req, res) => {
+router3.get("/", requireAdmin, async (req, res) => {
   try {
     const raw = typeof req.query.period === "string" ? req.query.period : "30d";
     const period = VALID_PERIODS.has(raw) ? raw : "30d";
@@ -712,10 +934,920 @@ router2.get("/", requireAdmin, async (req, res) => {
     });
   }
 });
-var adminDashboard_default = router2;
+var adminDashboard_default = router3;
+
+// shared/schemas/melhorEnvio.ts
+import { z as z2 } from "zod";
+var melhorEnvioEnvironmentSchema = z2.enum(["production", "sandbox"]);
+var postalCodeSchema = z2.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v === "" || v.length === 8, "CEP deve ter 8 d\xEDgitos");
+var melhorEnvioSettingsSchema = z2.object({
+  environment: melhorEnvioEnvironmentSchema.optional(),
+  redirectUri: z2.union([z2.literal(""), z2.string().url("Informe uma URL v\xE1lida")]).optional(),
+  userAgent: z2.string().min(5, "Informe o User-Agent (ex: Nativa Store (email@dominio.com))").optional(),
+  originPostalCode: postalCodeSchema.optional(),
+  defaultWidthCm: z2.number().positive("Largura deve ser positiva").max(200).optional(),
+  defaultHeightCm: z2.number().positive("Altura deve ser positiva").max(200).optional(),
+  defaultLengthCm: z2.number().positive("Comprimento deve ser positivo").max(200).optional(),
+  defaultWeightKg: z2.number().positive("Peso deve ser positivo").max(100).optional(),
+  clientId: z2.string().optional(),
+  clientSecret: z2.string().optional()
+});
+var shippingQuoteProductSchema = z2.object({
+  id: z2.string().min(1),
+  width: z2.number().positive().optional(),
+  height: z2.number().positive().optional(),
+  length: z2.number().positive().optional(),
+  weight: z2.number().positive().optional(),
+  insuranceValue: z2.number().nonnegative(),
+  quantity: z2.number().int().positive().default(1)
+});
+var shippingQuoteSchema = z2.object({
+  toPostalCode: postalCodeSchema.refine((v) => v.length === 8, "CEP de destino inv\xE1lido"),
+  products: z2.array(shippingQuoteProductSchema).min(1, "Informe ao menos um produto"),
+  services: z2.string().optional(),
+  receipt: z2.boolean().optional(),
+  ownHand: z2.boolean().optional()
+});
+
+// server/routes/adminMelhorEnvio.ts
+import { Router as Router4 } from "express";
+
+// shared/const/cart.ts
+var FREE_SHIPPING_THRESHOLD = 299;
+var STANDARD_SHIPPING_COST = 15;
+function calculateShippingAmount(subtotal) {
+  return subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_COST;
+}
+var CART_SESSION_COOKIE = "nativa_cart_session";
+var CART_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1e3;
+var CART_STATUS_ACTIVE = "active";
+
+// server/services/melhorEnvio.ts
+import jwt2 from "jsonwebtoken";
+var SETTINGS_ID = "default";
+var MELHOR_ENVIO_SCOPES = [
+  "cart-read",
+  "cart-write",
+  "companies-read",
+  "companies-write",
+  "coupons-read",
+  "coupons-write",
+  "notifications-read",
+  "orders-read",
+  "products-read",
+  "products-write",
+  "purchases-read",
+  "shipping-calculate",
+  "shipping-cancel",
+  "shipping-checkout",
+  "shipping-companies",
+  "shipping-generate",
+  "shipping-preview",
+  "shipping-print",
+  "shipping-share",
+  "shipping-tracking",
+  "ecommerce-shipping",
+  "transactions-read",
+  "users-read",
+  "users-write"
+].join(" ");
+function getJwtSecret2() {
+  const secret = process.env.ADMIN_JWT_SECRET?.trim();
+  if (!secret) {
+    throw new Error("Configure ADMIN_JWT_SECRET no arquivo .env");
+  }
+  return secret;
+}
+function getMelhorEnvioBaseUrl(environment) {
+  return environment === "sandbox" ? "https://sandbox.melhorenvio.com.br" : "https://melhorenvio.com.br";
+}
+function resolvePublicAppUrl() {
+  const fromEnv = process.env.APP_URL?.trim() || process.env.VITE_APP_URL?.trim() || process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (fromEnv) {
+    const withProtocol = fromEnv.startsWith("http") ? fromEnv : `https://${fromEnv}`;
+    return withProtocol.replace(/\/$/, "");
+  }
+  return "http://localhost:3000";
+}
+function getDefaultRedirectUri() {
+  return `${resolvePublicAppUrl()}/api/admin/melhor-envio/callback`;
+}
+function envPrefix(environment) {
+  return environment === "sandbox" ? "sandbox" : "production";
+}
+function getClientId(row, environment = row.environment) {
+  return environment === "sandbox" ? row.sandbox_client_id : row.production_client_id;
+}
+function getClientSecret(row, environment = row.environment) {
+  return environment === "sandbox" ? row.sandbox_client_secret : row.production_client_secret;
+}
+function getAccessToken(row, environment = row.environment) {
+  return environment === "sandbox" ? row.sandbox_access_token : row.production_access_token;
+}
+function getRefreshToken(row, environment = row.environment) {
+  return environment === "sandbox" ? row.sandbox_refresh_token : row.production_refresh_token;
+}
+function getTokenExpiresAt(row, environment = row.environment) {
+  return environment === "sandbox" ? row.sandbox_token_expires_at : row.production_token_expires_at;
+}
+function isConnected(row, environment = row.environment) {
+  return Boolean(getAccessToken(row, environment) && getRefreshToken(row, environment));
+}
+function isConfigured(row, environment) {
+  return Boolean(getClientId(row, environment).trim() && getClientSecret(row, environment).trim());
+}
+function toStatus(row) {
+  const env = row.environment;
+  return {
+    environment: env,
+    redirectUri: row.redirect_uri || getDefaultRedirectUri(),
+    userAgent: row.user_agent,
+    originPostalCode: row.origin_postal_code,
+    defaultWidthCm: Number(row.default_width_cm),
+    defaultHeightCm: Number(row.default_height_cm),
+    defaultLengthCm: Number(row.default_length_cm),
+    defaultWeightKg: Number(row.default_weight_kg),
+    clientId: getClientId(row, env),
+    hasClientSecret: Boolean(getClientSecret(row, env).trim()),
+    connected: isConnected(row, env),
+    tokenExpiresAt: getTokenExpiresAt(row, env),
+    productionConfigured: isConfigured(row, "production"),
+    sandboxConfigured: isConfigured(row, "sandbox"),
+    productionConnected: isConnected(row, "production"),
+    sandboxConnected: isConnected(row, "sandbox")
+  };
+}
+async function getMelhorEnvioSettings() {
+  const { data, error } = await supabase.from("melhor_envio_settings").select("*").eq("id", SETTINGS_ID).maybeSingle();
+  if (error) {
+    throw new Error(`Erro ao carregar Melhor Envio: ${error.message}`);
+  }
+  if (!data) {
+    const { data: inserted, error: insertError } = await supabase.from("melhor_envio_settings").insert({ id: SETTINGS_ID, redirect_uri: getDefaultRedirectUri() }).select("*").single();
+    if (insertError) {
+      throw new Error(
+        `Tabela melhor_envio_settings n\xE3o encontrada. Execute supabase/melhor_envio.sql no Supabase. (${insertError.message})`
+      );
+    }
+    return inserted;
+  }
+  return data;
+}
+async function getMelhorEnvioStatus() {
+  const row = await getMelhorEnvioSettings();
+  return toStatus(row);
+}
+async function updateMelhorEnvioSettings(input) {
+  const row = await getMelhorEnvioSettings();
+  const targetEnv = input.environment ?? row.environment;
+  const prefix = envPrefix(targetEnv);
+  const patch = {
+    updated_at: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  if (input.environment) {
+    patch.environment = input.environment;
+  }
+  if (input.redirectUri !== void 0) {
+    patch.redirect_uri = input.redirectUri.trim();
+  }
+  if (input.userAgent !== void 0) {
+    patch.user_agent = input.userAgent.trim();
+  }
+  if (input.originPostalCode !== void 0) {
+    patch.origin_postal_code = input.originPostalCode.replace(/\D/g, "");
+  }
+  if (input.defaultWidthCm !== void 0) patch.default_width_cm = input.defaultWidthCm;
+  if (input.defaultHeightCm !== void 0) patch.default_height_cm = input.defaultHeightCm;
+  if (input.defaultLengthCm !== void 0) patch.default_length_cm = input.defaultLengthCm;
+  if (input.defaultWeightKg !== void 0) patch.default_weight_kg = input.defaultWeightKg;
+  if (input.clientId !== void 0) {
+    patch[`${prefix}_client_id`] = input.clientId.trim();
+  }
+  if (input.clientSecret !== void 0 && input.clientSecret.trim() !== "") {
+    patch[`${prefix}_client_secret`] = input.clientSecret.trim();
+  }
+  const { data, error } = await supabase.from("melhor_envio_settings").update(patch).eq("id", SETTINGS_ID).select("*").single();
+  if (error) {
+    throw new Error(`Erro ao salvar Melhor Envio: ${error.message}`);
+  }
+  return toStatus(data);
+}
+function createOAuthState(environment) {
+  return jwt2.sign(
+    { purpose: "melhor_envio_oauth", environment },
+    getJwtSecret2(),
+    { expiresIn: "15m" }
+  );
+}
+function verifyOAuthState(state) {
+  const payload = jwt2.verify(state, getJwtSecret2());
+  if (typeof payload !== "object" || payload === null || payload.purpose !== "melhor_envio_oauth") {
+    throw new Error("State OAuth inv\xE1lido");
+  }
+  const environment = payload.environment;
+  if (environment !== "production" && environment !== "sandbox") {
+    throw new Error("Ambiente OAuth inv\xE1lido");
+  }
+  return environment;
+}
+async function buildAuthorizeUrl() {
+  const row = await getMelhorEnvioSettings();
+  const clientId = getClientId(row).trim();
+  const redirectUri = (row.redirect_uri || getDefaultRedirectUri()).trim();
+  if (!clientId) {
+    throw new Error("Configure o Client ID do Melhor Envio antes de conectar");
+  }
+  if (!getClientSecret(row).trim()) {
+    throw new Error("Configure o Client Secret do Melhor Envio antes de conectar");
+  }
+  if (!redirectUri) {
+    throw new Error("Configure a URL de callback (redirect_uri)");
+  }
+  const state = createOAuthState(row.environment);
+  const base = getMelhorEnvioBaseUrl(row.environment);
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    state,
+    scope: MELHOR_ENVIO_SCOPES
+  });
+  return `${base}/oauth/authorize?${params.toString()}`;
+}
+async function requestToken(environment, body, userAgent) {
+  const base = getMelhorEnvioBaseUrl(environment);
+  const form = new URLSearchParams(body);
+  const response = await fetch(`${base}/oauth/token`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": userAgent
+    },
+    body: form.toString()
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.access_token) {
+    const message = data?.error_description || data?.message || data?.error || `Falha ao obter token Melhor Envio (HTTP ${response.status})`;
+    throw new Error(message);
+  }
+  return data;
+}
+async function saveTokens(environment, tokens) {
+  const prefix = envPrefix(environment);
+  const expiresAt = new Date(Date.now() + tokens.expires_in * 1e3).toISOString();
+  const { error } = await supabase.from("melhor_envio_settings").update({
+    [`${prefix}_access_token`]: tokens.access_token,
+    [`${prefix}_refresh_token`]: tokens.refresh_token,
+    [`${prefix}_token_expires_at`]: expiresAt,
+    environment,
+    updated_at: (/* @__PURE__ */ new Date()).toISOString()
+  }).eq("id", SETTINGS_ID);
+  if (error) {
+    throw new Error(`Erro ao salvar tokens Melhor Envio: ${error.message}`);
+  }
+}
+async function exchangeAuthorizationCode(code, state) {
+  const environment = verifyOAuthState(state);
+  const row = await getMelhorEnvioSettings();
+  const redirectUri = (row.redirect_uri || getDefaultRedirectUri()).trim();
+  const clientId = getClientId(row, environment).trim();
+  const clientSecret = getClientSecret(row, environment).trim();
+  if (!clientId || !clientSecret) {
+    throw new Error("Credenciais do Melhor Envio n\xE3o configuradas para este ambiente");
+  }
+  const tokens = await requestToken(
+    environment,
+    {
+      grant_type: "authorization_code",
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+      code
+    },
+    row.user_agent
+  );
+  await saveTokens(environment, tokens);
+  return getMelhorEnvioStatus();
+}
+async function refreshAccessToken(row, environment) {
+  const refreshToken = getRefreshToken(row, environment);
+  const clientId = getClientId(row, environment).trim();
+  const clientSecret = getClientSecret(row, environment).trim();
+  if (!refreshToken || !clientId || !clientSecret) {
+    throw new Error("Melhor Envio n\xE3o conectado. Autorize pelo painel admin.");
+  }
+  const tokens = await requestToken(
+    environment,
+    {
+      grant_type: "refresh_token",
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken
+    },
+    row.user_agent
+  );
+  await saveTokens(environment, tokens);
+  return getMelhorEnvioSettings();
+}
+async function getValidAccessToken() {
+  let row = await getMelhorEnvioSettings();
+  const environment = row.environment;
+  let accessToken = getAccessToken(row, environment);
+  const expiresAt = getTokenExpiresAt(row, environment);
+  if (!accessToken || !getRefreshToken(row, environment)) {
+    throw new Error("Melhor Envio n\xE3o conectado. Autorize pelo painel admin.");
+  }
+  const expiresMs = expiresAt ? new Date(expiresAt).getTime() : 0;
+  const needsRefresh = !expiresAt || expiresMs - Date.now() < 5 * 60 * 1e3;
+  if (needsRefresh) {
+    row = await refreshAccessToken(row, environment);
+    accessToken = getAccessToken(row, environment);
+    if (!accessToken) {
+      throw new Error("N\xE3o foi poss\xEDvel renovar o token do Melhor Envio");
+    }
+  }
+  return { accessToken, row };
+}
+async function disconnectMelhorEnvio() {
+  const row = await getMelhorEnvioSettings();
+  const prefix = envPrefix(row.environment);
+  const { error } = await supabase.from("melhor_envio_settings").update({
+    [`${prefix}_access_token`]: null,
+    [`${prefix}_refresh_token`]: null,
+    [`${prefix}_token_expires_at`]: null,
+    updated_at: (/* @__PURE__ */ new Date()).toISOString()
+  }).eq("id", SETTINGS_ID);
+  if (error) {
+    throw new Error(`Erro ao desconectar Melhor Envio: ${error.message}`);
+  }
+  return getMelhorEnvioStatus();
+}
+function toNumber2(value, fallback = 0) {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const n = Number(value.replace(",", "."));
+    return Number.isFinite(n) ? n : fallback;
+  }
+  return fallback;
+}
+async function calculateShipping(input) {
+  const { accessToken, row } = await getValidAccessToken();
+  const fromCep = row.origin_postal_code.replace(/\D/g, "");
+  if (fromCep.length !== 8) {
+    throw new Error("Configure o CEP de origem da loja no painel Melhor Envio");
+  }
+  const products = input.products.map((product) => ({
+    id: product.id,
+    width: product.width ?? Number(row.default_width_cm),
+    height: product.height ?? Number(row.default_height_cm),
+    length: product.length ?? Number(row.default_length_cm),
+    weight: product.weight ?? Number(row.default_weight_kg),
+    insurance_value: Number(product.insuranceValue.toFixed(2)),
+    quantity: product.quantity
+  }));
+  const body = {
+    from: { postal_code: fromCep },
+    to: { postal_code: input.toPostalCode },
+    products,
+    options: {
+      receipt: input.receipt ?? false,
+      own_hand: input.ownHand ?? false
+    }
+  };
+  if (input.services?.trim()) {
+    body.services = input.services.trim();
+  }
+  const base = getMelhorEnvioBaseUrl(row.environment);
+  const response = await fetch(`${base}/api/v2/me/shipment/calculate`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      "User-Agent": row.user_agent
+    },
+    body: JSON.stringify(body)
+  });
+  const raw = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = raw && typeof raw === "object" && "message" in raw && String(raw.message) || `Erro na cota\xE7\xE3o Melhor Envio (HTTP ${response.status})`;
+    throw new Error(message);
+  }
+  const items = Array.isArray(raw) ? raw : [];
+  const options = items.filter((item) => !item.error).map((item) => ({
+    id: String(item.id),
+    name: item.name,
+    company: item.company?.name ?? "",
+    price: toNumber2(item.price),
+    customPrice: toNumber2(item.custom_price ?? item.price),
+    deliveryTime: item.delivery_time,
+    customDeliveryTime: item.custom_delivery_time ?? item.delivery_time,
+    currency: item.currency || "R$",
+    error: item.error ?? null
+  })).sort((a, b) => a.customPrice - b.customPrice);
+  const subtotal = input.products.reduce(
+    (sum, p) => sum + p.insuranceValue * p.quantity,
+    0
+  );
+  const freeShippingApplied = subtotal >= FREE_SHIPPING_THRESHOLD;
+  if (freeShippingApplied && options.length > 0) {
+    const cheapestId = options[0].id;
+    for (const option of options) {
+      if (option.id === cheapestId) {
+        option.customPrice = 0;
+        option.price = 0;
+      }
+    }
+  }
+  return {
+    options,
+    environment: row.environment,
+    freeShippingApplied
+  };
+}
+
+// server/routes/adminMelhorEnvio.ts
+var router4 = Router4();
+function adminIntegrationsUrl(query) {
+  const base = process.env.APP_URL?.trim() || process.env.VITE_APP_URL?.trim() || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
+  const origin = base.replace(/\/$/, "").startsWith("http") ? base.replace(/\/$/, "") : `https://${base.replace(/\/$/, "")}`;
+  const params = new URLSearchParams(query);
+  return `${origin}/admin/integracoes?${params.toString()}`;
+}
+router4.get("/status", requireAdmin, async (_req, res) => {
+  try {
+    const status = await getMelhorEnvioStatus();
+    res.json({
+      ...status,
+      suggestedRedirectUri: getDefaultRedirectUri()
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao carregar Melhor Envio"
+    });
+  }
+});
+router4.put("/settings", requireAdmin, async (req, res) => {
+  try {
+    const parsed = melhorEnvioSettingsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inv\xE1lidos", issues: parsed.error.issues });
+      return;
+    }
+    const status = await updateMelhorEnvioSettings(parsed.data);
+    res.json({
+      ...status,
+      suggestedRedirectUri: getDefaultRedirectUri()
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao salvar Melhor Envio"
+    });
+  }
+});
+router4.get("/connect", requireAdmin, async (_req, res) => {
+  try {
+    const url2 = await buildAuthorizeUrl();
+    res.redirect(url2);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao iniciar autoriza\xE7\xE3o";
+    res.redirect(adminIntegrationsUrl({ me_error: message }));
+  }
+});
+router4.get("/callback", async (req, res) => {
+  try {
+    const code = typeof req.query.code === "string" ? req.query.code : "";
+    const state = typeof req.query.state === "string" ? req.query.state : "";
+    const errorParam = typeof req.query.error === "string" ? req.query.error : "";
+    if (errorParam) {
+      const description = typeof req.query.error_description === "string" ? req.query.error_description : errorParam;
+      res.redirect(adminIntegrationsUrl({ me_error: description }));
+      return;
+    }
+    if (!code || !state) {
+      res.redirect(adminIntegrationsUrl({ me_error: "C\xF3digo de autoriza\xE7\xE3o ausente" }));
+      return;
+    }
+    await exchangeAuthorizationCode(code, state);
+    res.redirect(adminIntegrationsUrl({ me_connected: "1" }));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha na autoriza\xE7\xE3o";
+    res.redirect(adminIntegrationsUrl({ me_error: message }));
+  }
+});
+router4.post("/disconnect", requireAdmin, async (_req, res) => {
+  try {
+    const status = await disconnectMelhorEnvio();
+    res.json({
+      ...status,
+      suggestedRedirectUri: getDefaultRedirectUri()
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao desconectar Melhor Envio"
+    });
+  }
+});
+var adminMelhorEnvio_default = router4;
+
+// shared/schemas/mercadoPago.ts
+import { z as z3 } from "zod";
+var mercadoPagoSettingsSchema = z3.object({
+  environment: z3.enum(["test", "production"]),
+  enabled: z3.boolean(),
+  publicKey: z3.string().trim().max(300),
+  accessToken: z3.string().trim().max(500).optional(),
+  webhookSecret: z3.string().trim().max(500).optional(),
+  pixEnabled: z3.boolean(),
+  boletoEnabled: z3.boolean(),
+  creditCardEnabled: z3.boolean(),
+  maxInstallments: z3.number().int().min(1).max(12),
+  boletoExpirationDays: z3.number().int().min(1).max(30)
+});
+var cardPaymentDataSchema = z3.object({
+  token: z3.string().trim().min(1),
+  paymentMethodId: z3.string().trim().min(1).max(50),
+  installments: z3.number().int().min(1).max(12),
+  issuerId: z3.string().trim().max(50).optional()
+});
+
+// server/routes/adminMercadoPago.ts
+import { Router as Router5 } from "express";
+
+// server/lib/secretCrypto.ts
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes
+} from "node:crypto";
+function encryptionKey() {
+  const source = process.env.MERCADO_PAGO_ENCRYPTION_KEY?.trim();
+  if (!source || source.length < 32) {
+    throw new Error(
+      "MERCADO_PAGO_ENCRYPTION_KEY deve ter pelo menos 32 caracteres"
+    );
+  }
+  return createHash("sha256").update(source).digest();
+}
+function encryptSecret(value) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
+  const encrypted = Buffer.concat([
+    cipher.update(value, "utf8"),
+    cipher.final()
+  ]);
+  const tag = cipher.getAuthTag();
+  return [
+    "v1",
+    iv.toString("base64url"),
+    tag.toString("base64url"),
+    encrypted.toString("base64url")
+  ].join(".");
+}
+function decryptSecret(value) {
+  const [version, ivRaw, tagRaw, payloadRaw] = value.split(".");
+  if (version !== "v1" || !ivRaw || !tagRaw || !payloadRaw) {
+    throw new Error("Segredo criptografado inv\xE1lido");
+  }
+  const decipher = createDecipheriv(
+    "aes-256-gcm",
+    encryptionKey(),
+    Buffer.from(ivRaw, "base64url")
+  );
+  decipher.setAuthTag(Buffer.from(tagRaw, "base64url"));
+  return Buffer.concat([
+    decipher.update(Buffer.from(payloadRaw, "base64url")),
+    decipher.final()
+  ]).toString("utf8");
+}
+
+// server/lib/mercadoPagoSignature.ts
+import { createHmac, timingSafeEqual } from "node:crypto";
+function validateMercadoPagoSignature(params) {
+  if (!params.signature || !params.dataId || !params.secret) return false;
+  const parts = Object.fromEntries(
+    params.signature.split(",").map((part) => {
+      const [key, value] = part.trim().split("=", 2);
+      return [key, value];
+    })
+  );
+  if (!parts.ts || !parts.v1) return false;
+  if (Math.abs((params.now ?? Date.now()) - Number(parts.ts)) > 5 * 60 * 1e3)
+    return false;
+  let manifest = `id:${params.dataId.toLowerCase()};`;
+  if (params.requestId) manifest += `request-id:${params.requestId};`;
+  manifest += `ts:${parts.ts};`;
+  const expected = createHmac("sha256", params.secret).update(manifest).digest("hex");
+  const received = String(parts.v1);
+  return expected.length === received.length && timingSafeEqual(Buffer.from(expected), Buffer.from(received));
+}
+
+// server/services/mercadoPago.ts
+var API_URL = "https://api.mercadopago.com";
+function getPublicAppUrl() {
+  const raw = process.env.APP_URL?.trim() || process.env.VITE_APP_URL?.trim() || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
+  const withProtocol = raw.startsWith("http") ? raw : `https://${raw}`;
+  return withProtocol.replace(/\/$/, "");
+}
+function getMercadoPagoWebhookUrl() {
+  return `${getPublicAppUrl()}/api/webhooks/mercado-pago`;
+}
+async function getSettingsRow(environment) {
+  const { data, error } = await supabase.from("mercado_pago_settings").select("*").eq("environment", environment).single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+async function getActiveSettings() {
+  const { data, error } = await supabase.from("mercado_pago_settings").select("*").eq("enabled", true).order("environment", { ascending: false }).limit(1).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Mercado Pago n\xE3o est\xE1 habilitado");
+  const row = data;
+  if (!row.public_key || !row.access_token_encrypted || !row.webhook_secret_encrypted) {
+    throw new Error("Credenciais do Mercado Pago incompletas");
+  }
+  return {
+    ...row,
+    accessToken: decryptSecret(row.access_token_encrypted),
+    webhookSecret: decryptSecret(row.webhook_secret_encrypted)
+  };
+}
+async function getEnvironmentSettings(environment) {
+  const row = await getSettingsRow(environment);
+  if (!row.access_token_encrypted || !row.webhook_secret_encrypted) {
+    throw new Error(
+      `Credenciais do Mercado Pago incompletas em ${environment}`
+    );
+  }
+  return {
+    ...row,
+    accessToken: decryptSecret(row.access_token_encrypted),
+    webhookSecret: decryptSecret(row.webhook_secret_encrypted)
+  };
+}
+async function getActiveMercadoPagoEnvironment() {
+  return (await getActiveSettings()).environment;
+}
+function toAdminStatus(row) {
+  return {
+    environment: row.environment,
+    enabled: row.enabled,
+    publicKey: row.public_key,
+    pixEnabled: row.pix_enabled,
+    boletoEnabled: row.boleto_enabled,
+    creditCardEnabled: row.credit_card_enabled,
+    maxInstallments: row.max_installments,
+    boletoExpirationDays: row.boleto_expiration_days,
+    hasAccessToken: Boolean(row.access_token_encrypted),
+    hasWebhookSecret: Boolean(row.webhook_secret_encrypted),
+    configured: Boolean(
+      row.public_key && row.access_token_encrypted && row.webhook_secret_encrypted
+    ),
+    webhookUrl: getMercadoPagoWebhookUrl()
+  };
+}
+async function getMercadoPagoAdminStatus(environment) {
+  return toAdminStatus(await getSettingsRow(environment));
+}
+async function updateMercadoPagoSettings(input) {
+  const current = await getSettingsRow(input.environment);
+  const update = {
+    enabled: input.enabled,
+    public_key: input.publicKey.trim(),
+    pix_enabled: input.pixEnabled,
+    boleto_enabled: input.boletoEnabled,
+    credit_card_enabled: input.creditCardEnabled,
+    max_installments: input.maxInstallments,
+    boleto_expiration_days: input.boletoExpirationDays,
+    updated_at: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  if (input.accessToken?.trim())
+    update.access_token_encrypted = encryptSecret(input.accessToken.trim());
+  if (input.webhookSecret?.trim()) {
+    update.webhook_secret_encrypted = encryptSecret(input.webhookSecret.trim());
+  }
+  if (input.enabled) {
+    const { error: disableError } = await supabase.from("mercado_pago_settings").update({ enabled: false }).neq("environment", input.environment);
+    if (disableError) throw new Error(disableError.message);
+  }
+  const { data, error } = await supabase.from("mercado_pago_settings").update(update).eq("environment", input.environment).select("*").single();
+  if (error) throw new Error(error.message);
+  return toAdminStatus({ ...current, ...data });
+}
+async function getMercadoPagoPublicConfig() {
+  const settings = await getActiveSettings();
+  const methods = [];
+  if (settings.pix_enabled) methods.push("pix");
+  if (settings.credit_card_enabled) methods.push("credit_card");
+  if (settings.boleto_enabled) methods.push("boleto");
+  return {
+    enabled: true,
+    publicKey: settings.public_key,
+    methods,
+    maxInstallments: settings.max_installments
+  };
+}
+function normalizeMercadoPagoStatus(value) {
+  const status = String(value ?? "pending").toLowerCase();
+  if (status === "processed" || status === "accredited") return "approved";
+  if (status === "failed") return "rejected";
+  if ([
+    "pending",
+    "processing",
+    "approved",
+    "rejected",
+    "canceled",
+    "expired",
+    "refunded"
+  ].includes(status)) {
+    return status;
+  }
+  return "pending";
+}
+function firstPayment(payload) {
+  return payload?.transactions?.payments?.[0] ?? payload?.payments?.[0] ?? payload?.payment ?? {};
+}
+function normalizeInstructions(payload) {
+  const payment = firstPayment(payload);
+  const transactionData = payment?.payment_method?.transaction_data ?? payment?.point_of_interaction?.transaction_data ?? payload?.point_of_interaction?.transaction_data ?? {};
+  const instructions = {
+    qrCode: transactionData.qr_code ?? payment?.payment_method?.qr_code,
+    qrCodeBase64: transactionData.qr_code_base64 ?? payment?.payment_method?.qr_code_base64,
+    ticketUrl: transactionData.ticket_url ?? payment?.payment_method?.ticket_url ?? payment?.transaction_details?.external_resource_url,
+    barcode: payment?.payment_method?.digitable_line ?? payment?.payment_method?.barcode_content ?? payment?.payment_method?.barcode?.content ?? payment?.barcode?.content,
+    expirationDate: payment?.expiration_time ?? payment?.date_of_expiration ?? transactionData.expiration_date
+  };
+  return Object.values(instructions).some(Boolean) ? instructions : null;
+}
+async function mercadoPagoRequest(path, settings, options = {}) {
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${settings.accessToken}`,
+      "Content-Type": "application/json",
+      ...options.headers ?? {}
+    }
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = body?.errors?.[0]?.message ?? body?.message ?? body?.error ?? `Mercado Pago respondeu HTTP ${response.status}`;
+    const error = new Error(String(message));
+    error.payload = body;
+    error.status = response.status;
+    throw error;
+  }
+  return body;
+}
+async function testMercadoPagoCredentials(environment) {
+  const row = await getSettingsRow(environment);
+  if (!row.access_token_encrypted) throw new Error("Informe o Access Token");
+  const settings = {
+    ...row,
+    accessToken: decryptSecret(row.access_token_encrypted),
+    webhookSecret: row.webhook_secret_encrypted ? decryptSecret(row.webhook_secret_encrypted) : ""
+  };
+  await mercadoPagoRequest("/v1/payment_methods", settings);
+  return { success: true };
+}
+async function createMercadoPagoOrder(params) {
+  const settings = params.environment ? await getEnvironmentSettings(params.environment) : await getActiveSettings();
+  const methodEnabled = params.checkout.paymentMethod === "pix" && settings.pix_enabled || params.checkout.paymentMethod === "boleto" && settings.boleto_enabled || params.checkout.paymentMethod === "credit_card" && settings.credit_card_enabled;
+  if (!methodEnabled) throw new Error("Forma de pagamento indispon\xEDvel");
+  const method = params.checkout.paymentMethod === "credit_card" ? {
+    id: params.checkout.card.paymentMethodId,
+    type: "credit_card",
+    token: params.checkout.card.token,
+    installments: Math.min(
+      params.checkout.card.installments,
+      settings.max_installments
+    ),
+    ...params.checkout.card.issuerId ? { issuer_id: params.checkout.card.issuerId } : {}
+  } : params.checkout.paymentMethod === "pix" ? { id: "pix", type: "bank_transfer" } : { id: "boleto", type: "ticket" };
+  const address = params.checkout.shippingAddress;
+  const payment = {
+    amount: params.order.totalAmount.toFixed(2),
+    payment_method: method
+  };
+  if (params.checkout.paymentMethod === "boleto") {
+    payment.expiration_time = `P${settings.boleto_expiration_days}D`;
+  }
+  const payload = {
+    type: "online",
+    processing_mode: "automatic",
+    total_amount: params.order.totalAmount.toFixed(2),
+    external_reference: params.order.id,
+    payer: {
+      email: params.payer.email,
+      first_name: params.payer.firstName,
+      identification: {
+        type: "CPF",
+        number: params.checkout.payer.identificationNumber
+      },
+      address: {
+        zip_code: address.cep.replace(/\D/g, ""),
+        street_name: address.rua,
+        street_number: address.numero,
+        neighborhood: address.bairro,
+        city: address.cidade,
+        state: address.estado
+      }
+    },
+    transactions: { payments: [payment] }
+  };
+  const raw = await mercadoPagoRequest("/v1/orders", settings, {
+    method: "POST",
+    headers: { "X-Idempotency-Key": params.checkout.idempotencyKey },
+    body: JSON.stringify(payload)
+  });
+  const mpPayment = firstPayment(raw);
+  const paymentStatus = normalizeMercadoPagoStatus(
+    mpPayment?.status ?? raw?.status
+  );
+  const outcome = paymentStatus === "approved" ? "approved" : paymentStatus === "rejected" ? "rejected" : "pending";
+  return {
+    environment: settings.environment,
+    raw,
+    result: {
+      outcome,
+      orderId: params.order.id,
+      paymentStatus,
+      statusDetail: mpPayment?.status_detail ?? raw?.status_detail ?? null,
+      instructions: normalizeInstructions(raw)
+    }
+  };
+}
+async function getMercadoPagoOrder(mpOrderId, environment) {
+  const settings = environment ? await getEnvironmentSettings(environment) : await getActiveSettings();
+  return mercadoPagoRequest(
+    `/v1/orders/${encodeURIComponent(mpOrderId)}`,
+    settings
+  );
+}
+function mercadoPagoOrderIdentity(payload) {
+  const payment = firstPayment(payload);
+  return {
+    orderId: String(payload?.id ?? ""),
+    paymentId: payment?.id == null ? null : String(payment.id),
+    status: normalizeMercadoPagoStatus(payment?.status ?? payload?.status),
+    statusDetail: payment?.status_detail ?? payload?.status_detail ?? null,
+    instructions: normalizeInstructions(payload)
+  };
+}
+async function verifyMercadoPagoSignature(params) {
+  if (!params.signature || !params.dataId) return false;
+  const settings = params.environment ? await getEnvironmentSettings(params.environment) : await getActiveSettings();
+  return validateMercadoPagoSignature({
+    ...params,
+    secret: settings.webhookSecret
+  });
+}
+
+// server/routes/adminMercadoPago.ts
+var router5 = Router5();
+function environmentFrom(value) {
+  return value === "production" ? "production" : "test";
+}
+router5.get("/status", requireAdmin, async (req, res) => {
+  try {
+    res.json(
+      await getMercadoPagoAdminStatus(environmentFrom(req.query.environment))
+    );
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao carregar"
+    });
+  }
+});
+router5.put("/settings", requireAdmin, async (req, res) => {
+  const parsed = mercadoPagoSettingsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Dados inv\xE1lidos", issues: parsed.error.issues });
+    return;
+  }
+  try {
+    res.json(await updateMercadoPagoSettings(parsed.data));
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao salvar"
+    });
+  }
+});
+router5.post("/test", requireAdmin, async (req, res) => {
+  try {
+    res.json(
+      await testMercadoPagoCredentials(environmentFrom(req.body?.environment))
+    );
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : "Credenciais inv\xE1lidas"
+    });
+  }
+});
+var adminMercadoPago_default = router5;
 
 // server/routes/adminNotifications.ts
-import { Router as Router3 } from "express";
+import { Router as Router6 } from "express";
 
 // server/services/adminNotifications.ts
 function mapNotificationRow(row) {
@@ -765,8 +1897,8 @@ async function getUnreadCountByType() {
 }
 
 // server/routes/adminNotifications.ts
-var router3 = Router3();
-router3.get("/", requireAdmin, async (_req, res) => {
+var router6 = Router6();
+router6.get("/", requireAdmin, async (_req, res) => {
   try {
     const notifications = await listAdminNotifications();
     res.json(notifications);
@@ -776,7 +1908,7 @@ router3.get("/", requireAdmin, async (_req, res) => {
     });
   }
 });
-router3.get("/unread-count", requireAdmin, async (_req, res) => {
+router6.get("/unread-count", requireAdmin, async (_req, res) => {
   try {
     const [count, byType] = await Promise.all([
       getUnreadNotificationCount(),
@@ -789,7 +1921,7 @@ router3.get("/unread-count", requireAdmin, async (_req, res) => {
     });
   }
 });
-router3.patch("/read-all", requireAdmin, async (_req, res) => {
+router6.patch("/read-all", requireAdmin, async (_req, res) => {
   try {
     await markAllNotificationsAsRead();
     res.json({ success: true });
@@ -799,7 +1931,7 @@ router3.patch("/read-all", requireAdmin, async (_req, res) => {
     });
   }
 });
-router3.patch("/:id/read", requireAdmin, async (req, res) => {
+router6.patch("/:id/read", requireAdmin, async (req, res) => {
   try {
     const notification = await markNotificationAsRead(req.params.id);
     res.json(notification);
@@ -809,52 +1941,67 @@ router3.patch("/:id/read", requireAdmin, async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
-var adminNotifications_default = router3;
+var adminNotifications_default = router6;
 
 // shared/schemas/order.ts
-import { z as z2 } from "zod";
+import { z as z5 } from "zod";
 
 // shared/schemas/address.ts
-import { z } from "zod";
+import { z as z4 } from "zod";
 function normalizeCep(value) {
   return value.replace(/\D/g, "").slice(0, 8);
 }
-var shippingAddressSchema = z.object({
-  cep: z.string().trim().min(1, "Informe o CEP").transform(normalizeCep).refine((value) => value.length === 8, { message: "CEP deve ter 8 d\xEDgitos" }),
-  rua: z.string().trim().min(2, "Informe a rua").max(200, "Rua muito longa"),
-  numero: z.string().trim().min(1, "Informe o n\xFAmero").max(20, "N\xFAmero muito longo"),
-  complemento: z.string().trim().max(100, "Complemento muito longo").optional().transform((value) => value || void 0),
-  bairro: z.string().trim().min(2, "Informe o bairro").max(100, "Bairro muito longo"),
-  cidade: z.string().trim().min(2, "Informe a cidade").max(100, "Cidade muito longa"),
-  estado: z.string().trim().length(2, "Informe a UF com 2 letras").transform((value) => value.toUpperCase())
+var shippingAddressSchema = z4.object({
+  cep: z4.string().trim().min(1, "Informe o CEP").transform(normalizeCep).refine((value) => value.length === 8, { message: "CEP deve ter 8 d\xEDgitos" }),
+  rua: z4.string().trim().min(2, "Informe a rua").max(200, "Rua muito longa"),
+  numero: z4.string().trim().min(1, "Informe o n\xFAmero").max(20, "N\xFAmero muito longo"),
+  complemento: z4.string().trim().max(100, "Complemento muito longo").optional().transform((value) => value || void 0),
+  bairro: z4.string().trim().min(2, "Informe o bairro").max(100, "Bairro muito longo"),
+  cidade: z4.string().trim().min(2, "Informe a cidade").max(100, "Cidade muito longa"),
+  estado: z4.string().trim().length(2, "Informe a UF com 2 letras").transform((value) => value.toUpperCase())
 });
 var customerAddressSchema = shippingAddressSchema.extend({
-  label: z.string().trim().min(1, "Informe um nome para o endere\xE7o").max(40, "Nome muito longo"),
-  isDefault: z.boolean().optional().default(false)
+  label: z4.string().trim().min(1, "Informe um nome para o endere\xE7o").max(40, "Nome muito longo"),
+  isDefault: z4.boolean().optional().default(false)
 });
 var customerAddressUpdateSchema = customerAddressSchema.partial();
 
 // shared/schemas/order.ts
-var checkoutSchema = z2.object({
+function isValidCpf(value) {
+  if (!/^\d{11}$/.test(value) || /^(\d)\1{10}$/.test(value)) return false;
+  const digit = (length) => {
+    let sum = 0;
+    for (let index = 0; index < length; index++) {
+      sum += Number(value[index]) * (length + 1 - index);
+    }
+    const remainder = sum * 10 % 11;
+    return remainder === 10 ? 0 : remainder;
+  };
+  return digit(9) === Number(value[9]) && digit(10) === Number(value[10]);
+}
+var checkoutSchema = z5.object({
   shippingAddress: shippingAddressSchema,
-  paymentMethod: z2.enum(["pix", "credit_card", "boleto"])
+  paymentMethod: z5.enum(["pix", "credit_card", "boleto"]),
+  idempotencyKey: z5.string().uuid(),
+  payer: z5.object({
+    identificationNumber: z5.string().transform((value) => value.replace(/\D/g, "")).refine(isValidCpf, "Informe um CPF v\xE1lido")
+  }),
+  card: cardPaymentDataSchema.optional()
+}).superRefine((value, context) => {
+  if (value.paymentMethod === "credit_card" && !value.card) {
+    context.addIssue({
+      code: "custom",
+      path: ["card"],
+      message: "Os dados tokenizados do cart\xE3o s\xE3o obrigat\xF3rios"
+    });
+  }
 });
-var orderStatusUpdateSchema = z2.object({
-  status: z2.enum(["pending", "paid", "canceled"])
+var orderStatusUpdateSchema = z5.object({
+  status: z5.enum(["pending", "paid", "canceled"])
 });
 
 // server/routes/adminOrders.ts
-import { Router as Router4 } from "express";
-
-// shared/const/cart.ts
-var FREE_SHIPPING_THRESHOLD = 299;
-var STANDARD_SHIPPING_COST = 15;
-function calculateShippingAmount(subtotal) {
-  return subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_COST;
-}
-var CART_SESSION_COOKIE = "nativa_cart_session";
-var CART_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1e3;
-var CART_STATUS_ACTIVE = "active";
+import { Router as Router7 } from "express";
 
 // server/services/orders.ts
 async function fetchCustomerCartRow(customerId) {
@@ -866,6 +2013,29 @@ async function fetchCartItems(cartId) {
   const { data, error } = await supabase.from("cart_items").select("*").eq("cart_id", cartId).order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+async function validateCheckoutStock(items) {
+  const productIds = Array.from(new Set(items.map((item) => item.product_id)));
+  const { data, error } = await supabase.from("products").select("id, name, in_stock, stock_count").in("id", productIds);
+  if (error) throw new Error(error.message);
+  const products = new Map(
+    (data ?? []).map((product) => [Number(product.id), product])
+  );
+  const requested = /* @__PURE__ */ new Map();
+  for (const item of items) {
+    const id = Number(item.product_id);
+    const current = requested.get(id);
+    requested.set(id, {
+      quantity: (current?.quantity ?? 0) + item.quantity,
+      name: item.product_name
+    });
+  }
+  for (const [id, item] of Array.from(requested.entries())) {
+    const product = products.get(id);
+    if (!product || !product.in_stock || Number(product.stock_count) < item.quantity) {
+      throw new Error(`Estoque insuficiente para ${item.name}`);
+    }
+  }
 }
 async function fetchOrderWithItems(orderId, customerId) {
   let query = supabase.from("orders").select("*").eq("id", orderId);
@@ -897,35 +2067,136 @@ async function getCustomerOrder(customerId, orderId) {
   return fetchOrderWithItems(orderId, customerId);
 }
 async function createOrderFromCheckout(customerId, input) {
-  const cartRow = await fetchCustomerCartRow(customerId);
-  if (!cartRow) {
-    throw new Error("Carrinho vazio");
+  const { data: existingAttempt, error: attemptError } = await supabase.from("payment_attempts").select(
+    "order_id, status, status_detail, mercado_pago_order_id, environment"
+  ).eq("idempotency_key", input.idempotencyKey).maybeSingle();
+  if (attemptError) throw new Error(attemptError.message);
+  let order;
+  let paymentEnvironment;
+  if (existingAttempt) {
+    const existingOrder = await fetchOrderWithItems(existingAttempt.order_id);
+    if (existingOrder.customerId !== customerId)
+      throw new Error("Chave idempotente inv\xE1lida");
+    if (existingAttempt.mercado_pago_order_id || existingOrder.paymentStatus !== "pending" || existingOrder.paymentInstructions) {
+      const payment = {
+        outcome: existingOrder.paymentStatus === "approved" ? "approved" : existingOrder.paymentStatus === "rejected" ? "rejected" : "pending",
+        orderId: existingOrder.id,
+        paymentStatus: existingOrder.paymentStatus,
+        statusDetail: existingOrder.paymentStatusDetail,
+        instructions: existingOrder.paymentInstructions
+      };
+      return { success: true, order: existingOrder, payment };
+    }
+    order = existingOrder;
+    paymentEnvironment = existingAttempt.environment;
+  } else {
+    const cartRow = await fetchCustomerCartRow(customerId);
+    if (!cartRow) throw new Error("Carrinho vazio");
+    const cartItems = await fetchCartItems(cartRow.id);
+    if (cartItems.length === 0) throw new Error("Carrinho vazio");
+    await validateCheckoutStock(cartItems);
+    const subtotal = cartItems.reduce(
+      (sum, item) => sum + Number(item.unit_price) * item.quantity,
+      0
+    );
+    const shippingAmount = calculateShippingAmount(subtotal);
+    const itemsPayload = cartItems.map(mapCartItemToOrderItemPayload);
+    const environment = await getActiveMercadoPagoEnvironment();
+    paymentEnvironment = environment;
+    const { data, error } = await supabase.rpc(
+      "checkout_create_payment_order",
+      {
+        p_customer_id: customerId,
+        p_cart_id: cartRow.id,
+        p_total_amount: subtotal + shippingAmount,
+        p_shipping_amount: shippingAmount,
+        p_coupon_code: cartRow.coupon_code,
+        p_shipping_address: input.shippingAddress,
+        p_payment_method: input.paymentMethod,
+        p_items: itemsPayload,
+        p_idempotency_key: input.idempotencyKey,
+        p_environment: environment
+      }
+    );
+    if (error) {
+      if (error.code === "23505") {
+        return createOrderFromCheckout(customerId, input);
+      }
+      throw new Error(error.message);
+    }
+    order = await fetchOrderWithItems(data.id);
   }
-  const cartItems = await fetchCartItems(cartRow.id);
-  if (cartItems.length === 0) {
-    throw new Error("Carrinho vazio");
+  const customer = await fetchCustomerInfo(customerId);
+  if (!customer.email) throw new Error("Cliente sem e-mail para pagamento");
+  try {
+    const created = await createMercadoPagoOrder({
+      order,
+      checkout: input,
+      payer: { email: customer.email, firstName: customer.name ?? void 0 },
+      environment: paymentEnvironment
+    });
+    const identity = mercadoPagoOrderIdentity(created.raw);
+    if (created.result.outcome === "rejected") {
+      await Promise.all([
+        supabase.from("orders").update({
+          mercado_pago_order_id: identity.orderId || null,
+          mercado_pago_payment_id: identity.paymentId,
+          payment_status: "rejected",
+          payment_status_detail: identity.statusDetail
+        }).eq("id", order.id),
+        supabase.from("payment_attempts").update({
+          mercado_pago_order_id: identity.orderId || null,
+          mercado_pago_payment_id: identity.paymentId,
+          status: "rejected",
+          status_detail: identity.statusDetail,
+          response_payload: created.raw,
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        }).eq("order_id", order.id)
+      ]);
+    } else {
+      const { error: acceptError } = await supabase.rpc(
+        "checkout_accept_payment",
+        {
+          p_order_id: order.id,
+          p_mercado_pago_order_id: identity.orderId,
+          p_mercado_pago_payment_id: identity.paymentId,
+          p_payment_status: identity.status,
+          p_status_detail: identity.statusDetail,
+          p_expires_at: identity.instructions?.expirationDate ?? null,
+          p_instructions: identity.instructions,
+          p_response: created.raw
+        }
+      );
+      if (acceptError) throw new Error(acceptError.message);
+      if (identity.status === "approved") {
+        const { error: reconcileError } = await supabase.rpc(
+          "reconcile_mercado_pago_payment",
+          {
+            p_mercado_pago_order_id: identity.orderId,
+            p_mercado_pago_payment_id: identity.paymentId,
+            p_payment_status: identity.status,
+            p_status_detail: identity.statusDetail,
+            p_response: created.raw
+          }
+        );
+        if (reconcileError) throw new Error(reconcileError.message);
+      }
+    }
+    return {
+      success: true,
+      order: await fetchOrderWithItems(order.id),
+      payment: created.result
+    };
+  } catch (error) {
+    const payload = error.payload;
+    await supabase.from("payment_attempts").update({
+      error_payload: payload ?? {
+        message: error instanceof Error ? error.message : "Erro"
+      },
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    }).eq("order_id", order.id);
+    throw error;
   }
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + Number(item.unit_price) * item.quantity,
-    0
-  );
-  const shippingAmount = calculateShippingAmount(subtotal);
-  const totalAmount = subtotal + shippingAmount;
-  const itemsPayload = cartItems.map(mapCartItemToOrderItemPayload);
-  const { data, error } = await supabase.rpc("checkout_create_order", {
-    p_customer_id: customerId,
-    p_cart_id: cartRow.id,
-    p_status: "paid",
-    p_total_amount: totalAmount,
-    p_shipping_amount: shippingAmount,
-    p_coupon_code: cartRow.coupon_code,
-    p_shipping_address: input.shippingAddress,
-    p_payment_method: input.paymentMethod,
-    p_items: itemsPayload
-  });
-  if (error) throw new Error(error.message);
-  const orderRow = data;
-  return fetchOrderWithItems(orderRow.id);
 }
 async function fetchCustomerInfo(customerId) {
   if (!customerId) {
@@ -969,7 +2240,10 @@ async function listAllOrders() {
     })
   );
   return orderRows.map((row) => {
-    const summary = mapOrderRowToSummary(row, countMap.get(row.id) ?? 0);
+    const summary = mapOrderRowToSummary(
+      row,
+      countMap.get(row.id) ?? 0
+    );
     const customerInfo = row.customer_id ? customerInfoMap.get(row.customer_id) : void 0;
     return {
       ...summary,
@@ -997,8 +2271,8 @@ async function updateOrderStatus(orderId, status) {
 }
 
 // server/routes/adminOrders.ts
-var router4 = Router4();
-router4.get("/", requireAdmin, async (_req, res) => {
+var router7 = Router7();
+router7.get("/", requireAdmin, async (_req, res) => {
   try {
     const orders = await listAllOrders();
     res.json(orders);
@@ -1008,7 +2282,7 @@ router4.get("/", requireAdmin, async (_req, res) => {
     });
   }
 });
-router4.get("/:id", requireAdmin, async (req, res) => {
+router7.get("/:id", requireAdmin, async (req, res) => {
   try {
     const order = await getOrderById(req.params.id);
     res.json(order);
@@ -1018,7 +2292,7 @@ router4.get("/:id", requireAdmin, async (req, res) => {
     res.status(status).json({ error: "Pedido n\xE3o encontrado" });
   }
 });
-router4.patch("/:id/status", requireAdmin, async (req, res) => {
+router7.patch("/:id/status", requireAdmin, async (req, res) => {
   try {
     const parsed = orderStatusUpdateSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -1033,10 +2307,10 @@ router4.patch("/:id/status", requireAdmin, async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
-var adminOrders_default = router4;
+var adminOrders_default = router7;
 
 // server/routes/admin.ts
-var router5 = Router5();
+var router8 = Router8();
 function handleSingleImageUpload(req, res, next) {
   upload.single("file")(req, res, (error) => {
     if (error) {
@@ -1047,7 +2321,7 @@ function handleSingleImageUpload(req, res, next) {
     next();
   });
 }
-router5.post("/login", (req, res) => {
+router8.post("/login", (req, res) => {
   const password = typeof req.body?.password === "string" ? req.body.password : "";
   if (!password) {
     res.status(400).json({ error: "Informe a senha" });
@@ -1076,35 +2350,45 @@ router5.post("/login", (req, res) => {
   });
   res.json({ authenticated: true });
 });
-router5.post("/logout", (_req, res) => {
+router8.post("/logout", (_req, res) => {
   res.clearCookie(ADMIN_COOKIE_NAME, { path: "/" });
   res.json({ authenticated: false });
 });
-router5.get("/me", requireAdmin, (_req, res) => {
+router8.get("/me", requireAdmin, (_req, res) => {
   res.json({ authenticated: true });
 });
-router5.use("/orders", adminOrders_default);
-router5.use("/customers", adminCustomers_default);
-router5.use("/notifications", adminNotifications_default);
-router5.use("/dashboard", adminDashboard_default);
-router5.post("/uploads", requireAdmin, handleSingleImageUpload, async (req, res) => {
-  try {
-    if (!req.file) {
-      res.status(400).json({ error: "Nenhum arquivo enviado" });
-      return;
+router8.use("/orders", adminOrders_default);
+router8.use("/customers", adminCustomers_default);
+router8.use("/notifications", adminNotifications_default);
+router8.use("/dashboard", adminDashboard_default);
+router8.use("/banners", adminBanners_default);
+router8.use("/melhor-envio", adminMelhorEnvio_default);
+router8.use("/mercado-pago", adminMercadoPago_default);
+router8.post(
+  "/uploads",
+  requireAdmin,
+  handleSingleImageUpload,
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "Nenhum arquivo enviado" });
+        return;
+      }
+      const folderRaw = typeof req.body?.folder === "string" ? req.body.folder : "products";
+      const folder = folderRaw === "banners" ? "banners" : "products";
+      const url2 = await uploadProductImage(req.file, folder);
+      res.json({ url: url2 });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Erro ao enviar imagem"
+      });
     }
-    const url2 = await uploadProductImage(req.file);
-    res.json({ url: url2 });
-  } catch (error) {
-    res.status(500).json({
-      error: error instanceof Error ? error.message : "Erro ao enviar imagem"
-    });
   }
-});
-var admin_default = router5;
+);
+var admin_default = router8;
 
 // server/routes/analytics.ts
-import { Router as Router6 } from "express";
+import { Router as Router9 } from "express";
 
 // server/lib/visitorSession.ts
 import crypto2 from "node:crypto";
@@ -1139,8 +2423,8 @@ async function recordPageView(sessionId, path) {
 }
 
 // server/routes/analytics.ts
-var router6 = Router6();
-router6.post("/page-view", async (req, res) => {
+var router9 = Router9();
+router9.post("/page-view", async (req, res) => {
   try {
     const path = typeof req.body?.path === "string" ? req.body.path : "/";
     if (path.startsWith("/admin")) {
@@ -1160,34 +2444,49 @@ router6.post("/page-view", async (req, res) => {
     });
   }
 });
-var analytics_default = router6;
+var analytics_default = router9;
+
+// server/routes/banners.ts
+import { Router as Router10 } from "express";
+var router10 = Router10();
+router10.get("/", async (_req, res) => {
+  try {
+    const banners = await listActiveBanners();
+    res.json(banners);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Erro ao carregar banners"
+    });
+  }
+});
+var banners_default = router10;
 
 // shared/schemas/cart.ts
-import { z as z3 } from "zod";
-var cartAddItemSchema = z3.object({
-  productSlug: z3.string().min(1, "Produto inv\xE1lido"),
-  quantity: z3.number().int().min(1, "Quantidade m\xEDnima \xE9 1").max(99),
-  size: z3.string().min(1, "Selecione um tamanho"),
-  color: z3.string().optional().default("")
+import { z as z6 } from "zod";
+var cartAddItemSchema = z6.object({
+  productSlug: z6.string().min(1, "Produto inv\xE1lido"),
+  quantity: z6.number().int().min(1, "Quantidade m\xEDnima \xE9 1").max(99),
+  size: z6.string().min(1, "Selecione um tamanho"),
+  color: z6.string().optional().default("")
 });
-var cartUpdateItemSchema = z3.object({
-  quantity: z3.number().int().min(1, "Quantidade m\xEDnima \xE9 1").max(99)
+var cartUpdateItemSchema = z6.object({
+  quantity: z6.number().int().min(1, "Quantidade m\xEDnima \xE9 1").max(99)
 });
-var cartApplyCouponSchema = z3.object({
-  couponCode: z3.string().max(50).optional().default("")
+var cartApplyCouponSchema = z6.object({
+  couponCode: z6.string().max(50).optional().default("")
 });
 
 // server/routes/cart.ts
-import { Router as Router7 } from "express";
+import { Router as Router11 } from "express";
 
 // shared/lib/cartMapper.ts
-function toNumber2(value) {
+function toNumber3(value) {
   if (typeof value === "number") return value;
   if (typeof value === "string") return parseFloat(value);
   return 0;
 }
 function mapCartItemRowToCartItem(row, enrichment) {
-  const unitPrice = toNumber2(row.unit_price);
+  const unitPrice = toNumber3(row.unit_price);
   const quantity = row.quantity;
   return {
     id: row.id,
@@ -1774,9 +3073,9 @@ async function requireCustomerForMerge(req, res, next) {
 }
 
 // server/routes/cart.ts
-var router7 = Router7();
-router7.use(resolveCartIdentity);
-router7.get("/", async (req, res) => {
+var router11 = Router11();
+router11.use(resolveCartIdentity);
+router11.get("/", async (req, res) => {
   try {
     const cart = await getCart(req.cartIdentity);
     res.json(cart);
@@ -1786,7 +3085,7 @@ router7.get("/", async (req, res) => {
     });
   }
 });
-router7.post("/items", async (req, res) => {
+router11.post("/items", async (req, res) => {
   try {
     const parsed = cartAddItemSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -1801,7 +3100,7 @@ router7.post("/items", async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
-router7.patch("/items/:itemId", async (req, res) => {
+router11.patch("/items/:itemId", async (req, res) => {
   try {
     const parsed = cartUpdateItemSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -1816,7 +3115,7 @@ router7.patch("/items/:itemId", async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
-router7.delete("/items/:itemId", async (req, res) => {
+router11.delete("/items/:itemId", async (req, res) => {
   try {
     const cart = await removeCartItem(req.cartIdentity, req.params.itemId);
     res.json(cart);
@@ -1826,7 +3125,7 @@ router7.delete("/items/:itemId", async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
-router7.delete("/", async (req, res) => {
+router11.delete("/", async (req, res) => {
   try {
     const cart = await clearCart(req.cartIdentity);
     res.json(cart);
@@ -1836,7 +3135,7 @@ router7.delete("/", async (req, res) => {
     });
   }
 });
-router7.patch("/coupon", async (req, res) => {
+router11.patch("/coupon", async (req, res) => {
   try {
     const parsed = cartApplyCouponSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -1851,7 +3150,7 @@ router7.patch("/coupon", async (req, res) => {
     });
   }
 });
-router7.post("/merge", requireCustomerForMerge, async (req, res) => {
+router11.post("/merge", requireCustomerForMerge, async (req, res) => {
   try {
     const customerId = req.cartIdentity.customerId;
     const guestSessionId = req.cartIdentity.sessionId;
@@ -1864,7 +3163,7 @@ router7.post("/merge", requireCustomerForMerge, async (req, res) => {
     });
   }
 });
-var cart_default = router7;
+var cart_default = router11;
 
 // shared/lib/phoneBr.ts
 function digitsOnly(value) {
@@ -1879,16 +3178,16 @@ function normalizePhoneBr(value) {
 }
 
 // shared/schemas/customer.ts
-import { z as z4 } from "zod";
-var customerProfileUpdateSchema = z4.object({
-  fullName: z4.string().trim().min(2, "Informe seu nome completo").max(120, "Nome muito longo"),
-  phone: z4.string().trim().optional().or(z4.literal("")).transform((value) => value ? normalizePhoneBr(value) : "").refine((value) => value === "" || isValidPhoneBr(value), {
+import { z as z7 } from "zod";
+var customerProfileUpdateSchema = z7.object({
+  fullName: z7.string().trim().min(2, "Informe seu nome completo").max(120, "Nome muito longo"),
+  phone: z7.string().trim().optional().or(z7.literal("")).transform((value) => value ? normalizePhoneBr(value) : "").refine((value) => value === "" || isValidPhoneBr(value), {
     message: "Informe um telefone v\xE1lido com DDD"
   })
 });
 
 // server/routes/customers.ts
-import { Router as Router8 } from "express";
+import { Router as Router12 } from "express";
 
 // server/middleware/requireCustomer.ts
 function getBearerToken2(req) {
@@ -1915,7 +3214,7 @@ async function requireCustomer(req, res, next) {
 }
 
 // server/routes/customers.ts
-var router8 = Router8();
+var router12 = Router12();
 function getMetadataName(user) {
   const metadata = user.user_metadata ?? {};
   return String(metadata.full_name ?? metadata.fullName ?? "").trim();
@@ -1956,7 +3255,7 @@ async function ensureProfileFromMetadata(userId, user, row) {
   }
   return data;
 }
-router8.get("/me", requireCustomer, async (req, res) => {
+router12.get("/me", requireCustomer, async (req, res) => {
   try {
     const userId = req.customerUserId;
     const user = req.customerUser;
@@ -1987,7 +3286,7 @@ router8.get("/me", requireCustomer, async (req, res) => {
     res.status(500).json({ error: error instanceof Error ? error.message : "Erro ao carregar perfil" });
   }
 });
-router8.put("/me", requireCustomer, async (req, res) => {
+router12.put("/me", requireCustomer, async (req, res) => {
   try {
     const userId = req.customerUserId;
     const user = req.customerUser;
@@ -2021,7 +3320,7 @@ router8.put("/me", requireCustomer, async (req, res) => {
     res.status(500).json({ error: error instanceof Error ? error.message : "Erro ao atualizar perfil" });
   }
 });
-router8.get("/me/addresses", requireCustomer, async (req, res) => {
+router12.get("/me/addresses", requireCustomer, async (req, res) => {
   try {
     const addresses = await listCustomerAddresses(req.customerUserId);
     res.json(addresses);
@@ -2031,7 +3330,7 @@ router8.get("/me/addresses", requireCustomer, async (req, res) => {
     });
   }
 });
-router8.post("/me/addresses", requireCustomer, async (req, res) => {
+router12.post("/me/addresses", requireCustomer, async (req, res) => {
   try {
     const parsed = customerAddressSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -2046,7 +3345,7 @@ router8.post("/me/addresses", requireCustomer, async (req, res) => {
     });
   }
 });
-router8.put("/me/addresses/:id", requireCustomer, async (req, res) => {
+router12.put("/me/addresses/:id", requireCustomer, async (req, res) => {
   try {
     const parsed = customerAddressUpdateSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -2065,7 +3364,7 @@ router8.put("/me/addresses/:id", requireCustomer, async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
-router8.patch("/me/addresses/:id/default", requireCustomer, async (req, res) => {
+router12.patch("/me/addresses/:id/default", requireCustomer, async (req, res) => {
   try {
     const address = await setDefaultCustomerAddress(req.customerUserId, req.params.id);
     res.json(address);
@@ -2075,7 +3374,7 @@ router8.patch("/me/addresses/:id/default", requireCustomer, async (req, res) => 
     res.status(status).json({ error: message });
   }
 });
-router8.delete("/me/addresses/:id", requireCustomer, async (req, res) => {
+router12.delete("/me/addresses/:id", requireCustomer, async (req, res) => {
   try {
     await deleteCustomerAddress(req.customerUserId, req.params.id);
     res.status(204).send();
@@ -2085,12 +3384,12 @@ router8.delete("/me/addresses/:id", requireCustomer, async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
-var customers_default = router8;
+var customers_default = router12;
 
 // server/routes/orders.ts
-import { Router as Router9 } from "express";
-var router9 = Router9();
-router9.get("/me", requireCustomer, async (req, res) => {
+import { Router as Router13 } from "express";
+var router13 = Router13();
+router13.get("/me", requireCustomer, async (req, res) => {
   try {
     const orders = await listCustomerOrders(req.customerUserId);
     res.json(orders);
@@ -2100,7 +3399,7 @@ router9.get("/me", requireCustomer, async (req, res) => {
     });
   }
 });
-router9.get("/:id", requireCustomer, async (req, res) => {
+router13.get("/:id", requireCustomer, async (req, res) => {
   try {
     const order = await getCustomerOrder(req.customerUserId, req.params.id);
     res.json(order);
@@ -2110,75 +3409,132 @@ router9.get("/:id", requireCustomer, async (req, res) => {
     res.status(status).json({ error: "Pedido n\xE3o encontrado" });
   }
 });
-router9.post("/checkout", requireCustomer, async (req, res) => {
-  try {
-    const parsed = checkoutSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Dados inv\xE1lidos", issues: parsed.error.issues });
-      return;
+router13.post(
+  "/checkout",
+  requireCustomer,
+  async (req, res) => {
+    try {
+      const parsed = checkoutSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "Dados inv\xE1lidos", issues: parsed.error.issues });
+        return;
+      }
+      const result = await createOrderFromCheckout(
+        req.customerUserId,
+        parsed.data
+      );
+      res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro ao finalizar compra";
+      const status = message.includes("Carrinho vazio") || message.includes("inv\xE1lido") ? 400 : 500;
+      res.status(status).json({ error: message });
     }
-    const order = await createOrderFromCheckout(req.customerUserId, parsed.data);
-    res.json({ success: true, order });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Erro ao finalizar compra";
-    const status = message.includes("Carrinho vazio") || message.includes("inv\xE1lido") ? 400 : 500;
-    res.status(status).json({ error: message });
+  }
+);
+var orders_default = router13;
+
+// server/routes/mercadoPago.ts
+import { Router as Router14 } from "express";
+var router14 = Router14();
+router14.get("/config", async (_req, res) => {
+  try {
+    res.json(await getMercadoPagoPublicConfig());
+  } catch {
+    res.status(503).json({ error: "Pagamento Mercado Pago indispon\xEDvel" });
   }
 });
-var orders_default = router9;
+var mercadoPago_default = router14;
+
+// server/routes/mercadoPagoWebhook.ts
+import { Router as Router15 } from "express";
+var router15 = Router15();
+router15.post("/", async (req, res) => {
+  const dataId = String(req.query["data.id"] ?? req.body?.data?.id ?? "");
+  const requestId = req.header("x-request-id") ?? void 0;
+  const signature = req.header("x-signature") ?? void 0;
+  try {
+    const { data: attempt } = await supabase.from("payment_attempts").select("environment").eq("mercado_pago_order_id", dataId).maybeSingle();
+    const environment = attempt?.environment;
+    const valid = await verifyMercadoPagoSignature({
+      dataId,
+      requestId,
+      signature,
+      environment
+    });
+    if (!valid) {
+      res.status(401).json({ error: "Assinatura inv\xE1lida" });
+      return;
+    }
+    const payload = await getMercadoPagoOrder(dataId, environment);
+    const identity = mercadoPagoOrderIdentity(payload);
+    const { error } = await supabase.rpc("reconcile_mercado_pago_payment", {
+      p_mercado_pago_order_id: identity.orderId,
+      p_mercado_pago_payment_id: identity.paymentId,
+      p_payment_status: identity.status,
+      p_status_detail: identity.statusDetail,
+      p_response: payload
+    });
+    if (error) throw new Error(error.message);
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error("Erro no webhook Mercado Pago:", error);
+    res.status(500).json({ error: "Falha ao processar notifica\xE7\xE3o" });
+  }
+});
+var mercadoPagoWebhook_default = router15;
 
 // shared/schemas/product.ts
-import { z as z5 } from "zod";
-var productCategorySchema = z5.enum(["Roupas", "Bolsas", "Acess\xF3rios"]);
-var productColorSchema = z5.object({
-  name: z5.string().min(1, "Informe o nome da cor"),
-  hex: z5.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Cor inv\xE1lida (use o formato #RRGGBB)")
+import { z as z8 } from "zod";
+var productCategorySchema = z8.enum(["Roupas", "Bolsas", "Acess\xF3rios"]);
+var productColorSchema = z8.object({
+  name: z8.string().min(1, "Informe o nome da cor"),
+  hex: z8.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Cor inv\xE1lida (use o formato #RRGGBB)")
 });
-var productSizeSchema = z5.object({
-  label: z5.string().min(1, "Informe o tamanho"),
-  available: z5.boolean()
+var productSizeSchema = z8.object({
+  label: z8.string().min(1, "Informe o tamanho"),
+  available: z8.boolean()
 });
-var productFaqSchema = z5.object({
-  question: z5.string().min(1, "Informe a pergunta"),
-  answer: z5.string().min(1, "Informe a resposta")
+var productFaqSchema = z8.object({
+  question: z8.string().min(1, "Informe a pergunta"),
+  answer: z8.string().min(1, "Informe a resposta")
 });
-var productArtisanSchema = z5.object({
-  name: z5.string(),
-  region: z5.string(),
-  story: z5.string()
+var productArtisanSchema = z8.object({
+  name: z8.string(),
+  region: z8.string(),
+  story: z8.string()
 });
 var SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-var productSchema = z5.object({
-  slug: z5.string().min(1, "Slug \xE9 obrigat\xF3rio").regex(SLUG_PATTERN, "Use apenas letras min\xFAsculas, n\xFAmeros e h\xEDfens (ex: bolsa-de-praia)"),
-  name: z5.string().min(2, "Informe o nome do produto"),
+var productSchema = z8.object({
+  slug: z8.string().min(1, "Slug \xE9 obrigat\xF3rio").regex(SLUG_PATTERN, "Use apenas letras min\xFAsculas, n\xFAmeros e h\xEDfens (ex: bolsa-de-praia)"),
+  name: z8.string().min(2, "Informe o nome do produto"),
   category: productCategorySchema,
-  price: z5.number({ error: "Informe um pre\xE7o v\xE1lido" }).nonnegative("O pre\xE7o n\xE3o pode ser negativo"),
-  originalPrice: z5.number().nonnegative("O pre\xE7o original n\xE3o pode ser negativo").nullable(),
-  image: z5.string().min(1, "Adicione ao menos uma imagem"),
-  images: z5.array(z5.string().min(1)).min(1, "Adicione ao menos uma imagem"),
-  badge: z5.string(),
-  badgeColor: z5.string().min(1),
-  rating: z5.number().min(0).max(5),
-  reviews: z5.number().int().min(0),
-  featured: z5.boolean(),
-  shortDescription: z5.string(),
-  description: z5.string(),
-  materials: z5.array(z5.string()),
-  careInstructions: z5.array(z5.string()),
+  price: z8.number({ error: "Informe um pre\xE7o v\xE1lido" }).nonnegative("O pre\xE7o n\xE3o pode ser negativo"),
+  originalPrice: z8.number().nonnegative("O pre\xE7o original n\xE3o pode ser negativo").nullable(),
+  image: z8.string().min(1, "Adicione ao menos uma imagem"),
+  images: z8.array(z8.string().min(1)).min(1, "Adicione ao menos uma imagem"),
+  badge: z8.string(),
+  badgeColor: z8.string().min(1),
+  rating: z8.number().min(0).max(5),
+  reviews: z8.number().int().min(0),
+  featured: z8.boolean(),
+  shortDescription: z8.string(),
+  description: z8.string(),
+  materials: z8.array(z8.string()),
+  careInstructions: z8.array(z8.string()),
   artisan: productArtisanSchema,
-  sizes: z5.array(productSizeSchema),
-  colors: z5.array(productColorSchema),
-  sku: z5.string(),
-  inStock: z5.boolean(),
-  stockCount: z5.number().int().min(0),
-  faq: z5.array(productFaqSchema),
-  highlights: z5.array(z5.string())
+  sizes: z8.array(productSizeSchema),
+  colors: z8.array(productColorSchema),
+  sku: z8.string(),
+  inStock: z8.boolean(),
+  stockCount: z8.number().int().min(0),
+  faq: z8.array(productFaqSchema),
+  highlights: z8.array(z8.string())
 });
 
 // server/routes/products.ts
-import { Router as Router10 } from "express";
-var router10 = Router10();
-router10.get("/", async (req, res) => {
+import { Router as Router16 } from "express";
+var router16 = Router16();
+router16.get("/", async (req, res) => {
   try {
     const category = typeof req.query.category === "string" ? req.query.category : void 0;
     const products = await listProducts(category);
@@ -2189,7 +3545,7 @@ router10.get("/", async (req, res) => {
     });
   }
 });
-router10.get("/:slug", async (req, res) => {
+router16.get("/:slug", async (req, res) => {
   try {
     const product = await getProductBySlug(req.params.slug);
     if (!product) {
@@ -2203,7 +3559,7 @@ router10.get("/:slug", async (req, res) => {
     });
   }
 });
-router10.post("/", requireAdmin, async (req, res) => {
+router16.post("/", requireAdmin, async (req, res) => {
   try {
     const parsed = productSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -2223,7 +3579,7 @@ router10.post("/", requireAdmin, async (req, res) => {
     });
   }
 });
-router10.post("/bulk", requireAdmin, async (req, res) => {
+router16.post("/bulk", requireAdmin, async (req, res) => {
   try {
     const items = Array.isArray(req.body?.products) ? req.body.products : null;
     if (!items) {
@@ -2252,7 +3608,7 @@ router10.post("/bulk", requireAdmin, async (req, res) => {
     });
   }
 });
-router10.put("/:slug", requireAdmin, async (req, res) => {
+router16.put("/:slug", requireAdmin, async (req, res) => {
   try {
     const parsed = productSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -2277,7 +3633,7 @@ router10.put("/:slug", requireAdmin, async (req, res) => {
     });
   }
 });
-router10.delete("/:slug", requireAdmin, async (req, res) => {
+router16.delete("/:slug", requireAdmin, async (req, res) => {
   try {
     const deleted = await deleteProduct(req.params.slug);
     if (!deleted) {
@@ -2291,7 +3647,27 @@ router10.delete("/:slug", requireAdmin, async (req, res) => {
     });
   }
 });
-var products_default = router10;
+var products_default = router16;
+
+// server/routes/shipping.ts
+import { Router as Router17 } from "express";
+var router17 = Router17();
+router17.post("/quote", async (req, res) => {
+  try {
+    const parsed = shippingQuoteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inv\xE1lidos", issues: parsed.error.issues });
+      return;
+    }
+    const result = await calculateShipping(parsed.data);
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao calcular frete";
+    const status = message.includes("n\xE3o conectado") || message.includes("CEP de origem") ? 503 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+var shipping_default = router17;
 
 // server/app.ts
 function createApiApp() {
@@ -2300,10 +3676,14 @@ function createApiApp() {
   app2.use(cookieParser());
   app2.use("/api/admin", admin_default);
   app2.use("/api/analytics", analytics_default);
+  app2.use("/api/banners", banners_default);
   app2.use("/api/cart", cart_default);
   app2.use("/api/customers", customers_default);
   app2.use("/api/orders", orders_default);
+  app2.use("/api/mercado-pago", mercadoPago_default);
+  app2.use("/api/webhooks/mercado-pago", mercadoPagoWebhook_default);
   app2.use("/api/products", products_default);
+  app2.use("/api/shipping", shipping_default);
   return app2;
 }
 

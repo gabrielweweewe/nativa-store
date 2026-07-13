@@ -14,15 +14,28 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Spinner } from "@/components/ui/spinner";
 import { useCart } from "@/contexts/CartContext";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
-import { createCustomerAddress, fetchCustomerAddresses } from "@/lib/addressApi";
+import {
+  createCustomerAddress,
+  fetchCustomerAddresses,
+} from "@/lib/addressApi";
 import { fetchCustomerProfile } from "@/lib/customerApi";
 import { OrderApiError, checkoutOrder } from "@/lib/orderApi";
+import { fetchCustomerOrder, fetchMercadoPagoConfig } from "@/lib/orderApi";
 import { checkoutSchema } from "@shared/schemas/order";
+import { calculateShippingAmount } from "@shared/const/cart";
 import { formatCepInput } from "@shared/lib/viacep";
 import type { CustomerProfile } from "@shared/types/customer";
 import type { CustomerAddress } from "@shared/types/address";
-import { customerAddressToShippingAddress, formatAddressLine } from "@shared/types/address";
+import {
+  customerAddressToShippingAddress,
+  formatAddressLine,
+} from "@shared/types/address";
 import type { Order, PaymentMethod } from "@shared/types/order";
+import type {
+  CardPaymentData,
+  MercadoPagoPublicConfig,
+} from "@shared/types/mercadoPago";
+import { CardPayment, initMercadoPago } from "@mercadopago/sdk-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -59,20 +72,34 @@ function addressToFormValues(address: CustomerAddress): AddressFormValues {
 
 function CheckoutPageContent() {
   const { session } = useCustomerAuth();
-  const { items, summary, couponCode, itemCount, isLoading, clearCart } = useCart();
+  const { items, summary, couponCode, itemCount, isLoading, clearCart } =
+    useCart();
   const [, setLocation] = useLocation();
 
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
   const [profileLoading, setProfileLoading] = useState(true);
   const [addressMode, setAddressMode] = useState<"saved" | "new">("new");
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  const [addressForm, setAddressForm] = useState<AddressFormValues>(emptyAddressFormValues());
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    null
+  );
+  const [addressForm, setAddressForm] = useState<AddressFormValues>(
+    emptyAddressFormValues()
+  );
   const [saveNewAddress, setSaveNewAddress] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const [cpf, setCpf] = useState("");
+  const [idempotencyKey, setIdempotencyKey] = useState(() =>
+    crypto.randomUUID()
+  );
+  const [mpConfig, setMpConfig] = useState<MercadoPagoPublicConfig | null>(
+    null
+  );
+  const [paymentLoading, setPaymentLoading] = useState(true);
+  const [addressSaved, setAddressSaved] = useState(false);
 
   useEffect(() => {
     document.title = "Checkout — Nativa Store";
@@ -94,7 +121,7 @@ function CheckoutPageContent() {
     setProfileLoading(true);
 
     fetchCustomerProfile(session.access_token)
-      .then((data) => {
+      .then(data => {
         if (!cancelled) setProfile(data);
       })
       .catch(() => {
@@ -102,10 +129,11 @@ function CheckoutPageContent() {
       });
 
     fetchCustomerAddresses(session.access_token)
-      .then((addresses) => {
+      .then(addresses => {
         if (cancelled) return;
         setSavedAddresses(addresses);
-        const defaultAddress = addresses.find((item) => item.isDefault) ?? addresses[0];
+        const defaultAddress =
+          addresses.find(item => item.isDefault) ?? addresses[0];
         if (defaultAddress) {
           setAddressMode("saved");
           setSelectedAddressId(defaultAddress.id);
@@ -124,20 +152,71 @@ function CheckoutPageContent() {
     };
   }, [session?.access_token]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetchMercadoPagoConfig()
+      .then(config => {
+        if (cancelled) return;
+        initMercadoPago(config.publicKey, { locale: "pt-BR" });
+        setMpConfig(config);
+        if (!config.methods.includes(paymentMethod)) {
+          setPaymentMethod(config.methods[0] ?? "pix");
+        }
+      })
+      .catch(error => {
+        if (!cancelled) {
+          toast.error(
+            error instanceof Error ? error.message : "Pagamento indisponível"
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPaymentLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      !completedOrder ||
+      completedOrder.paymentStatus === "approved" ||
+      !session?.access_token
+    ) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      fetchCustomerOrder(session.access_token, completedOrder.id)
+        .then(order => setCompletedOrder(order))
+        .catch(() => undefined);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [
+    completedOrder?.id,
+    completedOrder?.paymentStatus,
+    session?.access_token,
+  ]);
+
   function getShippingAddressFromSelection() {
     if (addressMode === "saved" && selectedAddressId) {
-      const selected = savedAddresses.find((item) => item.id === selectedAddressId);
+      const selected = savedAddresses.find(
+        item => item.id === selectedAddressId
+      );
       if (selected) return customerAddressToShippingAddress(selected);
     }
     return shippingAddressFromForm(addressForm);
   }
 
-  async function handleSubmit() {
-    if (!session?.access_token) return;
+  async function handleSubmit(card?: CardPaymentData): Promise<boolean> {
+    if (!session?.access_token) return false;
 
     const payload = {
       shippingAddress: getShippingAddressFromSelection(),
       paymentMethod,
+      idempotencyKey,
+      payer: { identificationNumber: cpf },
+      card,
     };
 
     const parsed = checkoutSchema.safeParse(payload);
@@ -149,15 +228,15 @@ function CheckoutPageContent() {
         if (!errors[key]) errors[key] = issue.message;
       }
       setFieldErrors(errors);
-      toast.error("Revise os dados do endereço");
-      return;
+      toast.error("Revise os dados de entrega e pagamento");
+      return false;
     }
 
     setFieldErrors({});
     setIsSubmitting(true);
 
     try {
-      if (addressMode === "new" && saveNewAddress) {
+      if (addressMode === "new" && saveNewAddress && !addressSaved) {
         const shipping = shippingAddressFromForm(addressForm);
         await createCustomerAddress(session.access_token, {
           label: "Entrega",
@@ -170,24 +249,45 @@ function CheckoutPageContent() {
           estado: shipping.estado,
           isDefault: savedAddresses.length === 0,
         });
+        setAddressSaved(true);
       }
 
       const response = await checkoutOrder(session.access_token, parsed.data);
+      if (response.payment.outcome === "rejected") {
+        setIdempotencyKey(crypto.randomUUID());
+        toast.error(
+          response.payment.statusDetail ||
+            "Pagamento recusado. Tente novamente."
+        );
+        return false;
+      }
       await clearCart();
       setCompletedOrder(response.order);
-      toast.success("Pedido confirmado!", {
-        description: "Obrigada por comprar na Nativa!",
-      });
+      toast.success(
+        response.payment.outcome === "approved"
+          ? "Pagamento aprovado!"
+          : "Pedido criado",
+        {
+          description:
+            response.payment.outcome === "approved"
+              ? "Obrigada por comprar na Nativa!"
+              : "Conclua o pagamento para confirmarmos seu pedido.",
+        }
+      );
+      return true;
     } catch (error) {
       const message =
-        error instanceof OrderApiError ? error.message : "Não foi possível finalizar a compra";
+        error instanceof OrderApiError
+          ? error.message
+          : "Não foi possível finalizar a compra";
       toast.error(message);
+      return false;
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  if (isLoading || profileLoading) {
+  if (isLoading || profileLoading || paymentLoading) {
     return (
       <div className="min-h-screen" style={{ background: "#FAF7F2" }}>
         <Navbar />
@@ -251,7 +351,10 @@ function CheckoutPageContent() {
             >
               Finalizar compra
             </h1>
-            <p className="text-[#8B6F5E]" style={{ fontFamily: "'Lora', serif" }}>
+            <p
+              className="text-[#8B6F5E]"
+              style={{ fontFamily: "'Lora', serif" }}
+            >
               Preencha seus dados para concluir o pedido
             </p>
           </div>
@@ -317,15 +420,19 @@ function CheckoutPageContent() {
 
                 {savedAddresses.length > 0 && (
                   <div className="mb-5 space-y-3">
-                    <p className="text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                    <p
+                      className="text-sm text-[#8B6F5E]"
+                      style={{ fontFamily: "'Nunito', sans-serif" }}
+                    >
                       Escolha um endereço salvo ou cadastre um novo
                     </p>
                     <div className="grid gap-3">
-                      {savedAddresses.map((item) => (
+                      {savedAddresses.map(item => (
                         <label
                           key={item.id}
                           className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors ${
-                            addressMode === "saved" && selectedAddressId === item.id
+                            addressMode === "saved" &&
+                            selectedAddressId === item.id
                               ? "border-[#C4522A] bg-[#C4522A]/5"
                               : "border-[#E8D5C4] hover:border-[#C4522A]/40"
                           }`}
@@ -333,7 +440,10 @@ function CheckoutPageContent() {
                           <input
                             type="radio"
                             name="checkout-address"
-                            checked={addressMode === "saved" && selectedAddressId === item.id}
+                            checked={
+                              addressMode === "saved" &&
+                              selectedAddressId === item.id
+                            }
                             onChange={() => {
                               setAddressMode("saved");
                               setSelectedAddressId(item.id);
@@ -343,7 +453,10 @@ function CheckoutPageContent() {
                           />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                              <span
+                                className="font-semibold text-[#3D2B1F]"
+                                style={{ fontFamily: "'Nunito', sans-serif" }}
+                              >
                                 {item.label}
                               </span>
                               {item.isDefault && (
@@ -353,7 +466,10 @@ function CheckoutPageContent() {
                                 </span>
                               )}
                             </div>
-                            <p className="mt-1 text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                            <p
+                              className="mt-1 text-sm text-[#8B6F5E]"
+                              style={{ fontFamily: "'Nunito', sans-serif" }}
+                            >
                               {formatAddressLine(item)}
                             </p>
                           </div>
@@ -378,7 +494,10 @@ function CheckoutPageContent() {
                           }}
                         />
                         <Plus size={18} className="text-[#C4522A]" />
-                        <span className="font-semibold text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                        <span
+                          className="font-semibold text-[#3D2B1F]"
+                          style={{ fontFamily: "'Nunito', sans-serif" }}
+                        >
                           Usar outro endereço
                         </span>
                       </label>
@@ -390,11 +509,11 @@ function CheckoutPageContent() {
                   <>
                     <AddressForm
                       values={addressForm}
-                      onChange={(values) => {
+                      onChange={values => {
                         setAddressForm(values);
-                        setFieldErrors((prev) => {
+                        setFieldErrors(prev => {
                           const next = { ...prev };
-                          Object.keys(values).forEach((key) => {
+                          Object.keys(values).forEach(key => {
                             delete next[key];
                             delete next[`shippingAddress.${key}`];
                           });
@@ -410,17 +529,23 @@ function CheckoutPageContent() {
                       <input
                         type="checkbox"
                         checked={saveNewAddress}
-                        onChange={(e) => setSaveNewAddress(e.target.checked)}
+                        onChange={e => setSaveNewAddress(e.target.checked)}
                         className="size-4 rounded border-[#C4522A]/40 text-[#C4522A]"
                       />
-                      <span className="text-sm text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                      <span
+                        className="text-sm text-[#3D2B1F]"
+                        style={{ fontFamily: "'Nunito', sans-serif" }}
+                      >
                         Salvar este endereço na minha conta
                       </span>
                     </label>
                   </>
                 )}
 
-                <p className="mt-4 text-xs text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                <p
+                  className="mt-4 text-xs text-[#8B6F5E]"
+                  style={{ fontFamily: "'Nunito', sans-serif" }}
+                >
                   CEP preenchido automaticamente via{" "}
                   <a
                     href="https://viacep.com.br"
@@ -431,7 +556,10 @@ function CheckoutPageContent() {
                     ViaCEP
                   </a>
                   .{" "}
-                  <Link href="/conta" className="text-[#C4522A] underline-offset-2 hover:underline">
+                  <Link
+                    href="/conta"
+                    className="text-[#C4522A] underline-offset-2 hover:underline"
+                  >
                     Gerenciar endereços
                   </Link>
                 </p>
@@ -448,66 +576,106 @@ function CheckoutPageContent() {
 
                 <RadioGroup
                   value={paymentMethod}
-                  onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+                  onValueChange={value =>
+                    setPaymentMethod(value as PaymentMethod)
+                  }
                   className="grid gap-3 sm:grid-cols-3"
                 >
                   {[
                     { value: "pix", label: "Pix", icon: QrCode },
                     { value: "credit_card", label: "Cartão", icon: CreditCard },
                     { value: "boleto", label: "Boleto", icon: Barcode },
-                  ].map(({ value, label, icon: Icon }) => (
-                    <label
-                      key={value}
-                      className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors ${
-                        paymentMethod === value
-                          ? "border-[#C4522A] bg-[#C4522A]/5"
-                          : "border-[#E8D5C4] hover:border-[#C4522A]/40"
-                      }`}
-                    >
-                      <RadioGroupItem value={value} id={`payment-${value}`} />
-                      <Icon size={18} className="text-[#C4522A]" />
-                      <span
-                        className="text-sm font-semibold text-[#3D2B1F]"
-                        style={{ fontFamily: "'Nunito', sans-serif" }}
+                  ]
+                    .filter(({ value }) =>
+                      mpConfig?.methods.includes(value as PaymentMethod)
+                    )
+                    .map(({ value, label, icon: Icon }) => (
+                      <label
+                        key={value}
+                        className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors ${
+                          paymentMethod === value
+                            ? "border-[#C4522A] bg-[#C4522A]/5"
+                            : "border-[#E8D5C4] hover:border-[#C4522A]/40"
+                        }`}
                       >
-                        {label}
-                      </span>
-                    </label>
-                  ))}
+                        <RadioGroupItem value={value} id={`payment-${value}`} />
+                        <Icon size={18} className="text-[#C4522A]" />
+                        <span
+                          className="text-sm font-semibold text-[#3D2B1F]"
+                          style={{ fontFamily: "'Nunito', sans-serif" }}
+                        >
+                          {label}
+                        </span>
+                      </label>
+                    ))}
                 </RadioGroup>
 
-                {paymentMethod === "credit_card" && (
-                  <div className="mt-4 grid gap-4 rounded-xl border border-dashed border-[#E8D5C4] bg-[#FAF7F2]/60 p-4 sm:grid-cols-2">
-                    <p
-                      className="sm:col-span-2 text-xs text-[#8B6F5E]"
-                      style={{ fontFamily: "'Nunito', sans-serif" }}
-                    >
-                      Campos simulados — pagamento não será processado nesta etapa.
+                <div className="mt-4 flex flex-col gap-2">
+                  <Label htmlFor="payer-cpf">CPF do pagador</Label>
+                  <Input
+                    id="payer-cpf"
+                    value={cpf}
+                    onChange={event => {
+                      const digits = event.target.value
+                        .replace(/\D/g, "")
+                        .slice(0, 11);
+                      const masked = digits
+                        .replace(/(\d{3})(\d)/, "$1.$2")
+                        .replace(/(\d{3})(\d)/, "$1.$2")
+                        .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+                      setCpf(masked);
+                      setFieldErrors(previous => {
+                        const next = { ...previous };
+                        delete next["payer.identificationNumber"];
+                        return next;
+                      });
+                    }}
+                    inputMode="numeric"
+                    placeholder="000.000.000-00"
+                    className="max-w-xs border-[#E8D5C4]"
+                  />
+                  {fieldErrors["payer.identificationNumber"] && (
+                    <p className="text-xs text-red-600">
+                      {fieldErrors["payer.identificationNumber"]}
                     </p>
-                    <div className="flex flex-col gap-2 sm:col-span-2">
-                      <Label htmlFor="card-number">Número do cartão</Label>
-                      <Input
-                        id="card-number"
-                        placeholder="0000 0000 0000 0000"
-                        className="border-[#E8D5C4] bg-white"
+                  )}
+                </div>
+
+                {paymentMethod === "credit_card" && (
+                  <div className="mt-4 rounded-xl border border-[#E8D5C4] bg-white p-2 sm:p-4">
+                    {mpConfig && (
+                      <CardPayment
+                        initialization={{
+                          amount:
+                            summary.subtotal +
+                            calculateShippingAmount(summary.subtotal),
+                          payer: { email: profile?.email },
+                        }}
+                        customization={{
+                          paymentMethods: {
+                            minInstallments: 1,
+                            maxInstallments: mpConfig.maxInstallments,
+                            types: { included: ["credit_card"] },
+                          },
+                        }}
+                        locale="pt-BR"
+                        onSubmit={async formData => {
+                          const success = await handleSubmit({
+                            token: formData.token,
+                            paymentMethodId: formData.payment_method_id,
+                            installments: formData.installments,
+                            issuerId: formData.issuer_id,
+                          });
+                          if (!success)
+                            throw new Error("Pagamento não concluído");
+                        }}
+                        onError={() =>
+                          toast.error(
+                            "Não foi possível carregar o formulário do cartão"
+                          )
+                        }
                       />
-                    </div>
-                    <div className="flex flex-col gap-2 sm:col-span-2">
-                      <Label htmlFor="card-name">Nome no cartão</Label>
-                      <Input
-                        id="card-name"
-                        placeholder="Como impresso no cartão"
-                        className="border-[#E8D5C4] bg-white"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="card-expiry">Validade</Label>
-                      <Input id="card-expiry" placeholder="MM/AA" className="border-[#E8D5C4] bg-white" />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="card-cvv">CVV</Label>
-                      <Input id="card-cvv" placeholder="123" className="border-[#E8D5C4] bg-white" />
-                    </div>
+                    )}
                   </div>
                 )}
 
@@ -516,7 +684,8 @@ function CheckoutPageContent() {
                     className="mt-4 rounded-xl bg-[#2D6A4F]/10 px-4 py-3 text-sm text-[#2D6A4F]"
                     style={{ fontFamily: "'Nunito', sans-serif" }}
                   >
-                    Após confirmar, você receberá um QR Code Pix simulado por e-mail.
+                    O QR Code e o código Pix copia e cola serão exibidos
+                    imediatamente após gerar o pedido.
                   </p>
                 )}
 
@@ -525,7 +694,8 @@ function CheckoutPageContent() {
                     className="mt-4 rounded-xl bg-[#FAF7F2] px-4 py-3 text-sm text-[#8B6F5E]"
                     style={{ fontFamily: "'Nunito', sans-serif" }}
                   >
-                    O boleto será gerado após a confirmação (simulação).
+                    O link para abrir ou imprimir o boleto será exibido após
+                    gerar o pedido.
                   </p>
                 )}
               </section>
@@ -536,7 +706,8 @@ function CheckoutPageContent() {
               subtotal={summary.subtotal}
               couponCode={couponCode}
               isSubmitting={isSubmitting}
-              onSubmit={handleSubmit}
+              onSubmit={() => void handleSubmit()}
+              showSubmit={paymentMethod !== "credit_card"}
             />
           </div>
         </div>

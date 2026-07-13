@@ -1,4 +1,9 @@
 import type { ShippingAddress } from "@shared/types/address";
+import type {
+  CheckoutPaymentResult,
+  PaymentInstructions,
+  PaymentStatus,
+} from "@shared/types/mercadoPago";
 
 export type { ShippingAddress };
 
@@ -27,6 +32,11 @@ export interface Order {
   couponCode: string | null;
   shippingAddress: ShippingAddress;
   paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
+  paymentStatusDetail: string | null;
+  paymentExpiresAt: string | null;
+  paidAt: string | null;
+  paymentInstructions: PaymentInstructions | null;
   items: OrderItem[];
   createdAt: string;
 }
@@ -34,6 +44,7 @@ export interface Order {
 export interface CheckoutResponse {
   success: true;
   order: Order;
+  payment: CheckoutPaymentResult;
 }
 
 export interface OrderSummary {
@@ -43,6 +54,7 @@ export interface OrderSummary {
   shippingAmount: number;
   couponCode: string | null;
   paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
   itemCount: number;
   createdAt: string;
 }

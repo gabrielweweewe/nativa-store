@@ -1,4 +1,5 @@
 import AdminLayout from "@/components/admin/AdminLayout";
+import MercadoPagoIntegrationCard from "@/components/admin/MercadoPagoIntegrationCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +24,14 @@ import {
   updateMelhorEnvioSettings,
 } from "@/lib/adminApi";
 import type { MelhorEnvioEnvironment } from "@shared/types/melhorEnvio";
-import { CheckCircle2, Copy, ExternalLink, Link2Off, Save, Truck } from "lucide-react";
+import {
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  Link2Off,
+  Save,
+  Truck,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -112,7 +120,7 @@ export default function AdminIntegrations() {
         toast.error(
           error instanceof AdminApiError
             ? error.message
-            : "Erro ao carregar integração Melhor Envio",
+            : "Erro ao carregar integração Melhor Envio"
         );
       } finally {
         if (!cancelled) setLoading(false);
@@ -147,7 +155,9 @@ export default function AdminIntegrations() {
       setForm(toForm(data));
       toast.success("Configurações salvas");
     } catch (error) {
-      toast.error(error instanceof AdminApiError ? error.message : "Erro ao salvar");
+      toast.error(
+        error instanceof AdminApiError ? error.message : "Erro ao salvar"
+      );
     } finally {
       setSaving(false);
     }
@@ -155,7 +165,9 @@ export default function AdminIntegrations() {
 
   async function handleEnvironmentToggle(useSandbox: boolean) {
     if (!form) return;
-    const environment: MelhorEnvioEnvironment = useSandbox ? "sandbox" : "production";
+    const environment: MelhorEnvioEnvironment = useSandbox
+      ? "sandbox"
+      : "production";
 
     setSaving(true);
     try {
@@ -176,10 +188,14 @@ export default function AdminIntegrations() {
       toast.success(
         useSandbox
           ? "Ambiente sandbox ativo — use o app de testes"
-          : "Ambiente de produção ativo",
+          : "Ambiente de produção ativo"
       );
     } catch (error) {
-      toast.error(error instanceof AdminApiError ? error.message : "Erro ao trocar ambiente");
+      toast.error(
+        error instanceof AdminApiError
+          ? error.message
+          : "Erro ao trocar ambiente"
+      );
     } finally {
       setSaving(false);
     }
@@ -194,7 +210,9 @@ export default function AdminIntegrations() {
       setDisconnectOpen(false);
       toast.success("Conta Melhor Envio desconectada neste ambiente");
     } catch (error) {
-      toast.error(error instanceof AdminApiError ? error.message : "Erro ao desconectar");
+      toast.error(
+        error instanceof AdminApiError ? error.message : "Erro ao desconectar"
+      );
     } finally {
       setDisconnecting(false);
     }
@@ -224,7 +242,7 @@ export default function AdminIntegrations() {
       toast.error(
         error instanceof AdminApiError
           ? error.message
-          : "Salve as configurações antes de conectar",
+          : "Salve as configurações antes de conectar"
       );
     }
   }
@@ -247,6 +265,9 @@ export default function AdminIntegrations() {
 
   return (
     <AdminLayout title="Integrações">
+      <div className="mx-auto mb-6 max-w-3xl">
+        <MercadoPagoIntegrationCard />
+      </div>
       {loading || !form || !status ? (
         <div className="flex justify-center py-16">
           <Spinner className="size-8 text-[var(--admin-accent)]" />
@@ -260,10 +281,12 @@ export default function AdminIntegrations() {
                   <Truck className="size-5 text-[var(--admin-accent)]" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-[var(--admin-text)]">Melhor Envio</h2>
+                  <h2 className="text-lg font-bold text-[var(--admin-text)]">
+                    Melhor Envio
+                  </h2>
                   <p className="mt-1 text-sm text-[var(--admin-text-muted)]">
-                    Autenticação OAuth2 e cotação de fretes. Produção e sandbox usam apps e
-                    contas separados.
+                    Autenticação OAuth2 e cotação de fretes. Produção e sandbox
+                    usam apps e contas separados.
                   </p>
                 </div>
               </div>
@@ -289,7 +312,9 @@ export default function AdminIntegrations() {
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-bg)] px-4 py-3">
               <div>
                 <p className="text-sm font-semibold text-[var(--admin-text)]">
-                  {form.environment === "sandbox" ? "Sandbox (testes)" : "Produção"}
+                  {form.environment === "sandbox"
+                    ? "Sandbox (testes)"
+                    : "Produção"}
                 </p>
                 <p className="text-xs text-[var(--admin-text-muted)]">
                   {form.environment === "sandbox"
@@ -298,18 +323,23 @@ export default function AdminIntegrations() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--admin-text-muted)]">Sandbox</span>
+                <span className="text-xs text-[var(--admin-text-muted)]">
+                  Sandbox
+                </span>
                 <Switch
                   checked={form.environment === "sandbox"}
                   disabled={saving}
-                  onCheckedChange={(checked) => void handleEnvironmentToggle(checked)}
+                  onCheckedChange={checked =>
+                    void handleEnvironmentToggle(checked)
+                  }
                 />
               </div>
             </div>
 
             {status.connected && (
               <p className="text-xs text-[var(--admin-text-muted)]">
-                Token válido até {formatExpiresAt(status.tokenExpiresAt)} (renovação automática).
+                Token válido até {formatExpiresAt(status.tokenExpiresAt)}{" "}
+                (renovação automática).
               </p>
             )}
           </Card>
@@ -317,25 +347,36 @@ export default function AdminIntegrations() {
           <form onSubmit={handleSave} className="space-y-6">
             <Card className="space-y-4 border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 shadow-sm">
               <h3 className="text-sm font-bold uppercase tracking-wide text-[var(--admin-text-muted)]">
-                Aplicativo ({form.environment === "sandbox" ? "sandbox" : "produção"})
+                Aplicativo (
+                {form.environment === "sandbox" ? "sandbox" : "produção"})
               </h3>
               <p className="text-sm text-[var(--admin-text-muted)]">
                 Crie o app em Integrações → Área Dev. no painel do Melhor Envio
-                {form.environment === "sandbox" ? " Sandbox" : ""} e cole Client ID e Secret
-                abaixo. A URL de callback deve ser idêntica à cadastrada no app.
+                {form.environment === "sandbox" ? " Sandbox" : ""} e cole Client
+                ID e Secret abaixo. A URL de callback deve ser idêntica à
+                cadastrada no app.
               </p>
 
               <div className="space-y-2">
-                <Label htmlFor="redirectUri">URL de callback (redirect_uri)</Label>
+                <Label htmlFor="redirectUri">
+                  URL de callback (redirect_uri)
+                </Label>
                 <div className="flex gap-2">
                   <Input
                     id="redirectUri"
                     value={form.redirectUri}
-                    onChange={(e) => setForm({ ...form, redirectUri: e.target.value })}
+                    onChange={e =>
+                      setForm({ ...form, redirectUri: e.target.value })
+                    }
                     placeholder={status.suggestedRedirectUri}
                     className="font-mono text-xs sm:text-sm"
                   />
-                  <Button type="button" variant="outline" size="icon" onClick={copyRedirectUri}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={copyRedirectUri}
+                  >
                     <Copy className="size-4" />
                   </Button>
                 </div>
@@ -345,7 +386,10 @@ export default function AdminIntegrations() {
                     type="button"
                     className="font-mono text-[var(--admin-accent)] underline-offset-2 hover:underline"
                     onClick={() =>
-                      setForm({ ...form, redirectUri: status.suggestedRedirectUri })
+                      setForm({
+                        ...form,
+                        redirectUri: status.suggestedRedirectUri,
+                      })
                     }
                   >
                     {status.suggestedRedirectUri}
@@ -359,20 +403,26 @@ export default function AdminIntegrations() {
                   <Input
                     id="clientId"
                     value={form.clientId}
-                    onChange={(e) => setForm({ ...form, clientId: e.target.value })}
+                    onChange={e =>
+                      setForm({ ...form, clientId: e.target.value })
+                    }
                     autoComplete="off"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="clientSecret">
                     Client Secret
-                    {status.hasClientSecret ? " (deixe em branco para manter)" : ""}
+                    {status.hasClientSecret
+                      ? " (deixe em branco para manter)"
+                      : ""}
                   </Label>
                   <Input
                     id="clientSecret"
                     type="password"
                     value={form.clientSecret}
-                    onChange={(e) => setForm({ ...form, clientSecret: e.target.value })}
+                    onChange={e =>
+                      setForm({ ...form, clientSecret: e.target.value })
+                    }
                     placeholder={status.hasClientSecret ? "••••••••" : ""}
                     autoComplete="new-password"
                   />
@@ -384,7 +434,9 @@ export default function AdminIntegrations() {
                 <Input
                   id="userAgent"
                   value={form.userAgent}
-                  onChange={(e) => setForm({ ...form, userAgent: e.target.value })}
+                  onChange={e =>
+                    setForm({ ...form, userAgent: e.target.value })
+                  }
                   placeholder="Nativa Store (contato@nativa.art.br)"
                 />
                 <p className="text-xs text-[var(--admin-text-muted)]">
@@ -398,7 +450,8 @@ export default function AdminIntegrations() {
                 Origem e pacote padrão
               </h3>
               <p className="text-sm text-[var(--admin-text-muted)]">
-                Usados na cotação quando o produto ainda não tem peso/dimensões cadastrados.
+                Usados na cotação quando o produto ainda não tem peso/dimensões
+                cadastrados.
               </p>
 
               <div className="space-y-2">
@@ -406,8 +459,11 @@ export default function AdminIntegrations() {
                 <Input
                   id="originCep"
                   value={form.originPostalCode}
-                  onChange={(e) =>
-                    setForm({ ...form, originPostalCode: formatCep(e.target.value) })
+                  onChange={e =>
+                    setForm({
+                      ...form,
+                      originPostalCode: formatCep(e.target.value),
+                    })
                   }
                   placeholder="00000-000"
                   inputMode="numeric"
@@ -425,7 +481,9 @@ export default function AdminIntegrations() {
                     min={0.1}
                     step="0.1"
                     value={form.defaultWidthCm}
-                    onChange={(e) => setForm({ ...form, defaultWidthCm: e.target.value })}
+                    onChange={e =>
+                      setForm({ ...form, defaultWidthCm: e.target.value })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -436,7 +494,9 @@ export default function AdminIntegrations() {
                     min={0.1}
                     step="0.1"
                     value={form.defaultHeightCm}
-                    onChange={(e) => setForm({ ...form, defaultHeightCm: e.target.value })}
+                    onChange={e =>
+                      setForm({ ...form, defaultHeightCm: e.target.value })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -447,7 +507,9 @@ export default function AdminIntegrations() {
                     min={0.1}
                     step="0.1"
                     value={form.defaultLengthCm}
-                    onChange={(e) => setForm({ ...form, defaultLengthCm: e.target.value })}
+                    onChange={e =>
+                      setForm({ ...form, defaultLengthCm: e.target.value })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -458,7 +520,9 @@ export default function AdminIntegrations() {
                     min={0.001}
                     step="0.001"
                     value={form.defaultWeightKg}
-                    onChange={(e) => setForm({ ...form, defaultWeightKg: e.target.value })}
+                    onChange={e =>
+                      setForm({ ...form, defaultWeightKg: e.target.value })
+                    }
                   />
                 </div>
               </div>
@@ -466,7 +530,11 @@ export default function AdminIntegrations() {
 
             <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={saving} className="gap-2">
-                {saving ? <Spinner className="size-4" /> : <Save className="size-4" />}
+                {saving ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  <Save className="size-4" />
+                )}
                 Salvar
               </Button>
 
@@ -496,7 +564,9 @@ export default function AdminIntegrations() {
           </form>
 
           <Card className="border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 text-sm text-[var(--admin-text-muted)] shadow-sm">
-            <p className="font-semibold text-[var(--admin-text)]">Como configurar</p>
+            <p className="font-semibold text-[var(--admin-text)]">
+              Como configurar
+            </p>
             <ol className="mt-2 list-decimal space-y-1 pl-4">
               <li>
                 Cadastre um app em{" "}
@@ -521,15 +591,18 @@ export default function AdminIntegrations() {
                 )}{" "}
                 → Integrações → Área Dev.
               </li>
-              <li>Cole a URL de callback exatamente como acima no campo do app.</li>
+              <li>
+                Cole a URL de callback exatamente como acima no campo do app.
+              </li>
               <li>Salve Client ID e Secret aqui e clique em Conectar.</li>
               <li>
-                Autorize todas as permissões (já solicitamos o escopo completo para etiquetas e
-                próximos módulos).
+                Autorize todas as permissões (já solicitamos o escopo completo
+                para etiquetas e próximos módulos).
               </li>
             </ol>
             <p className="mt-3 text-xs">
-              Produção configurada: {status.productionConfigured ? "sim" : "não"}
+              Produção configurada:{" "}
+              {status.productionConfigured ? "sim" : "não"}
               {status.productionConnected ? " (conectada)" : ""} · Sandbox:{" "}
               {status.sandboxConfigured ? "sim" : "não"}
               {status.sandboxConnected ? " (conectada)" : ""}
@@ -544,16 +617,20 @@ export default function AdminIntegrations() {
             <AlertDialogTitle>Desconectar Melhor Envio?</AlertDialogTitle>
             <AlertDialogDescription>
               Remove os tokens do ambiente{" "}
-              <strong>{form?.environment === "sandbox" ? "sandbox" : "produção"}</strong>. As
-              credenciais do app (Client ID/Secret) permanecem salvas.
+              <strong>
+                {form?.environment === "sandbox" ? "sandbox" : "produção"}
+              </strong>
+              . As credenciais do app (Client ID/Secret) permanecem salvas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={disconnecting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={disconnecting}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
               disabled={disconnecting}
               className="bg-red-600 hover:bg-red-700"
-              onClick={(e) => {
+              onClick={e => {
                 e.preventDefault();
                 void handleDisconnect();
               }}

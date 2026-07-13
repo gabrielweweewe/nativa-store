@@ -1,4 +1,5 @@
 import type { ShippingAddress } from "@shared/types/address";
+import type { PaymentInstructions } from "@shared/types/mercadoPago";
 import type { Order, OrderItem, OrderSummary } from "@shared/types/order";
 
 export interface OrderRow {
@@ -10,6 +11,11 @@ export interface OrderRow {
   coupon_code: string | null;
   shipping_address: ShippingAddress;
   payment_method: string;
+  payment_status?: string;
+  payment_status_detail?: string | null;
+  payment_expires_at?: string | null;
+  paid_at?: string | null;
+  payment_instructions?: PaymentInstructions | null;
   created_at: string;
 }
 
@@ -63,12 +69,20 @@ export function mapOrderRowToOrder(row: OrderRow, items: OrderItem[]): Order {
     couponCode: row.coupon_code,
     shippingAddress: row.shipping_address,
     paymentMethod: row.payment_method as Order["paymentMethod"],
+    paymentStatus: (row.payment_status ?? "pending") as Order["paymentStatus"],
+    paymentStatusDetail: row.payment_status_detail ?? null,
+    paymentExpiresAt: row.payment_expires_at ?? null,
+    paidAt: row.paid_at ?? null,
+    paymentInstructions: row.payment_instructions ?? null,
     items,
     createdAt: row.created_at,
   };
 }
 
-export function mapOrderRowToSummary(row: OrderRow, itemCount: number): OrderSummary {
+export function mapOrderRowToSummary(
+  row: OrderRow,
+  itemCount: number
+): OrderSummary {
   return {
     id: row.id,
     status: row.status as OrderSummary["status"],
@@ -76,6 +90,8 @@ export function mapOrderRowToSummary(row: OrderRow, itemCount: number): OrderSum
     shippingAmount: toNumber(row.shipping_amount),
     couponCode: row.coupon_code,
     paymentMethod: row.payment_method as OrderSummary["paymentMethod"],
+    paymentStatus: (row.payment_status ??
+      "pending") as OrderSummary["paymentStatus"],
     itemCount,
     createdAt: row.created_at,
   };

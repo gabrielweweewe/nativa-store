@@ -1,4 +1,5 @@
 import type { OrderStatus, PaymentMethod } from "@shared/types/order";
+import type { PaymentStatus } from "@shared/types/mercadoPago";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   pending: "Pendente",
@@ -16,6 +17,16 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   pix: "Pix",
   credit_card: "Cartão de crédito",
   boleto: "Boleto",
+};
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  pending: "Aguardando pagamento",
+  processing: "Em processamento",
+  approved: "Pagamento aprovado",
+  rejected: "Pagamento recusado",
+  canceled: "Pagamento cancelado",
+  expired: "Pagamento expirado",
+  refunded: "Pagamento reembolsado",
 };
 
 export function formatOrderShortId(orderId: string): string {

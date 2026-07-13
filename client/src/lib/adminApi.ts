@@ -1,12 +1,24 @@
-import type { AdminCustomerDetail, AdminCustomerSummary } from "@shared/types/customer";
+import type {
+  AdminCustomerDetail,
+  AdminCustomerSummary,
+} from "@shared/types/customer";
 import type { DashboardPeriod, DashboardStats } from "@shared/types/dashboard";
 import type { AdminNotification } from "@shared/types/notification";
-import type { AdminOrderDetail, AdminOrderSummary, OrderStatus } from "@shared/types/order";
+import type {
+  AdminOrderDetail,
+  AdminOrderSummary,
+  OrderStatus,
+} from "@shared/types/order";
 import type { Banner, BannerInput } from "@shared/types/banner";
 import type {
   MelhorEnvioSettingsInput,
   MelhorEnvioStatus,
 } from "@shared/types/melhorEnvio";
+import type {
+  MercadoPagoAdminStatus,
+  MercadoPagoEnvironment,
+  MercadoPagoSettingsInput,
+} from "@shared/types/mercadoPago";
 import type { ProductInput } from "@shared/schemas/product";
 import type { Product } from "@shared/types/product";
 
@@ -55,7 +67,9 @@ export function adminLogin(password: string) {
 }
 
 export function adminLogout() {
-  return request<{ authenticated: boolean }>("/api/admin/logout", { method: "POST" });
+  return request<{ authenticated: boolean }>("/api/admin/logout", {
+    method: "POST",
+  });
 }
 
 export function adminMe() {
@@ -64,7 +78,7 @@ export function adminMe() {
 
 export async function uploadProductImage(
   file: File,
-  folder: "products" | "banners" = "products",
+  folder: "products" | "banners" = "products"
 ): Promise<{ url: string }> {
   const formData = new FormData();
   formData.append("file", file);
@@ -125,7 +139,9 @@ export function bulkImportProducts(products: ProductInput[]) {
 }
 
 export function fetchAdminDashboard(period: DashboardPeriod = "30d") {
-  return request<DashboardStats>(`/api/admin/dashboard?period=${encodeURIComponent(period)}`);
+  return request<DashboardStats>(
+    `/api/admin/dashboard?period=${encodeURIComponent(period)}`
+  );
 }
 
 export function fetchAdminOrders() {
@@ -133,14 +149,19 @@ export function fetchAdminOrders() {
 }
 
 export function fetchAdminOrder(orderId: string) {
-  return request<AdminOrderDetail>(`/api/admin/orders/${encodeURIComponent(orderId)}`);
+  return request<AdminOrderDetail>(
+    `/api/admin/orders/${encodeURIComponent(orderId)}`
+  );
 }
 
 export function updateAdminOrderStatus(orderId: string, status: OrderStatus) {
-  return request<AdminOrderDetail>(`/api/admin/orders/${encodeURIComponent(orderId)}/status`, {
-    method: "PATCH",
-    body: JSON.stringify({ status }),
-  });
+  return request<AdminOrderDetail>(
+    `/api/admin/orders/${encodeURIComponent(orderId)}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }
+  );
 }
 
 export function fetchAdminCustomers() {
@@ -148,7 +169,9 @@ export function fetchAdminCustomers() {
 }
 
 export function fetchAdminCustomer(customerId: string) {
-  return request<AdminCustomerDetail>(`/api/admin/customers/${encodeURIComponent(customerId)}`);
+  return request<AdminCustomerDetail>(
+    `/api/admin/customers/${encodeURIComponent(customerId)}`
+  );
 }
 
 export interface AdminUnreadCountResponse {
@@ -161,13 +184,15 @@ export function fetchAdminNotifications() {
 }
 
 export function fetchAdminUnreadCount() {
-  return request<AdminUnreadCountResponse>("/api/admin/notifications/unread-count");
+  return request<AdminUnreadCountResponse>(
+    "/api/admin/notifications/unread-count"
+  );
 }
 
 export function markAdminNotificationRead(notificationId: string) {
   return request<AdminNotification>(
     `/api/admin/notifications/${encodeURIComponent(notificationId)}/read`,
-    { method: "PATCH" },
+    { method: "PATCH" }
   );
 }
 
@@ -226,5 +251,27 @@ export function updateMelhorEnvioSettings(input: MelhorEnvioSettingsInput) {
 export function disconnectMelhorEnvio() {
   return request<MelhorEnvioAdminStatus>("/api/admin/melhor-envio/disconnect", {
     method: "POST",
+  });
+}
+
+export function fetchMercadoPagoStatus(environment: MercadoPagoEnvironment) {
+  return request<MercadoPagoAdminStatus>(
+    `/api/admin/mercado-pago/status?environment=${encodeURIComponent(environment)}`
+  );
+}
+
+export function updateMercadoPagoSettings(input: MercadoPagoSettingsInput) {
+  return request<MercadoPagoAdminStatus>("/api/admin/mercado-pago/settings", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function testMercadoPagoCredentials(
+  environment: MercadoPagoEnvironment
+) {
+  return request<{ success: true }>("/api/admin/mercado-pago/test", {
+    method: "POST",
+    body: JSON.stringify({ environment }),
   });
 }

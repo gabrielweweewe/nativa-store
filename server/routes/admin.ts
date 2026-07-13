@@ -13,16 +13,22 @@ import adminBannersRouter from "./adminBanners";
 import adminCustomersRouter from "./adminCustomers";
 import adminDashboardRouter from "./adminDashboard";
 import adminMelhorEnvioRouter from "./adminMelhorEnvio";
+import adminMercadoPagoRouter from "./adminMercadoPago";
 import adminNotificationsRouter from "./adminNotifications";
 import adminOrdersRouter from "./adminOrders";
 
 const router = Router();
 
 /** Envolve o multer para transformar erros (arquivo grande/tipo inválido) em JSON em vez de HTML. */
-function handleSingleImageUpload(req: Request, res: Response, next: NextFunction) {
+function handleSingleImageUpload(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   upload.single("file")(req, res, (error: unknown) => {
     if (error) {
-      const message = error instanceof Error ? error.message : "Erro ao processar upload";
+      const message =
+        error instanceof Error ? error.message : "Erro ao processar upload";
       res.status(400).json({ error: message });
       return;
     }
@@ -31,7 +37,8 @@ function handleSingleImageUpload(req: Request, res: Response, next: NextFunction
 }
 
 router.post("/login", (req, res) => {
-  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  const password =
+    typeof req.body?.password === "string" ? req.body.password : "";
 
   if (!password) {
     res.status(400).json({ error: "Informe a senha" });
@@ -81,23 +88,30 @@ router.use("/notifications", adminNotificationsRouter);
 router.use("/dashboard", adminDashboardRouter);
 router.use("/banners", adminBannersRouter);
 router.use("/melhor-envio", adminMelhorEnvioRouter);
+router.use("/mercado-pago", adminMercadoPagoRouter);
 
-router.post("/uploads", requireAdmin, handleSingleImageUpload, async (req, res) => {
-  try {
-    if (!req.file) {
-      res.status(400).json({ error: "Nenhum arquivo enviado" });
-      return;
+router.post(
+  "/uploads",
+  requireAdmin,
+  handleSingleImageUpload,
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "Nenhum arquivo enviado" });
+        return;
+      }
+
+      const folderRaw =
+        typeof req.body?.folder === "string" ? req.body.folder : "products";
+      const folder = folderRaw === "banners" ? "banners" : "products";
+      const url = await uploadProductImage(req.file, folder);
+      res.json({ url });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Erro ao enviar imagem",
+      });
     }
-
-    const folderRaw = typeof req.body?.folder === "string" ? req.body.folder : "products";
-    const folder = folderRaw === "banners" ? "banners" : "products";
-    const url = await uploadProductImage(req.file, folder);
-    res.json({ url });
-  } catch (error) {
-    res.status(500).json({
-      error: error instanceof Error ? error.message : "Erro ao enviar imagem",
-    });
   }
-});
+);
 
 export default router;

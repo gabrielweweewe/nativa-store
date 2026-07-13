@@ -1,5 +1,10 @@
 import type { CheckoutInput } from "@shared/schemas/order";
-import type { CheckoutResponse, Order, OrderSummary } from "@shared/types/order";
+import type {
+  CheckoutResponse,
+  Order,
+  OrderSummary,
+} from "@shared/types/order";
+import type { MercadoPagoPublicConfig } from "@shared/types/mercadoPago";
 
 export class OrderApiError extends Error {
   issues?: unknown;
@@ -19,7 +24,11 @@ async function parseJsonSafe(response: Response): Promise<any> {
   }
 }
 
-async function request<T>(url: string, token: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(
+  url: string,
+  token: string,
+  options: RequestInit = {}
+): Promise<T> {
   const response = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
@@ -50,4 +59,13 @@ export function fetchCustomerOrders(token: string) {
 
 export function fetchCustomerOrder(token: string, orderId: string) {
   return request<Order>("/api/orders/" + encodeURIComponent(orderId), token);
+}
+
+export async function fetchMercadoPagoConfig(): Promise<MercadoPagoPublicConfig> {
+  const response = await fetch("/api/mercado-pago/config");
+  if (!response.ok) {
+    const body = await parseJsonSafe(response);
+    throw new OrderApiError(body?.error ?? "Mercado Pago indisponível");
+  }
+  return response.json();
 }
