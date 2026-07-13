@@ -29,6 +29,10 @@ export interface ProductRow {
   sku: string;
   in_stock: boolean;
   stock_count: number;
+  width_cm?: number | null;
+  height_cm?: number | null;
+  length_cm?: number | null;
+  weight_kg?: number | null;
   faq: unknown;
   highlights: unknown;
 }
@@ -114,6 +118,10 @@ export function mapProductRowToProduct(row: ProductRow): Product {
     sku: row.sku,
     inStock: row.in_stock,
     stockCount: row.stock_count,
+    widthCm: row.width_cm == null ? null : Number(row.width_cm),
+    heightCm: row.height_cm == null ? null : Number(row.height_cm),
+    lengthCm: row.length_cm == null ? null : Number(row.length_cm),
+    weightKg: row.weight_kg == null ? null : Number(row.weight_kg),
     faq: asFaq(row.faq),
     highlights: asStringArray(row.highlights),
   };
@@ -143,6 +151,10 @@ export function mapProductToRow(product: Omit<Product, "id">) {
     sku: product.sku,
     in_stock: product.inStock,
     stock_count: product.stockCount,
+    width_cm: product.widthCm,
+    height_cm: product.heightCm,
+    length_cm: product.lengthCm,
+    weight_kg: product.weightKg,
     faq: product.faq,
     highlights: product.highlights,
   };

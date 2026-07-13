@@ -53,6 +53,10 @@ export const productSchema = z.object({
   sku: z.string(),
   inStock: z.boolean(),
   stockCount: z.number().int().min(0),
+  widthCm: z.number().positive().max(200).nullable(),
+  heightCm: z.number().positive().max(200).nullable(),
+  lengthCm: z.number().positive().max(200).nullable(),
+  weightKg: z.number().positive().max(100).nullable(),
   faq: z.array(productFaqSchema),
   highlights: z.array(z.string()),
 });
@@ -82,6 +86,10 @@ export const productDefaults: ProductInput = {
   sku: "",
   inStock: true,
   stockCount: 0,
+  widthCm: null,
+  heightCm: null,
+  lengthCm: null,
+  weightKg: null,
   faq: [],
   highlights: [],
 };

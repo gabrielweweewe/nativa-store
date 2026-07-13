@@ -6,6 +6,7 @@ import {
   listAllOrders,
   updateOrderStatus,
 } from "../services/orders";
+import { ensurePaidOrderInMelhorEnvioCart } from "../services/melhorEnvio";
 
 const router = Router();
 
@@ -46,6 +47,17 @@ router.patch("/:id/status", requireAdmin, async (req, res) => {
     const message = error instanceof Error ? error.message : "Erro ao atualizar pedido";
     const status = message.includes("não encontrado") ? 404 : 500;
     res.status(status).json({ error: message });
+  }
+});
+
+router.post("/:id/shipment/retry", requireAdmin, async (req, res) => {
+  try {
+    await ensurePaidOrderInMelhorEnvioCart(req.params.id);
+    res.json(await getOrderById(req.params.id));
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao reenviar para o Melhor Envio";
+    res.status(400).json({ error: message });
   }
 });
 

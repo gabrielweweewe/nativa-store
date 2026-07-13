@@ -1,7 +1,4 @@
-import {
-  calculateShippingAmount,
-  CART_STATUS_ACTIVE,
-} from "@shared/const/cart";
+import { CART_STATUS_ACTIVE } from "@shared/const/cart";
 import { VISIBLE_ORDER_FILTER } from "@shared/const/order";
 import type { CartItemRow, CartRow } from "@shared/lib/cartMapper";
 import {
@@ -27,6 +24,10 @@ import {
   getMercadoPagoOrder,
   mercadoPagoOrderIdentity,
 } from "./mercadoPago";
+import {
+  ensurePaidOrderInMelhorEnvioCart,
+  validateShippingSelection,
+} from "./melhorEnvio";
 
 async function fetchCustomerCartRow(
   customerId: string
@@ -176,6 +177,13 @@ export async function getCustomerOrder(
           p_status_detail: identity.statusDetail,
           p_response: payload,
         });
+        if (identity.status === "approved") {
+          try {
+            await ensurePaidOrderInMelhorEnvioCart(orderId);
+          } catch (shippingError) {
+            console.error("Erro ao preparar etiqueta Melhor Envio:", shippingError);
+          }
+        }
         if (identity.instructions) {
           await supabase
             .from("orders")
@@ -214,6 +222,12 @@ export async function createOrderFromCheckout(
     if (existingOrder.customerId !== customerId)
       throw new Error("Chave idempotente inválida");
     if (
+      existingOrder.shippingQuoteId !== input.shipping.quoteId ||
+      existingOrder.shippingServiceId !== input.shipping.serviceId
+    ) {
+      throw new Error("A entrega mudou. Gere uma nova tentativa de pagamento.");
+    }
+    if (
       existingAttempt.mercado_pago_order_id ||
       existingOrder.paymentStatus !== "pending" ||
       existingOrder.paymentInstructions
@@ -246,7 +260,16 @@ export async function createOrderFromCheckout(
       (sum, item) => sum + Number(item.unit_price) * item.quantity,
       0
     );
-    const shippingAmount = calculateShippingAmount(subtotal);
+    const selectedShipping = await validateShippingSelection({
+      customerId,
+      cartId: cartRow.id,
+      quoteId: input.shipping.quoteId,
+      serviceId: input.shipping.serviceId,
+      toPostalCode: input.shippingAddress.cep,
+      subtotal,
+      items: cartItems,
+    });
+    const shippingAmount = selectedShipping.chargedPrice;
     const itemsPayload = cartItems.map(mapCartItemToOrderItemPayload);
     const environment = await getActiveMercadoPagoEnvironment();
     paymentEnvironment = environment;
@@ -263,6 +286,14 @@ export async function createOrderFromCheckout(
         p_items: itemsPayload,
         p_idempotency_key: input.idempotencyKey,
         p_environment: environment,
+        p_shipping_quote_id: selectedShipping.quoteId,
+        p_shipping_service_id: selectedShipping.service.id,
+        p_shipping_service_name: selectedShipping.service.name,
+        p_shipping_company: selectedShipping.service.company,
+        p_shipping_delivery_days: selectedShipping.service.customDeliveryTime,
+        p_shipping_environment: selectedShipping.environment,
+        p_shipping_quote_snapshot: selectedShipping.snapshot,
+        p_shipping_recipient: input.recipient,
       }
     );
     if (error) {
@@ -337,6 +368,11 @@ export async function createOrderFromCheckout(
           }
         );
         if (reconcileError) throw new Error(reconcileError.message);
+        try {
+          await ensurePaidOrderInMelhorEnvioCart(order.id);
+        } catch (shippingError) {
+          console.error("Erro ao preparar etiqueta Melhor Envio:", shippingError);
+        }
       }
     }
 
@@ -454,13 +490,31 @@ export async function listAllOrders(): Promise<AdminOrderSummary[]> {
 
 export async function getOrderById(orderId: string): Promise<AdminOrderDetail> {
   const order = await fetchOrderWithItems(orderId);
-  const customerInfo = await fetchCustomerInfo(order.customerId);
+  const [customerInfo, shipmentResult] = await Promise.all([
+    fetchCustomerInfo(order.customerId),
+    supabase
+      .from("melhor_envio_shipments")
+      .select(
+        "id, volume_index, status, melhor_envio_cart_id, error_message, attempt_count"
+      )
+      .eq("order_id", orderId)
+      .order("volume_index", { ascending: true }),
+  ]);
+  if (shipmentResult.error) throw new Error(shipmentResult.error.message);
 
   return {
     ...order,
     customerName: customerInfo.name,
     customerEmail: customerInfo.email,
     customerPhone: customerInfo.phone,
+    shipments: (shipmentResult.data ?? []).map(shipment => ({
+      id: shipment.id,
+      volumeIndex: Number(shipment.volume_index),
+      status: shipment.status,
+      melhorEnvioCartId: shipment.melhor_envio_cart_id,
+      errorMessage: shipment.error_message,
+      attemptCount: Number(shipment.attempt_count),
+    })),
   };
 }
 

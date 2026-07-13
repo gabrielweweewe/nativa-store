@@ -164,6 +164,13 @@ export function updateAdminOrderStatus(orderId: string, status: OrderStatus) {
   );
 }
 
+export function retryAdminOrderShipment(orderId: string) {
+  return request<AdminOrderDetail>(
+    `/api/admin/orders/${encodeURIComponent(orderId)}/shipment/retry`,
+    { method: "POST" }
+  );
+}
+
 export function fetchAdminCustomers() {
   return request<AdminCustomerSummary[]>("/api/admin/customers");
 }

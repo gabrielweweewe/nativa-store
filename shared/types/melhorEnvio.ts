@@ -10,6 +10,18 @@ export interface MelhorEnvioStatus {
   defaultHeightCm: number;
   defaultLengthCm: number;
   defaultWeightKg: number;
+  senderName: string;
+  senderEmail: string;
+  senderPhone: string;
+  senderDocumentType: "cpf" | "cnpj";
+  senderDocument: string;
+  senderStateRegister: string;
+  senderAddress: string;
+  senderNumber: string;
+  senderComplement: string;
+  senderDistrict: string;
+  senderCity: string;
+  senderStateAbbr: string;
   /** Credenciais do ambiente ativo */
   clientId: string;
   hasClientSecret: boolean;
@@ -31,10 +43,29 @@ export interface MelhorEnvioSettingsInput {
   defaultHeightCm?: number;
   defaultLengthCm?: number;
   defaultWeightKg?: number;
+  senderName?: string;
+  senderEmail?: string;
+  senderPhone?: string;
+  senderDocumentType?: "cpf" | "cnpj";
+  senderDocument?: string;
+  senderStateRegister?: string;
+  senderAddress?: string;
+  senderNumber?: string;
+  senderComplement?: string;
+  senderDistrict?: string;
+  senderCity?: string;
+  senderStateAbbr?: string;
   /** Client ID do ambiente ativo (ou de `environment` se enviado junto) */
   clientId?: string;
   /** Se vazio/omitido, mantém o secret atual */
   clientSecret?: string;
+}
+
+export interface ShippingQuotePackage {
+  height: number;
+  width: number;
+  length: number;
+  weight: number;
 }
 
 export interface ShippingQuoteOption {
@@ -46,10 +77,14 @@ export interface ShippingQuoteOption {
   deliveryTime: number;
   customDeliveryTime: number;
   currency: string;
+  companyId?: number | null;
+  packages: ShippingQuotePackage[];
   error?: string | null;
 }
 
 export interface ShippingQuoteResult {
+  quoteId?: string;
+  expiresAt?: string;
   options: ShippingQuoteOption[];
   environment: MelhorEnvioEnvironment;
   freeShippingApplied: boolean;

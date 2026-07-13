@@ -19,10 +19,10 @@ import {
   fetchCustomerAddresses,
 } from "@/lib/addressApi";
 import { fetchCustomerProfile } from "@/lib/customerApi";
+import { fetchCheckoutShippingQuote } from "@/lib/shippingApi";
 import { OrderApiError, checkoutOrder } from "@/lib/orderApi";
 import { fetchCustomerOrder, fetchMercadoPagoConfig } from "@/lib/orderApi";
 import { checkoutSchema } from "@shared/schemas/order";
-import { calculateShippingAmount } from "@shared/const/cart";
 import { formatCepInput } from "@shared/lib/viacep";
 import type { CustomerProfile } from "@shared/types/customer";
 import type { CustomerAddress } from "@shared/types/address";
@@ -35,6 +35,10 @@ import type {
   CardPaymentData,
   MercadoPagoPublicConfig,
 } from "@shared/types/mercadoPago";
+import type {
+  ShippingQuoteOption,
+  ShippingQuoteResult,
+} from "@shared/types/melhorEnvio";
 import { CardPayment, initMercadoPago } from "@mercadopago/sdk-react";
 import {
   Breadcrumb,
@@ -52,6 +56,7 @@ import {
   Plus,
   QrCode,
   Star,
+  Truck,
   User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -100,6 +105,15 @@ function CheckoutPageContent() {
   );
   const [paymentLoading, setPaymentLoading] = useState(true);
   const [addressSaved, setAddressSaved] = useState(false);
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [recipientPhone, setRecipientPhone] = useState("");
+  const [shippingQuote, setShippingQuote] =
+    useState<ShippingQuoteResult | null>(null);
+  const [selectedShippingId, setSelectedShippingId] = useState<string | null>(
+    null
+  );
+  const [shippingLoading, setShippingLoading] = useState(false);
 
   useEffect(() => {
     document.title = "Checkout — Nativa Store";
@@ -122,7 +136,12 @@ function CheckoutPageContent() {
 
     fetchCustomerProfile(session.access_token)
       .then(data => {
-        if (!cancelled) setProfile(data);
+        if (!cancelled) {
+          setProfile(data);
+          setRecipientName(data.fullName ?? "");
+          setRecipientEmail(data.email ?? "");
+          setRecipientPhone(data.phone ?? "");
+        }
       })
       .catch(() => {
         if (!cancelled) toast.error("Não foi possível carregar seus dados");
@@ -151,6 +170,59 @@ function CheckoutPageContent() {
       cancelled = true;
     };
   }, [session?.access_token]);
+
+  useEffect(() => {
+    const token = session?.access_token;
+    const postalCode = addressForm.cep.replace(/\D/g, "");
+    if (!token || postalCode.length !== 8 || itemCount === 0) {
+      setShippingQuote(null);
+      setSelectedShippingId(null);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setShippingLoading(true);
+      fetchCheckoutShippingQuote(token, postalCode)
+        .then(result => {
+          if (cancelled) return;
+          setShippingQuote(result);
+          setSelectedShippingId(result.options[0]?.id ?? null);
+          setIdempotencyKey(crypto.randomUUID());
+        })
+        .catch(error => {
+          if (cancelled) return;
+          setShippingQuote(null);
+          setSelectedShippingId(null);
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível calcular a entrega"
+          );
+        })
+        .finally(() => {
+          if (!cancelled) setShippingLoading(false);
+        });
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [addressForm.cep, itemCount, session?.access_token, summary.subtotal]);
+
+  const selectedShipping: ShippingQuoteOption | null =
+    shippingQuote?.options.find(option => option.id === selectedShippingId) ??
+    null;
+
+  function clearFieldError(key: string) {
+    setFieldErrors(previous => {
+      if (!previous[key]) return previous;
+      const next = { ...previous };
+      delete next[key];
+      return next;
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -242,6 +314,16 @@ function CheckoutPageContent() {
 
     const payload = {
       shippingAddress: getShippingAddressFromSelection(),
+      shipping: {
+        quoteId: shippingQuote?.quoteId ?? "",
+        serviceId: selectedShippingId ?? "",
+      },
+      recipient: {
+        name: recipientName,
+        email: recipientEmail,
+        phone: recipientPhone,
+        document: cpf,
+      },
       paymentMethod,
       idempotencyKey,
       payer: { identificationNumber: cpf },
@@ -347,8 +429,8 @@ function CheckoutPageContent() {
     <div className="min-h-screen" style={{ background: "#FAF7F2" }}>
       <Navbar />
 
-      <main className="pt-20 md:pt-24 pb-16">
-        <div className="container max-w-6xl">
+      <main className="pb-32 pt-20 md:pt-24 lg:pb-16">
+        <div className="container max-w-7xl px-4 sm:px-6">
           <Breadcrumb className="mb-6">
             <BreadcrumbList>
               <BreadcrumbItem>
@@ -389,64 +471,93 @@ function CheckoutPageContent() {
             </p>
           </div>
 
-          <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_400px] xl:gap-10">
             <div className="space-y-6">
-              {/* Identificação */}
-              <section className="rounded-2xl border border-[#E8D5C4] bg-white p-5 md:p-6">
-                <h2
-                  className="mb-4 text-lg font-bold text-[#3D2B1F]"
-                  style={{ fontFamily: "'Playfair Display', serif" }}
-                >
-                  Identificação
-                </h2>
+              <section className="rounded-3xl border border-[#E8D5C4] bg-white p-5 shadow-[0_14px_40px_rgba(61,43,31,0.05)] md:p-7">
+                <div className="mb-5 flex items-center gap-3">
+                  <span className="flex size-9 items-center justify-center rounded-full bg-[#C4522A] text-sm font-bold text-white">
+                    1
+                  </span>
+                  <div>
+                    <h2 className="text-lg font-bold text-[#3D2B1F] [font-family:'Playfair_Display',serif]">
+                      Quem vai receber?
+                    </h2>
+                    <p className="text-xs text-[#8B6F5E]">
+                      Usamos estes dados somente para entrega e rastreio.
+                    </p>
+                  </div>
+                </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1.5 sm:col-span-2">
-                    <Label className="text-[#8B6F5E]">Nome completo</Label>
-                    <div className="flex items-center gap-2 rounded-xl border border-[#E8D5C4] bg-[#FAF7F2] px-3.5 py-2.5">
-                      <User size={16} className="text-[#8B6F5E]" />
-                      <span
-                        className="text-sm font-medium text-[#3D2B1F]"
-                        style={{ fontFamily: "'Nunito', sans-serif" }}
-                      >
-                        {profile?.fullName ?? "—"}
-                      </span>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="recipient-name">Nome completo</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 size-4 text-[#8B6F5E]" />
+                      <Input
+                        id="recipient-name"
+                        value={recipientName}
+                        onChange={event => {
+                          setRecipientName(event.target.value);
+                          clearFieldError("recipient.name");
+                        }}
+                        className="h-11 rounded-xl border-[#E8D5C4] pl-10"
+                        autoComplete="name"
+                      />
                     </div>
+                    {fieldErrors["recipient.name"] && (
+                      <p className="text-xs text-red-600">{fieldErrors["recipient.name"]}</p>
+                    )}
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-[#8B6F5E]">E-mail</Label>
-                    <div className="flex items-center gap-2 rounded-xl border border-[#E8D5C4] bg-[#FAF7F2] px-3.5 py-2.5">
-                      <Mail size={16} className="text-[#8B6F5E]" />
-                      <span
-                        className="truncate text-sm text-[#3D2B1F]"
-                        style={{ fontFamily: "'Nunito', sans-serif" }}
-                      >
-                        {profile?.email ?? "—"}
-                      </span>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="recipient-email">E-mail</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 size-4 text-[#8B6F5E]" />
+                      <Input
+                        id="recipient-email"
+                        type="email"
+                        value={recipientEmail}
+                        onChange={event => {
+                          setRecipientEmail(event.target.value);
+                          clearFieldError("recipient.email");
+                        }}
+                        className="h-11 rounded-xl border-[#E8D5C4] pl-10"
+                        autoComplete="email"
+                      />
                     </div>
+                    {fieldErrors["recipient.email"] && (
+                      <p className="text-xs text-red-600">{fieldErrors["recipient.email"]}</p>
+                    )}
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-[#8B6F5E]">Telefone</Label>
-                    <div className="flex items-center gap-2 rounded-xl border border-[#E8D5C4] bg-[#FAF7F2] px-3.5 py-2.5">
-                      <Phone size={16} className="text-[#8B6F5E]" />
-                      <span
-                        className="text-sm text-[#3D2B1F]"
-                        style={{ fontFamily: "'Nunito', sans-serif" }}
-                      >
-                        {profile?.phone || "Não informado"}
-                      </span>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="recipient-phone">Celular</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-3 size-4 text-[#8B6F5E]" />
+                      <Input
+                        id="recipient-phone"
+                        value={recipientPhone}
+                        onChange={event => {
+                          setRecipientPhone(event.target.value);
+                          clearFieldError("recipient.phone");
+                        }}
+                        className="h-11 rounded-xl border-[#E8D5C4] pl-10"
+                        inputMode="tel"
+                        autoComplete="tel"
+                      />
                     </div>
+                    {fieldErrors["recipient.phone"] && (
+                      <p className="text-xs text-red-600">{fieldErrors["recipient.phone"]}</p>
+                    )}
                   </div>
                 </div>
               </section>
 
               {/* Endereço */}
-              <section className="rounded-2xl border border-[#E8D5C4] bg-white p-5 md:p-6">
-                <h2
-                  className="mb-4 text-lg font-bold text-[#3D2B1F]"
-                  style={{ fontFamily: "'Playfair Display', serif" }}
-                >
-                  Endereço de entrega
-                </h2>
+              <section className="rounded-3xl border border-[#E8D5C4] bg-white p-5 shadow-[0_14px_40px_rgba(61,43,31,0.05)] md:p-7">
+                <div className="mb-5 flex items-center gap-3">
+                  <span className="flex size-9 items-center justify-center rounded-full bg-[#C4522A] text-sm font-bold text-white">2</span>
+                  <h2 className="text-lg font-bold text-[#3D2B1F] [font-family:'Playfair_Display',serif]">
+                    Endereço de entrega
+                  </h2>
+                </div>
 
                 {savedAddresses.length > 0 && (
                   <div className="mb-5 space-y-3">
@@ -595,20 +706,85 @@ function CheckoutPageContent() {
                 </p>
               </section>
 
+              <section className="rounded-3xl border border-[#E8D5C4] bg-white p-5 shadow-[0_14px_40px_rgba(61,43,31,0.05)] md:p-7">
+                <div className="mb-5 flex items-center gap-3">
+                  <span className="flex size-9 items-center justify-center rounded-full bg-[#C4522A] text-sm font-bold text-white">3</span>
+                  <div>
+                    <h2 className="text-lg font-bold text-[#3D2B1F] [font-family:'Playfair_Display',serif]">
+                      Escolha a entrega
+                    </h2>
+                    <p className="text-xs text-[#8B6F5E]">Prazo contado após a postagem.</p>
+                  </div>
+                </div>
+
+                {shippingLoading ? (
+                  <div className="flex items-center justify-center gap-3 rounded-2xl bg-[#FAF7F2] py-8 text-sm text-[#8B6F5E]">
+                    <Spinner className="size-5 text-[#C4522A]" />
+                    Buscando as melhores opções...
+                  </div>
+                ) : shippingQuote?.options.length ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {shippingQuote.options.map(option => {
+                      const selected = selectedShippingId === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedShippingId(option.id);
+                            setIdempotencyKey(crypto.randomUUID());
+                            clearFieldError("shipping.serviceId");
+                          }}
+                          className={`min-h-24 rounded-2xl border p-4 text-left transition-all ${
+                            selected
+                              ? "border-[#C4522A] bg-[#C4522A]/5 ring-2 ring-[#C4522A]/10"
+                              : "border-[#E8D5C4] hover:border-[#C4522A]/40"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="flex size-9 items-center justify-center rounded-xl bg-[#FAF7F2] text-[#C4522A]">
+                              <Truck className="size-4" />
+                            </span>
+                            <span className={`size-4 rounded-full border-2 ${selected ? "border-[5px] border-[#C4522A]" : "border-[#CBB5A4]"}`} />
+                          </div>
+                          <p className="mt-3 font-bold text-[#3D2B1F]">{option.company}</p>
+                          <p className="text-xs text-[#8B6F5E]">{option.name} · até {option.customDeliveryTime} dias úteis</p>
+                          <p className="mt-2 font-bold text-[#2D6A4F]">
+                            {option.customPrice === 0
+                              ? "Grátis"
+                              : option.customPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[#D9C2AF] bg-[#FAF7F2] px-5 py-7 text-center">
+                    <Truck className="mx-auto mb-2 size-6 text-[#C4522A]" />
+                    <p className="text-sm font-semibold text-[#3D2B1F]">Informe um CEP válido</p>
+                    <p className="mt-1 text-xs text-[#8B6F5E]">As transportadoras disponíveis aparecerão aqui.</p>
+                  </div>
+                )}
+                {fieldErrors["shipping.serviceId"] && (
+                  <p className="mt-2 text-xs text-red-600">{fieldErrors["shipping.serviceId"]}</p>
+                )}
+              </section>
+
               {/* Pagamento */}
-              <section className="rounded-2xl border border-[#E8D5C4] bg-white p-5 md:p-6">
-                <h2
-                  className="mb-4 text-lg font-bold text-[#3D2B1F]"
-                  style={{ fontFamily: "'Playfair Display', serif" }}
-                >
-                  Forma de pagamento
-                </h2>
+              <section className="rounded-3xl border border-[#E8D5C4] bg-white p-5 shadow-[0_14px_40px_rgba(61,43,31,0.05)] md:p-7">
+                <div className="mb-5 flex items-center gap-3">
+                  <span className="flex size-9 items-center justify-center rounded-full bg-[#C4522A] text-sm font-bold text-white">4</span>
+                  <h2 className="text-lg font-bold text-[#3D2B1F] [font-family:'Playfair_Display',serif]">
+                    Forma de pagamento
+                  </h2>
+                </div>
 
                 <RadioGroup
                   value={paymentMethod}
-                  onValueChange={value =>
-                    setPaymentMethod(value as PaymentMethod)
-                  }
+                  onValueChange={value => {
+                    setPaymentMethod(value as PaymentMethod);
+                    setIdempotencyKey(crypto.randomUUID());
+                  }}
                   className="grid gap-3 sm:grid-cols-3"
                 >
                   {[
@@ -641,7 +817,7 @@ function CheckoutPageContent() {
                 </RadioGroup>
 
                 <div className="mt-4 flex flex-col gap-2">
-                  <Label htmlFor="payer-cpf">CPF do pagador</Label>
+                  <Label htmlFor="payer-cpf">CPF do destinatário e pagador</Label>
                   <Input
                     id="payer-cpf"
                     value={cpf}
@@ -657,6 +833,7 @@ function CheckoutPageContent() {
                       setFieldErrors(previous => {
                         const next = { ...previous };
                         delete next["payer.identificationNumber"];
+                        delete next["recipient.document"];
                         return next;
                       });
                     }}
@@ -669,16 +846,22 @@ function CheckoutPageContent() {
                       {fieldErrors["payer.identificationNumber"]}
                     </p>
                   )}
+                  {!fieldErrors["payer.identificationNumber"] &&
+                    fieldErrors["recipient.document"] && (
+                      <p className="text-xs text-red-600">
+                        {fieldErrors["recipient.document"]}
+                      </p>
+                    )}
                 </div>
 
                 {paymentMethod === "credit_card" && (
                   <div className="mt-4 rounded-xl border border-[#E8D5C4] bg-white p-2 sm:p-4">
-                    {mpConfig && (
+                    {mpConfig && selectedShipping ? (
                       <CardPayment
                         initialization={{
                           amount:
                             summary.subtotal +
-                            calculateShippingAmount(summary.subtotal),
+                            (selectedShipping?.customPrice ?? 0),
                           payer: { email: profile?.email },
                         }}
                         customization={{
@@ -705,6 +888,10 @@ function CheckoutPageContent() {
                           )
                         }
                       />
+                    ) : (
+                      <p className="px-3 py-5 text-center text-sm text-[#8B6F5E]">
+                        Escolha uma opção de entrega para liberar o cartão.
+                      </p>
                     )}
                   </div>
                 )}
@@ -735,6 +922,8 @@ function CheckoutPageContent() {
               items={items}
               subtotal={summary.subtotal}
               couponCode={couponCode}
+              shipping={selectedShipping}
+              shippingLoading={shippingLoading}
               isSubmitting={isSubmitting}
               onSubmit={() => void handleSubmit()}
               showSubmit={paymentMethod !== "credit_card"}

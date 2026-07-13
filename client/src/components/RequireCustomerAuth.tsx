@@ -9,6 +9,10 @@ export default function RequireCustomerAuth({ children }: { children: ReactNode 
 
   useEffect(() => {
     if (!isLoading && !user) {
+      window.sessionStorage.setItem(
+        "nativa_auth_return_to",
+        window.location.pathname + window.location.search,
+      );
       setLocation("/entrar");
     }
   }, [isLoading, user, setLocation]);

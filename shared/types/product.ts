@@ -43,6 +43,10 @@ export interface Product {
   sku: string;
   inStock: boolean;
   stockCount: number;
+  widthCm?: number | null;
+  heightCm?: number | null;
+  lengthCm?: number | null;
+  weightKg?: number | null;
   faq: ProductFaq[];
   highlights: string[];
 }

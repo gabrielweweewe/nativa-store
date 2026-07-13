@@ -1,6 +1,7 @@
 import type { ShippingAddress } from "@shared/types/address";
 import type { PaymentInstructions } from "@shared/types/mercadoPago";
 import type { Order, OrderItem, OrderSummary } from "@shared/types/order";
+import type { MelhorEnvioEnvironment } from "@shared/types/melhorEnvio";
 
 export interface OrderRow {
   id: string;
@@ -8,6 +9,13 @@ export interface OrderRow {
   status: string;
   total_amount: number;
   shipping_amount: number;
+  shipping_quote_id?: string | null;
+  shipping_service_id?: string | null;
+  shipping_service_name?: string | null;
+  shipping_company?: string | null;
+  shipping_delivery_days?: number | null;
+  shipping_environment?: MelhorEnvioEnvironment | null;
+  shipping_recipient?: Order["shippingRecipient"];
   coupon_code: string | null;
   shipping_address: ShippingAddress;
   payment_method: string;
@@ -66,6 +74,14 @@ export function mapOrderRowToOrder(row: OrderRow, items: OrderItem[]): Order {
     status: row.status as Order["status"],
     totalAmount: toNumber(row.total_amount),
     shippingAmount: toNumber(row.shipping_amount),
+    shippingQuoteId: row.shipping_quote_id ?? null,
+    shippingServiceId: row.shipping_service_id ?? null,
+    shippingServiceName: row.shipping_service_name ?? null,
+    shippingCompany: row.shipping_company ?? null,
+    shippingDeliveryDays:
+      row.shipping_delivery_days == null ? null : Number(row.shipping_delivery_days),
+    shippingEnvironment: row.shipping_environment ?? null,
+    shippingRecipient: row.shipping_recipient ?? null,
     couponCode: row.coupon_code,
     shippingAddress: row.shipping_address,
     paymentMethod: row.payment_method as Order["paymentMethod"],

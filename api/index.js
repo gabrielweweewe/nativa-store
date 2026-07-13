@@ -367,6 +367,13 @@ function mapOrderRowToOrder(row, items) {
     status: row.status,
     totalAmount: toNumber(row.total_amount),
     shippingAmount: toNumber(row.shipping_amount),
+    shippingQuoteId: row.shipping_quote_id ?? null,
+    shippingServiceId: row.shipping_service_id ?? null,
+    shippingServiceName: row.shipping_service_name ?? null,
+    shippingCompany: row.shipping_company ?? null,
+    shippingDeliveryDays: row.shipping_delivery_days == null ? null : Number(row.shipping_delivery_days),
+    shippingEnvironment: row.shipping_environment ?? null,
+    shippingRecipient: row.shipping_recipient ?? null,
     couponCode: row.coupon_code,
     shippingAddress: row.shipping_address,
     paymentMethod: row.payment_method,
@@ -979,6 +986,18 @@ var melhorEnvioSettingsSchema = z2.object({
   defaultHeightCm: z2.number().positive("Altura deve ser positiva").max(200).optional(),
   defaultLengthCm: z2.number().positive("Comprimento deve ser positivo").max(200).optional(),
   defaultWeightKg: z2.number().positive("Peso deve ser positivo").max(100).optional(),
+  senderName: z2.string().max(120).optional(),
+  senderEmail: z2.union([z2.literal(""), z2.string().email("E-mail inv\xE1lido")]).optional(),
+  senderPhone: z2.string().max(20).optional(),
+  senderDocumentType: z2.enum(["cpf", "cnpj"]).optional(),
+  senderDocument: z2.string().max(18).optional(),
+  senderStateRegister: z2.string().max(30).optional(),
+  senderAddress: z2.string().max(160).optional(),
+  senderNumber: z2.string().max(20).optional(),
+  senderComplement: z2.string().max(80).optional(),
+  senderDistrict: z2.string().max(80).optional(),
+  senderCity: z2.string().max(80).optional(),
+  senderStateAbbr: z2.string().max(2).optional(),
   clientId: z2.string().optional(),
   clientSecret: z2.string().optional()
 });
@@ -998,19 +1017,31 @@ var shippingQuoteSchema = z2.object({
   receipt: z2.boolean().optional(),
   ownHand: z2.boolean().optional()
 });
+var checkoutShippingQuoteSchema = z2.object({
+  toPostalCode: postalCodeSchema.refine((v) => v.length === 8, "CEP de destino inv\xE1lido")
+});
 
 // server/routes/adminMelhorEnvio.ts
 import { Router as Router4 } from "express";
 
 // shared/const/cart.ts
 var FREE_SHIPPING_THRESHOLD = 299;
-var STANDARD_SHIPPING_COST = 0;
-function calculateShippingAmount(subtotal) {
-  return subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_COST;
-}
 var CART_SESSION_COOKIE = "nativa_cart_session";
 var CART_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1e3;
 var CART_STATUS_ACTIVE = "active";
+
+// shared/lib/shipping.ts
+function applyFreeShipping(options, subtotal) {
+  const sorted = options.map((option) => ({ ...option, packages: [...option.packages] }));
+  if (subtotal < FREE_SHIPPING_THRESHOLD || sorted.length === 0) {
+    return { options: sorted, applied: false };
+  }
+  sorted[0] = { ...sorted[0], price: 0, customPrice: 0 };
+  return { options: sorted, applied: true };
+}
+function groupShipmentVolumes(company, volumes) {
+  return /(correios|j&t|loggi)/i.test(company) ? volumes.map((volume) => [volume]) : [volumes];
+}
 
 // server/services/melhorEnvio.ts
 import jwt2 from "jsonwebtoken";
@@ -1097,6 +1128,18 @@ function toStatus(row) {
     defaultHeightCm: Number(row.default_height_cm),
     defaultLengthCm: Number(row.default_length_cm),
     defaultWeightKg: Number(row.default_weight_kg),
+    senderName: row.sender_name ?? "",
+    senderEmail: row.sender_email ?? "",
+    senderPhone: row.sender_phone ?? "",
+    senderDocumentType: row.sender_document_type ?? "cpf",
+    senderDocument: row.sender_document ?? "",
+    senderStateRegister: row.sender_state_register ?? "ISENTO",
+    senderAddress: row.sender_address ?? "",
+    senderNumber: row.sender_number ?? "",
+    senderComplement: row.sender_complement ?? "",
+    senderDistrict: row.sender_district ?? "",
+    senderCity: row.sender_city ?? "",
+    senderStateAbbr: row.sender_state_abbr ?? "",
     clientId: getClientId(row, env),
     hasClientSecret: Boolean(getClientSecret(row, env).trim()),
     connected: isConnected(row, env),
@@ -1150,6 +1193,18 @@ async function updateMelhorEnvioSettings(input) {
   if (input.defaultHeightCm !== void 0) patch.default_height_cm = input.defaultHeightCm;
   if (input.defaultLengthCm !== void 0) patch.default_length_cm = input.defaultLengthCm;
   if (input.defaultWeightKg !== void 0) patch.default_weight_kg = input.defaultWeightKg;
+  if (input.senderName !== void 0) patch.sender_name = input.senderName.trim();
+  if (input.senderEmail !== void 0) patch.sender_email = input.senderEmail.trim();
+  if (input.senderPhone !== void 0) patch.sender_phone = input.senderPhone.replace(/\D/g, "");
+  if (input.senderDocumentType !== void 0) patch.sender_document_type = input.senderDocumentType;
+  if (input.senderDocument !== void 0) patch.sender_document = input.senderDocument.replace(/\D/g, "");
+  if (input.senderStateRegister !== void 0) patch.sender_state_register = input.senderStateRegister.trim();
+  if (input.senderAddress !== void 0) patch.sender_address = input.senderAddress.trim();
+  if (input.senderNumber !== void 0) patch.sender_number = input.senderNumber.trim();
+  if (input.senderComplement !== void 0) patch.sender_complement = input.senderComplement.trim();
+  if (input.senderDistrict !== void 0) patch.sender_district = input.senderDistrict.trim();
+  if (input.senderCity !== void 0) patch.sender_city = input.senderCity.trim();
+  if (input.senderStateAbbr !== void 0) patch.sender_state_abbr = input.senderStateAbbr.trim().toUpperCase();
   if (input.clientId !== void 0) {
     patch[`${prefix}_client_id`] = input.clientId.trim();
   }
@@ -1321,7 +1376,7 @@ function toNumber2(value, fallback = 0) {
   }
   return fallback;
 }
-async function calculateShipping(input) {
+async function calculateShippingDetailed(input) {
   const { accessToken, row } = await getValidAccessToken();
   const fromCep = row.origin_postal_code.replace(/\D/g, "");
   if (fromCep.length !== 8) {
@@ -1374,27 +1429,310 @@ async function calculateShipping(input) {
     deliveryTime: item.delivery_time,
     customDeliveryTime: item.custom_delivery_time ?? item.delivery_time,
     currency: item.currency || "R$",
+    companyId: item.company?.id ?? null,
+    packages: (item.packages ?? []).map((entry) => ({
+      height: toNumber2(entry.height ?? entry.dimensions?.height),
+      width: toNumber2(entry.width ?? entry.dimensions?.width),
+      length: toNumber2(entry.length ?? entry.dimensions?.length),
+      weight: toNumber2(entry.weight)
+    })),
     error: item.error ?? null
   })).sort((a, b) => a.customPrice - b.customPrice);
   const subtotal = input.products.reduce(
     (sum, p) => sum + p.insuranceValue * p.quantity,
     0
   );
-  const freeShippingApplied = subtotal >= FREE_SHIPPING_THRESHOLD;
-  if (freeShippingApplied && options.length > 0) {
-    const cheapestId = options[0].id;
-    for (const option of options) {
-      if (option.id === cheapestId) {
-        option.customPrice = 0;
-        option.price = 0;
+  const freeShipping = applyFreeShipping(options, subtotal);
+  return {
+    result: {
+      options: freeShipping.options,
+      environment: row.environment,
+      freeShippingApplied: freeShipping.applied
+    },
+    requestPayload: body,
+    responsePayload: raw,
+    fromPostalCode: fromCep
+  };
+}
+async function calculateShipping(input) {
+  return (await calculateShippingDetailed(input)).result;
+}
+async function createCheckoutShippingQuote(customerId, toPostalCode) {
+  const { data: cart, error: cartError } = await supabase.from("carts").select("id").eq("customer_id", customerId).eq("status", "active").maybeSingle();
+  if (cartError) throw new Error(cartError.message);
+  if (!cart) throw new Error("Carrinho vazio");
+  const { data: items, error: itemsError } = await supabase.from("cart_items").select("product_id, product_slug, quantity, unit_price").eq("cart_id", cart.id);
+  if (itemsError) throw new Error(itemsError.message);
+  const cartItems = items ?? [];
+  if (!cartItems.length) throw new Error("Carrinho vazio");
+  const productIds = Array.from(new Set(cartItems.map((item) => item.product_id)));
+  const { data: dimensions, error: dimensionsError } = await supabase.from("products").select("id, width_cm, height_cm, length_cm, weight_kg").in("id", productIds);
+  if (dimensionsError) throw new Error(dimensionsError.message);
+  const dimensionMap = new Map(
+    (dimensions ?? []).map((product) => [Number(product.id), product])
+  );
+  const input = {
+    toPostalCode,
+    products: cartItems.map((item) => {
+      const product = dimensionMap.get(Number(item.product_id));
+      return {
+        id: item.product_slug,
+        quantity: item.quantity,
+        insuranceValue: Number(item.unit_price),
+        width: product?.width_cm == null ? void 0 : Number(product.width_cm),
+        height: product?.height_cm == null ? void 0 : Number(product.height_cm),
+        length: product?.length_cm == null ? void 0 : Number(product.length_cm),
+        weight: product?.weight_kg == null ? void 0 : Number(product.weight_kg)
+      };
+    })
+  };
+  const calculation = await calculateShippingDetailed(input);
+  const subtotal = cartItems.reduce(
+    (total, item) => total + Number(item.unit_price) * item.quantity,
+    0
+  );
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1e3).toISOString();
+  const { data: quote, error: quoteError } = await supabase.from("shipping_quotes").insert({
+    customer_id: customerId,
+    cart_id: cart.id,
+    environment: calculation.result.environment,
+    from_postal_code: calculation.fromPostalCode,
+    to_postal_code: toPostalCode,
+    subtotal,
+    free_shipping_applied: calculation.result.freeShippingApplied,
+    request_payload: calculation.requestPayload,
+    response_payload: calculation.responsePayload,
+    options: calculation.result.options,
+    expires_at: expiresAt
+  }).select("id, expires_at").single();
+  if (quoteError) throw new Error(quoteError.message);
+  return {
+    ...calculation.result,
+    quoteId: quote.id,
+    expiresAt: quote.expires_at
+  };
+}
+async function validateShippingSelection(params) {
+  const { data, error } = await supabase.from("shipping_quotes").select("*").eq("id", params.quoteId).eq("customer_id", params.customerId).eq("cart_id", params.cartId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Cota\xE7\xE3o de frete inv\xE1lida");
+  if (new Date(data.expires_at).getTime() <= Date.now()) {
+    throw new Error("Cota\xE7\xE3o de frete expirada. Calcule novamente.");
+  }
+  if (String(data.to_postal_code).replace(/\D/g, "") !== params.toPostalCode.replace(/\D/g, "")) {
+    throw new Error("O CEP mudou. Calcule o frete novamente.");
+  }
+  if (Math.abs(Number(data.subtotal) - params.subtotal) > 9e-3) {
+    throw new Error("O carrinho mudou. Calcule o frete novamente.");
+  }
+  const quotedProducts = Array.isArray(data.request_payload?.products) ? data.request_payload.products.map((product) => ({
+    id: String(product.id),
+    quantity: Number(product.quantity),
+    insuranceValue: Number(product.insurance_value)
+  })).sort((a, b) => a.id.localeCompare(b.id)) : [];
+  const currentProducts = params.items.map((item) => ({
+    id: item.product_slug,
+    quantity: item.quantity,
+    insuranceValue: Number(item.unit_price)
+  })).sort((a, b) => a.id.localeCompare(b.id));
+  if (JSON.stringify(quotedProducts) !== JSON.stringify(currentProducts)) {
+    throw new Error("O carrinho mudou. Calcule o frete novamente.");
+  }
+  const options = Array.isArray(data.options) ? data.options : [];
+  const service = options.find((option) => option.id === params.serviceId);
+  if (!service) throw new Error("Servi\xE7o de entrega indispon\xEDvel nesta cota\xE7\xE3o");
+  return {
+    quoteId: data.id,
+    service,
+    environment: data.environment,
+    chargedPrice: Number(service.customPrice),
+    snapshot: {
+      requestPayload: data.request_payload,
+      responsePayload: data.response_payload,
+      option: service
+    }
+  };
+}
+function requiredSender(row) {
+  const required = [
+    row.sender_name,
+    row.sender_email,
+    row.sender_phone,
+    row.sender_document,
+    row.sender_address,
+    row.sender_number,
+    row.sender_district,
+    row.sender_city,
+    row.sender_state_abbr,
+    row.origin_postal_code
+  ];
+  if (required.some((value) => !String(value ?? "").trim())) {
+    throw new Error("Complete os dados do remetente no painel do Melhor Envio");
+  }
+}
+function cartResponseId(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  const record = payload;
+  const id = record.id ?? record.order_id ?? record.shipment_id;
+  return id == null ? null : String(id);
+}
+async function ensurePaidOrderInMelhorEnvioCart(orderId) {
+  const { data: order, error: orderError } = await supabase.from("orders").select("*").eq("id", orderId).single();
+  if (orderError) throw new Error(orderError.message);
+  if (order.payment_status !== "approved") {
+    throw new Error("A etiqueta s\xF3 pode ser preparada ap\xF3s o pagamento");
+  }
+  if (!order.shipping_service_id || !order.shipping_quote_snapshot) {
+    throw new Error("Pedido sem cota\xE7\xE3o do Melhor Envio");
+  }
+  const { data: orderItems, error: itemsError } = await supabase.from("order_items").select("name, quantity, price").eq("order_id", orderId);
+  if (itemsError) throw new Error(itemsError.message);
+  const { accessToken, row } = await getValidAccessToken();
+  requiredSender(row);
+  if (row.environment !== order.shipping_environment) {
+    throw new Error("O ambiente do Melhor Envio mudou desde a cota\xE7\xE3o");
+  }
+  const snapshot = order.shipping_quote_snapshot;
+  const quotedProducts = snapshot.requestPayload?.products ?? [];
+  let volumes = snapshot.option?.packages ?? [];
+  if (!volumes.length) {
+    volumes = quotedProducts.map((product) => ({
+      height: toNumber2(product.height),
+      width: toNumber2(product.width),
+      length: toNumber2(product.length),
+      weight: toNumber2(product.weight) * Math.max(1, toNumber2(product.quantity, 1))
+    }));
+  }
+  if (!volumes.length) throw new Error("Cota\xE7\xE3o sem volumes para a etiqueta");
+  const company = String(order.shipping_company ?? "");
+  const groups = groupShipmentVolumes(company, volumes);
+  const recipient = order.shipping_recipient;
+  const address = order.shipping_address;
+  const products = (orderItems ?? []).map((item) => ({
+    name: String(item.name).slice(0, 255),
+    quantity: Number(item.quantity),
+    unitary_value: Number(item.price).toFixed(2)
+  }));
+  const insuranceValue = (orderItems ?? []).reduce(
+    (total, item) => total + Number(item.price) * Number(item.quantity),
+    0
+  );
+  const results = [];
+  for (let volumeIndex = 0; volumeIndex < groups.length; volumeIndex += 1) {
+    await supabase.from("melhor_envio_shipments").upsert(
+      {
+        order_id: orderId,
+        volume_index: volumeIndex,
+        environment: row.environment,
+        status: "pending"
+      },
+      { onConflict: "order_id,volume_index", ignoreDuplicates: true }
+    );
+    const { data: claimed, error: claimError } = await supabase.from("melhor_envio_shipments").update({
+      status: "processing",
+      error_message: null,
+      last_attempt_at: (/* @__PURE__ */ new Date()).toISOString()
+    }).eq("order_id", orderId).eq("volume_index", volumeIndex).in("status", ["pending", "failed"]).select("id, attempt_count").maybeSingle();
+    if (claimError) throw new Error(claimError.message);
+    if (!claimed) {
+      const { data: existing } = await supabase.from("melhor_envio_shipments").select("status, melhor_envio_cart_id").eq("order_id", orderId).eq("volume_index", volumeIndex).single();
+      results.push({
+        volumeIndex,
+        status: existing?.status ?? "processing",
+        cartId: existing?.melhor_envio_cart_id ?? null
+      });
+      continue;
+    }
+    const from = {
+      name: row.sender_name,
+      email: row.sender_email,
+      phone: row.sender_phone,
+      address: row.sender_address,
+      complement: row.sender_complement,
+      number: row.sender_number,
+      district: row.sender_district,
+      city: row.sender_city,
+      postal_code: row.origin_postal_code.replace(/\D/g, ""),
+      state_abbr: row.sender_state_abbr,
+      state_register: row.sender_state_register || "ISENTO"
+    };
+    if (row.sender_document_type === "cnpj") {
+      from.company_document = row.sender_document;
+    } else {
+      from.document = row.sender_document;
+    }
+    const body = {
+      service: Number(order.shipping_service_id),
+      from,
+      to: {
+        name: recipient.name,
+        email: recipient.email,
+        phone: recipient.phone,
+        document: recipient.document,
+        state_register: "ISENTO",
+        address: address.rua,
+        complement: address.complemento ?? "",
+        number: address.numero,
+        district: address.bairro,
+        city: address.cidade,
+        postal_code: address.cep.replace(/\D/g, ""),
+        country_id: "BR",
+        state_abbr: address.estado
+      },
+      products,
+      volumes: groups[volumeIndex],
+      options: {
+        platform: "Nativa Store",
+        reminder: `Pedido ${orderId.slice(0, 8).toUpperCase()}`,
+        insurance_value: Number(insuranceValue.toFixed(2)),
+        receipt: false,
+        own_hand: false,
+        reverse: false
       }
+    };
+    try {
+      const response = await fetch(
+        `${getMelhorEnvioBaseUrl(row.environment)}/api/v2/me/cart`,
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+            "User-Agent": row.user_agent
+          },
+          body: JSON.stringify(body)
+        }
+      );
+      const responsePayload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = responsePayload && typeof responsePayload === "object" && "message" in responsePayload ? String(responsePayload.message) : `Erro ao inserir frete no carrinho (HTTP ${response.status})`;
+        throw Object.assign(new Error(message), { payload: responsePayload });
+      }
+      const cartId = cartResponseId(responsePayload);
+      if (!cartId) throw new Error("Melhor Envio n\xE3o retornou o ID da etiqueta");
+      await supabase.from("melhor_envio_shipments").update({
+        status: "in_cart",
+        melhor_envio_cart_id: cartId,
+        request_payload: body,
+        response_payload: responsePayload,
+        attempt_count: Number(claimed.attempt_count ?? 0) + 1,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }).eq("id", claimed.id);
+      results.push({ volumeIndex, status: "in_cart", cartId });
+    } catch (error) {
+      await supabase.from("melhor_envio_shipments").update({
+        status: "failed",
+        request_payload: body,
+        response_payload: error.payload ?? null,
+        error_message: error instanceof Error ? error.message : "Erro desconhecido",
+        attempt_count: Number(claimed.attempt_count ?? 0) + 1,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }).eq("id", claimed.id);
+      results.push({ volumeIndex, status: "failed", cartId: null });
     }
   }
-  return {
-    options,
-    environment: row.environment,
-    freeShippingApplied
-  };
+  return results;
 }
 
 // server/routes/adminMelhorEnvio.ts
@@ -2030,6 +2368,16 @@ function isValidCpf(value) {
 }
 var checkoutSchema = z5.object({
   shippingAddress: shippingAddressSchema,
+  shipping: z5.object({
+    quoteId: z5.string().uuid("Cota\xE7\xE3o de frete inv\xE1lida"),
+    serviceId: z5.string().min(1, "Escolha uma transportadora")
+  }),
+  recipient: z5.object({
+    name: z5.string().trim().min(3, "Informe o nome do destinat\xE1rio"),
+    email: z5.string().trim().email("Informe um e-mail v\xE1lido"),
+    phone: z5.string().transform((value) => value.replace(/\D/g, "")).refine((value) => value.length >= 10 && value.length <= 11, "Informe um telefone v\xE1lido"),
+    document: z5.string().transform((value) => value.replace(/\D/g, "")).refine(isValidCpf, "Informe um CPF v\xE1lido")
+  }),
   paymentMethod: z5.enum(["pix", "credit_card", "boleto"]),
   idempotencyKey: z5.string().uuid(),
   payer: z5.object({
@@ -2131,6 +2479,13 @@ async function getCustomerOrder(customerId, orderId) {
           p_status_detail: identity.statusDetail,
           p_response: payload
         });
+        if (identity.status === "approved") {
+          try {
+            await ensurePaidOrderInMelhorEnvioCart(orderId);
+          } catch (shippingError) {
+            console.error("Erro ao preparar etiqueta Melhor Envio:", shippingError);
+          }
+        }
         if (identity.instructions) {
           await supabase.from("orders").update({
             payment_instructions: identity.instructions,
@@ -2156,6 +2511,9 @@ async function createOrderFromCheckout(customerId, input) {
     const existingOrder = await fetchOrderWithItems(existingAttempt.order_id);
     if (existingOrder.customerId !== customerId)
       throw new Error("Chave idempotente inv\xE1lida");
+    if (existingOrder.shippingQuoteId !== input.shipping.quoteId || existingOrder.shippingServiceId !== input.shipping.serviceId) {
+      throw new Error("A entrega mudou. Gere uma nova tentativa de pagamento.");
+    }
     if (existingAttempt.mercado_pago_order_id || existingOrder.paymentStatus !== "pending" || existingOrder.paymentInstructions) {
       const payment = {
         outcome: existingOrder.paymentStatus === "approved" ? "approved" : existingOrder.paymentStatus === "rejected" ? "rejected" : "pending",
@@ -2178,7 +2536,16 @@ async function createOrderFromCheckout(customerId, input) {
       (sum, item) => sum + Number(item.unit_price) * item.quantity,
       0
     );
-    const shippingAmount = calculateShippingAmount(subtotal);
+    const selectedShipping = await validateShippingSelection({
+      customerId,
+      cartId: cartRow.id,
+      quoteId: input.shipping.quoteId,
+      serviceId: input.shipping.serviceId,
+      toPostalCode: input.shippingAddress.cep,
+      subtotal,
+      items: cartItems
+    });
+    const shippingAmount = selectedShipping.chargedPrice;
     const itemsPayload = cartItems.map(mapCartItemToOrderItemPayload);
     const environment = await getActiveMercadoPagoEnvironment();
     paymentEnvironment = environment;
@@ -2194,7 +2561,15 @@ async function createOrderFromCheckout(customerId, input) {
         p_payment_method: input.paymentMethod,
         p_items: itemsPayload,
         p_idempotency_key: input.idempotencyKey,
-        p_environment: environment
+        p_environment: environment,
+        p_shipping_quote_id: selectedShipping.quoteId,
+        p_shipping_service_id: selectedShipping.service.id,
+        p_shipping_service_name: selectedShipping.service.name,
+        p_shipping_company: selectedShipping.service.company,
+        p_shipping_delivery_days: selectedShipping.service.customDeliveryTime,
+        p_shipping_environment: selectedShipping.environment,
+        p_shipping_quote_snapshot: selectedShipping.snapshot,
+        p_shipping_recipient: input.recipient
       }
     );
     if (error) {
@@ -2259,6 +2634,11 @@ async function createOrderFromCheckout(customerId, input) {
           }
         );
         if (reconcileError) throw new Error(reconcileError.message);
+        try {
+          await ensurePaidOrderInMelhorEnvioCart(order.id);
+        } catch (shippingError) {
+          console.error("Erro ao preparar etiqueta Melhor Envio:", shippingError);
+        }
       }
     }
     return {
@@ -2334,12 +2714,26 @@ async function listAllOrders() {
 }
 async function getOrderById(orderId) {
   const order = await fetchOrderWithItems(orderId);
-  const customerInfo = await fetchCustomerInfo(order.customerId);
+  const [customerInfo, shipmentResult] = await Promise.all([
+    fetchCustomerInfo(order.customerId),
+    supabase.from("melhor_envio_shipments").select(
+      "id, volume_index, status, melhor_envio_cart_id, error_message, attempt_count"
+    ).eq("order_id", orderId).order("volume_index", { ascending: true })
+  ]);
+  if (shipmentResult.error) throw new Error(shipmentResult.error.message);
   return {
     ...order,
     customerName: customerInfo.name,
     customerEmail: customerInfo.email,
-    customerPhone: customerInfo.phone
+    customerPhone: customerInfo.phone,
+    shipments: (shipmentResult.data ?? []).map((shipment) => ({
+      id: shipment.id,
+      volumeIndex: Number(shipment.volume_index),
+      status: shipment.status,
+      melhorEnvioCartId: shipment.melhor_envio_cart_id,
+      errorMessage: shipment.error_message,
+      attemptCount: Number(shipment.attempt_count)
+    }))
   };
 }
 async function updateOrderStatus(orderId, status) {
@@ -2384,6 +2778,15 @@ router7.patch("/:id/status", requireAdmin, async (req, res) => {
     const message = error instanceof Error ? error.message : "Erro ao atualizar pedido";
     const status = message.includes("n\xE3o encontrado") ? 404 : 500;
     res.status(status).json({ error: message });
+  }
+});
+router7.post("/:id/shipment/retry", requireAdmin, async (req, res) => {
+  try {
+    await ensurePaidOrderInMelhorEnvioCart(req.params.id);
+    res.json(await getOrderById(req.params.id));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao reenviar para o Melhor Envio";
+    res.status(400).json({ error: message });
   }
 });
 var adminOrders_default = router7;
@@ -2673,6 +3076,10 @@ function mapProductRowToProduct(row) {
     sku: row.sku,
     inStock: row.in_stock,
     stockCount: row.stock_count,
+    widthCm: row.width_cm == null ? null : Number(row.width_cm),
+    heightCm: row.height_cm == null ? null : Number(row.height_cm),
+    lengthCm: row.length_cm == null ? null : Number(row.length_cm),
+    weightKg: row.weight_kg == null ? null : Number(row.weight_kg),
     faq: asFaq(row.faq),
     highlights: asStringArray(row.highlights)
   };
@@ -2701,6 +3108,10 @@ function mapProductToRow(product) {
     sku: product.sku,
     in_stock: product.inStock,
     stock_count: product.stockCount,
+    width_cm: product.widthCm,
+    height_cm: product.heightCm,
+    length_cm: product.lengthCm,
+    weight_kg: product.weightKg,
     faq: product.faq,
     highlights: product.highlights
   };
@@ -3552,7 +3963,7 @@ router15.post("/", async (req, res) => {
     }
     const payload = await getMercadoPagoOrder(orderId, environment);
     const identity = mercadoPagoOrderIdentity(payload);
-    const { error } = await supabase.rpc("reconcile_mercado_pago_payment", {
+    const { data: reconciledOrderId, error } = await supabase.rpc("reconcile_mercado_pago_payment", {
       p_mercado_pago_order_id: identity.orderId,
       p_mercado_pago_payment_id: identity.paymentId,
       p_payment_status: identity.status,
@@ -3560,6 +3971,13 @@ router15.post("/", async (req, res) => {
       p_response: payload
     });
     if (error) throw new Error(error.message);
+    if (identity.status === "approved" && reconciledOrderId) {
+      try {
+        await ensurePaidOrderInMelhorEnvioCart(String(reconciledOrderId));
+      } catch (shippingError) {
+        console.error("Erro ao preparar etiqueta Melhor Envio:", shippingError);
+      }
+    }
     if (identity.instructions) {
       const { error: instructionsError } = await supabase.from("orders").update({
         payment_instructions: identity.instructions,
@@ -3619,6 +4037,10 @@ var productSchema = z8.object({
   sku: z8.string(),
   inStock: z8.boolean(),
   stockCount: z8.number().int().min(0),
+  widthCm: z8.number().positive().max(200).nullable(),
+  heightCm: z8.number().positive().max(200).nullable(),
+  lengthCm: z8.number().positive().max(200).nullable(),
+  weightKg: z8.number().positive().max(100).nullable(),
   faq: z8.array(productFaqSchema),
   highlights: z8.array(z8.string())
 });
@@ -3759,6 +4181,28 @@ router17.post("/quote", async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
+router17.post(
+  "/checkout-quote",
+  requireCustomer,
+  async (req, res) => {
+    try {
+      const parsed = checkoutShippingQuoteSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "CEP inv\xE1lido", issues: parsed.error.issues });
+        return;
+      }
+      const result = await createCheckoutShippingQuote(
+        req.customerUserId,
+        parsed.data.toPostalCode
+      );
+      res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro ao calcular frete";
+      const status = message.includes("Carrinho vazio") ? 400 : 500;
+      res.status(status).json({ error: message });
+    }
+  }
+);
 var shipping_default = router17;
 
 // server/app.ts

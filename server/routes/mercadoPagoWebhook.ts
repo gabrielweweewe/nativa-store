@@ -6,6 +6,7 @@ import {
   mercadoPagoOrderIdentity,
   verifyMercadoPagoSignature,
 } from "../services/mercadoPago";
+import { ensurePaidOrderInMelhorEnvioCart } from "../services/melhorEnvio";
 
 const router = Router();
 
@@ -51,7 +52,7 @@ router.post("/", async (req, res) => {
 
     const payload = await getMercadoPagoOrder(orderId, environment);
     const identity = mercadoPagoOrderIdentity(payload);
-    const { error } = await supabase.rpc("reconcile_mercado_pago_payment", {
+    const { data: reconciledOrderId, error } = await supabase.rpc("reconcile_mercado_pago_payment", {
       p_mercado_pago_order_id: identity.orderId,
       p_mercado_pago_payment_id: identity.paymentId,
       p_payment_status: identity.status,
@@ -59,6 +60,13 @@ router.post("/", async (req, res) => {
       p_response: payload,
     });
     if (error) throw new Error(error.message);
+    if (identity.status === "approved" && reconciledOrderId) {
+      try {
+        await ensurePaidOrderInMelhorEnvioCart(String(reconciledOrderId));
+      } catch (shippingError) {
+        console.error("Erro ao preparar etiqueta Melhor Envio:", shippingError);
+      }
+    }
     if (identity.instructions) {
       const { error: instructionsError } = await supabase
         .from("orders")

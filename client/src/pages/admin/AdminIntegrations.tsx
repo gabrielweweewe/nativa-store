@@ -46,6 +46,18 @@ type FormState = {
   defaultHeightCm: string;
   defaultLengthCm: string;
   defaultWeightKg: string;
+  senderName: string;
+  senderEmail: string;
+  senderPhone: string;
+  senderDocumentType: "cpf" | "cnpj";
+  senderDocument: string;
+  senderStateRegister: string;
+  senderAddress: string;
+  senderNumber: string;
+  senderComplement: string;
+  senderDistrict: string;
+  senderCity: string;
+  senderStateAbbr: string;
 };
 
 function formatCep(value: string): string {
@@ -66,6 +78,18 @@ function toForm(status: MelhorEnvioAdminStatus): FormState {
     defaultHeightCm: String(status.defaultHeightCm),
     defaultLengthCm: String(status.defaultLengthCm),
     defaultWeightKg: String(status.defaultWeightKg),
+    senderName: status.senderName,
+    senderEmail: status.senderEmail,
+    senderPhone: status.senderPhone,
+    senderDocumentType: status.senderDocumentType,
+    senderDocument: status.senderDocument,
+    senderStateRegister: status.senderStateRegister,
+    senderAddress: status.senderAddress,
+    senderNumber: status.senderNumber,
+    senderComplement: status.senderComplement,
+    senderDistrict: status.senderDistrict,
+    senderCity: status.senderCity,
+    senderStateAbbr: status.senderStateAbbr,
   };
 }
 
@@ -150,6 +174,18 @@ export default function AdminIntegrations() {
         defaultHeightCm: Number(form.defaultHeightCm),
         defaultLengthCm: Number(form.defaultLengthCm),
         defaultWeightKg: Number(form.defaultWeightKg),
+        senderName: form.senderName,
+        senderEmail: form.senderEmail,
+        senderPhone: form.senderPhone,
+        senderDocumentType: form.senderDocumentType,
+        senderDocument: form.senderDocument,
+        senderStateRegister: form.senderStateRegister,
+        senderAddress: form.senderAddress,
+        senderNumber: form.senderNumber,
+        senderComplement: form.senderComplement,
+        senderDistrict: form.senderDistrict,
+        senderCity: form.senderCity,
+        senderStateAbbr: form.senderStateAbbr,
       });
       setStatus(data);
       setForm(toForm(data));
@@ -235,6 +271,18 @@ export default function AdminIntegrations() {
         defaultHeightCm: Number(form.defaultHeightCm),
         defaultLengthCm: Number(form.defaultLengthCm),
         defaultWeightKg: Number(form.defaultWeightKg),
+        senderName: form.senderName,
+        senderEmail: form.senderEmail,
+        senderPhone: form.senderPhone,
+        senderDocumentType: form.senderDocumentType,
+        senderDocument: form.senderDocument,
+        senderStateRegister: form.senderStateRegister,
+        senderAddress: form.senderAddress,
+        senderNumber: form.senderNumber,
+        senderComplement: form.senderComplement,
+        senderDistrict: form.senderDistrict,
+        senderCity: form.senderCity,
+        senderStateAbbr: form.senderStateAbbr,
       });
       window.location.href = "/api/admin/melhor-envio/connect";
     } catch (error) {
@@ -442,6 +490,75 @@ export default function AdminIntegrations() {
                 <p className="text-xs text-[var(--admin-text-muted)]">
                   Obrigatório pela API: nome da aplicação + e-mail de contato.
                 </p>
+              </div>
+            </Card>
+
+            <Card className="space-y-4 border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 shadow-sm">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wide text-[var(--admin-text-muted)]">
+                  Remetente da etiqueta
+                </h3>
+                <p className="mt-1 text-sm text-[var(--admin-text-muted)]">
+                  Dados usados na declaração de conteúdo após o pagamento.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="senderName">Nome ou razão social</Label>
+                  <Input id="senderName" value={form.senderName} onChange={e => setForm({ ...form, senderName: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="senderEmail">E-mail</Label>
+                  <Input id="senderEmail" type="email" value={form.senderEmail} onChange={e => setForm({ ...form, senderEmail: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="senderPhone">Telefone</Label>
+                  <Input id="senderPhone" value={form.senderPhone} onChange={e => setForm({ ...form, senderPhone: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="senderDocumentType">Tipo de documento</Label>
+                  <select
+                    id="senderDocumentType"
+                    value={form.senderDocumentType}
+                    onChange={e => setForm({ ...form, senderDocumentType: e.target.value as "cpf" | "cnpj" })}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                  >
+                    <option value="cpf">CPF</option>
+                    <option value="cnpj">CNPJ</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="senderDocument">{form.senderDocumentType === "cnpj" ? "CNPJ" : "CPF"}</Label>
+                  <Input id="senderDocument" value={form.senderDocument} onChange={e => setForm({ ...form, senderDocument: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="senderStateRegister">Inscrição estadual</Label>
+                  <Input id="senderStateRegister" value={form.senderStateRegister} onChange={e => setForm({ ...form, senderStateRegister: e.target.value })} placeholder="ISENTO" />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="senderAddress">Logradouro</Label>
+                  <Input id="senderAddress" value={form.senderAddress} onChange={e => setForm({ ...form, senderAddress: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="senderNumber">Número</Label>
+                  <Input id="senderNumber" value={form.senderNumber} onChange={e => setForm({ ...form, senderNumber: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="senderComplement">Complemento</Label>
+                  <Input id="senderComplement" value={form.senderComplement} onChange={e => setForm({ ...form, senderComplement: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="senderDistrict">Bairro</Label>
+                  <Input id="senderDistrict" value={form.senderDistrict} onChange={e => setForm({ ...form, senderDistrict: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="senderCity">Cidade</Label>
+                  <Input id="senderCity" value={form.senderCity} onChange={e => setForm({ ...form, senderCity: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="senderStateAbbr">UF</Label>
+                  <Input id="senderStateAbbr" maxLength={2} value={form.senderStateAbbr} onChange={e => setForm({ ...form, senderStateAbbr: e.target.value.toUpperCase() })} />
+                </div>
               </div>
             </Card>
 

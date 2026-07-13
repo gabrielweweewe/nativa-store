@@ -410,6 +410,45 @@ export default function AdminProductForm() {
                     )}
                   />
                 </div>
+
+                <div className="border-t border-[var(--admin-border)] pt-4 sm:col-span-2">
+                  <p className="font-semibold text-[var(--admin-text)]">Peso e dimensões para frete</p>
+                  <p className="mt-1 text-xs text-[var(--admin-text-muted)]">
+                    Se ficar vazio, a cotação usa o pacote padrão da integração.
+                  </p>
+                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {([
+                      ["widthCm", "Largura (cm)", "0.1"],
+                      ["heightCm", "Altura (cm)", "0.1"],
+                      ["lengthCm", "Comprimento (cm)", "0.1"],
+                      ["weightKg", "Peso (kg)", "0.001"],
+                    ] as const).map(([name, label, step]) => (
+                      <div key={name} className="space-y-2">
+                        <Label htmlFor={name}>{label}</Label>
+                        <Controller
+                          control={control}
+                          name={name}
+                          render={({ field }) => (
+                            <Input
+                              id={name}
+                              type="number"
+                              min={step}
+                              step={step}
+                              value={field.value ?? ""}
+                              onChange={event =>
+                                field.onChange(
+                                  event.target.value === ""
+                                    ? null
+                                    : Number(event.target.value)
+                                )
+                              }
+                            />
+                          )}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </FormSection>
           </TabsContent>

@@ -10,7 +10,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { fetchAdminOrder, updateAdminOrderStatus } from "@/lib/adminApi";
+import {
+  fetchAdminOrder,
+  retryAdminOrderShipment,
+  updateAdminOrderStatus,
+} from "@/lib/adminApi";
 import { formatPrice } from "@/lib/products";
 import {
   formatOrderShortId,
@@ -27,6 +31,8 @@ import {
   Mail,
   Package,
   Phone,
+  RotateCcw,
+  Truck,
   User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -46,6 +52,7 @@ export default function AdminOrderDetail() {
   const [order, setOrder] = useState<AdminOrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRetryingShipment, setIsRetryingShipment] = useState(false);
 
   async function loadOrder() {
     if (!orderId) return;
@@ -75,6 +82,22 @@ export default function AdminOrderDetail() {
       toast.error("Não foi possível atualizar o status");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleShipmentRetry() {
+    if (!orderId) return;
+    setIsRetryingShipment(true);
+    try {
+      const updated = await retryAdminOrderShipment(orderId);
+      setOrder(updated);
+      toast.success("Envio processado no Melhor Envio");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível processar o envio"
+      );
+    } finally {
+      setIsRetryingShipment(false);
     }
   }
 
@@ -267,6 +290,76 @@ export default function AdminOrderDetail() {
             </p>
           )}
         </div>
+
+        {order.shippingServiceId && (
+          <div className="admin-card overflow-hidden">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--admin-border)] px-4 py-3 sm:px-5">
+              <div className="flex items-center gap-2">
+                <Truck className="size-4 text-[var(--admin-accent)]" />
+                <h3 className="text-sm font-bold text-[var(--admin-text)]">
+                  Melhor Envio
+                </h3>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleShipmentRetry}
+                disabled={
+                  isRetryingShipment ||
+                  order.paymentStatus !== "approved" ||
+                  (order.shipments.length > 0 &&
+                    order.shipments.every(
+                      shipment => shipment.status === "in_cart"
+                    ))
+                }
+              >
+                {isRetryingShipment ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  <RotateCcw className="size-4" />
+                )}
+                Tentar novamente
+              </Button>
+            </div>
+            <div className="grid gap-4 p-4 text-sm sm:grid-cols-2 sm:p-5">
+              <div>
+                <p className="text-xs text-[var(--admin-text-muted)]">Serviço contratado</p>
+                <p className="mt-1 font-semibold text-[var(--admin-text)]">
+                  {order.shippingCompany} · {order.shippingServiceName}
+                </p>
+                <p className="text-xs text-[var(--admin-text-muted)]">
+                  Até {order.shippingDeliveryDays} dias úteis · {formatPrice(order.shippingAmount)}
+                </p>
+              </div>
+              <div className="space-y-2">
+                {order.shipments.length === 0 ? (
+                  <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    Aguardando inserção no carrinho do Melhor Envio.
+                  </p>
+                ) : (
+                  order.shipments.map(shipment => (
+                    <div key={shipment.id} className="rounded-xl border border-[var(--admin-border)] px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">Volume {shipment.volumeIndex + 1}</span>
+                        <span className={shipment.status === "in_cart" ? "text-emerald-700" : shipment.status === "failed" ? "text-red-600" : "text-amber-700"}>
+                          {shipment.status === "in_cart" ? "No carrinho" : shipment.status === "failed" ? "Falhou" : "Processando"}
+                        </span>
+                      </div>
+                      {shipment.melhorEnvioCartId && (
+                        <p className="mt-1 break-all font-mono text-xs text-[var(--admin-text-muted)]">
+                          ID {shipment.melhorEnvioCartId}
+                        </p>
+                      )}
+                      {shipment.errorMessage && (
+                        <p className="mt-1 text-xs text-red-600">{shipment.errorMessage}</p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Detalhes / itens */}
         <div className="admin-card p-4 sm:p-5">

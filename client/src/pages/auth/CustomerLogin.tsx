@@ -17,10 +17,13 @@ export default function CustomerLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const returnTo =
+    window.sessionStorage.getItem("nativa_auth_return_to") || "/conta";
 
   useEffect(() => {
     if (!isLoading && user) {
-      setLocation("/conta");
+      window.sessionStorage.removeItem("nativa_auth_return_to");
+      setLocation(returnTo);
     }
   }, [isLoading, user, setLocation]);
 
@@ -30,7 +33,8 @@ export default function CustomerLogin() {
     try {
       await signIn(email.trim(), password);
       toast("Bem-vindo(a) de volta!", { description: "Login realizado com sucesso." });
-      setLocation("/conta");
+      window.sessionStorage.removeItem("nativa_auth_return_to");
+      setLocation(returnTo);
     } catch (error) {
       toast("Erro ao entrar", {
         description: error instanceof Error ? error.message : "Não foi possível entrar",

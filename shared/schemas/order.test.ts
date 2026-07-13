@@ -10,6 +10,16 @@ const base = {
     cidade: "São Paulo",
     estado: "SP",
   },
+  shipping: {
+    quoteId: "7f2b3574-1f1c-4df7-8c91-1fcb7d3f4ca9",
+    serviceId: "1",
+  },
+  recipient: {
+    name: "Maria da Silva",
+    email: "maria@example.com",
+    phone: "(11) 99999-9999",
+    document: "123.456.789-09",
+  },
   idempotencyKey: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
   payer: { identificationNumber: "123.456.789-09" },
 };
@@ -18,6 +28,8 @@ describe("checkoutSchema Mercado Pago", () => {
   it("normaliza CPF e aceita Pix", () => {
     const result = checkoutSchema.parse({ ...base, paymentMethod: "pix" });
     expect(result.payer.identificationNumber).toBe("12345678909");
+    expect(result.recipient.phone).toBe("11999999999");
+    expect(result.recipient.document).toBe("12345678909");
   });
 
   it("exige tokenização para cartão", () => {
@@ -39,5 +51,14 @@ describe("checkoutSchema Mercado Pago", () => {
       },
     });
     expect(result.success).toBe(true);
+  });
+
+  it("exige uma cotação persistida e um serviço", () => {
+    const result = checkoutSchema.safeParse({
+      ...base,
+      shipping: { quoteId: "invalido", serviceId: "" },
+      paymentMethod: "pix",
+    });
+    expect(result.success).toBe(false);
   });
 });

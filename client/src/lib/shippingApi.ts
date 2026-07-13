@@ -27,3 +27,26 @@ export async function fetchShippingQuote(
 
   return body as ShippingQuoteResult;
 }
+
+export async function fetchCheckoutShippingQuote(
+  token: string,
+  toPostalCode: string,
+): Promise<ShippingQuoteResult> {
+  const response = await fetch("/api/shipping/checkout-quote", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ toPostalCode }),
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new ShippingApiError(
+      (body && typeof body.error === "string" && body.error) ||
+        "Não foi possível calcular a entrega",
+    );
+  }
+  return body as ShippingQuoteResult;
+}

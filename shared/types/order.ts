@@ -4,6 +4,7 @@ import type {
   PaymentInstructions,
   PaymentStatus,
 } from "@shared/types/mercadoPago";
+import type { MelhorEnvioEnvironment } from "@shared/types/melhorEnvio";
 
 export type { ShippingAddress };
 
@@ -29,6 +30,18 @@ export interface Order {
   status: OrderStatus;
   totalAmount: number;
   shippingAmount: number;
+  shippingQuoteId: string | null;
+  shippingServiceId: string | null;
+  shippingServiceName: string | null;
+  shippingCompany: string | null;
+  shippingDeliveryDays: number | null;
+  shippingEnvironment: MelhorEnvioEnvironment | null;
+  shippingRecipient: {
+    name: string;
+    email: string;
+    phone: string;
+    document: string;
+  } | null;
   couponCode: string | null;
   shippingAddress: ShippingAddress;
   paymentMethod: PaymentMethod;
@@ -69,4 +82,12 @@ export interface AdminOrderDetail extends Order {
   customerName: string | null;
   customerEmail: string | null;
   customerPhone: string | null;
+  shipments: Array<{
+    id: string;
+    volumeIndex: number;
+    status: "pending" | "processing" | "in_cart" | "failed";
+    melhorEnvioCartId: string | null;
+    errorMessage: string | null;
+    attemptCount: number;
+  }>;
 }

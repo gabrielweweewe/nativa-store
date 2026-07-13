@@ -18,6 +18,22 @@ function isValidCpf(value: string): boolean {
 export const checkoutSchema = z
   .object({
     shippingAddress: shippingAddressSchema,
+    shipping: z.object({
+      quoteId: z.string().uuid("Cotação de frete inválida"),
+      serviceId: z.string().min(1, "Escolha uma transportadora"),
+    }),
+    recipient: z.object({
+      name: z.string().trim().min(3, "Informe o nome do destinatário"),
+      email: z.string().trim().email("Informe um e-mail válido"),
+      phone: z
+        .string()
+        .transform(value => value.replace(/\D/g, ""))
+        .refine(value => value.length >= 10 && value.length <= 11, "Informe um telefone válido"),
+      document: z
+        .string()
+        .transform(value => value.replace(/\D/g, ""))
+        .refine(isValidCpf, "Informe um CPF válido"),
+    }),
     paymentMethod: z.enum(["pix", "credit_card", "boleto"]),
     idempotencyKey: z.string().uuid(),
     payer: z.object({
