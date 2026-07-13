@@ -8,6 +8,8 @@ alter table public.products
   add column if not exists weight_kg numeric(8, 3);
 
 alter table public.melhor_envio_settings
+  add column if not exists free_shipping_enabled boolean not null default true,
+  add column if not exists free_shipping_threshold numeric(10, 2) not null default 299,
   add column if not exists sender_name text not null default '',
   add column if not exists sender_email text not null default '',
   add column if not exists sender_phone text not null default '',
@@ -23,6 +25,13 @@ alter table public.melhor_envio_settings
 
 do $$
 begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'melhor_envio_free_shipping_threshold_check'
+  ) then
+    alter table public.melhor_envio_settings
+      add constraint melhor_envio_free_shipping_threshold_check
+      check (free_shipping_threshold > 0);
+  end if;
   if not exists (
     select 1 from pg_constraint where conname = 'melhor_envio_sender_document_type_check'
   ) then

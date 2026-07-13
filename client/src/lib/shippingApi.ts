@@ -8,6 +8,19 @@ export class ShippingApiError extends Error {
   }
 }
 
+export interface PublicShippingConfig {
+  freeShippingEnabled: boolean;
+  freeShippingThreshold: number;
+}
+
+export async function fetchPublicShippingConfig(): Promise<PublicShippingConfig> {
+  const response = await fetch("/api/shipping/config");
+  if (!response.ok) {
+    return { freeShippingEnabled: true, freeShippingThreshold: 299 };
+  }
+  return response.json();
+}
+
 export async function fetchShippingQuote(
   input: ShippingQuoteInput,
 ): Promise<ShippingQuoteResult> {

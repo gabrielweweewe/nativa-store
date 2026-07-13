@@ -1,5 +1,9 @@
 import { useCart } from "@/contexts/CartContext";
 import { formatPrice } from "@/lib/products";
+import {
+  fetchPublicShippingConfig,
+  type PublicShippingConfig,
+} from "@/lib/shippingApi";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import { ArrowRight, Tag, Truck } from "lucide-react";
@@ -20,14 +24,34 @@ export default function CartSummary({
 }: CartSummaryProps) {
   const { summary, couponCode, applyCoupon, isUpdating, itemCount } = useCart();
   const [couponInput, setCouponInput] = useState(couponCode ?? "");
+  const [shippingConfig, setShippingConfig] = useState<PublicShippingConfig>({
+    freeShippingEnabled: true,
+    freeShippingThreshold: 299,
+  });
 
   useEffect(() => {
     setCouponInput(couponCode ?? "");
   }, [couponCode]);
 
-  const progressPercent = summary.qualifiesForFreeShipping
+  useEffect(() => {
+    void fetchPublicShippingConfig().then(setShippingConfig).catch(() => {
+      // Mantém a configuração padrão enquanto a API estiver indisponível.
+    });
+  }, []);
+
+  const qualifiesForFreeShipping =
+    shippingConfig.freeShippingEnabled &&
+    summary.subtotal >= shippingConfig.freeShippingThreshold;
+  const freeShippingRemaining = Math.max(
+    0,
+    shippingConfig.freeShippingThreshold - summary.subtotal,
+  );
+  const progressPercent = qualifiesForFreeShipping
     ? 100
-    : Math.min(100, (summary.subtotal / summary.freeShippingThreshold) * 100);
+    : Math.min(
+        100,
+        (summary.subtotal / shippingConfig.freeShippingThreshold) * 100,
+      );
 
   async function handleApplyCoupon(e: React.FormEvent) {
     e.preventDefault();
@@ -39,17 +63,17 @@ export default function CartSummary({
   return (
     <div className={`space-y-4 ${compact ? "" : "rounded-2xl border border-[#E8D5C4] bg-white p-5"}`}>
       {/* Frete grátis */}
-      <div className="space-y-2">
+      {shippingConfig.freeShippingEnabled && <div className="space-y-2">
         <div className="flex items-center gap-2 text-sm">
-          <Truck size={16} className={summary.qualifiesForFreeShipping ? "text-[#2D6A4F]" : "text-[#8B6F5E]"} />
-          {summary.qualifiesForFreeShipping ? (
+          <Truck size={16} className={qualifiesForFreeShipping ? "text-[#2D6A4F]" : "text-[#8B6F5E]"} />
+          {qualifiesForFreeShipping ? (
             <span className="font-semibold text-[#2D6A4F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
               Você ganhou frete grátis!
             </span>
           ) : (
             <span className="text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
               Faltam{" "}
-              <strong className="text-[#C4522A]">{formatPrice(summary.freeShippingRemaining)}</strong>{" "}
+              <strong className="text-[#C4522A]">{formatPrice(freeShippingRemaining)}</strong>{" "}
               para frete grátis
             </span>
           )}
@@ -59,13 +83,13 @@ export default function CartSummary({
             className="h-full rounded-full transition-all duration-500"
             style={{
               width: `${progressPercent}%`,
-              background: summary.qualifiesForFreeShipping
+              background: qualifiesForFreeShipping
                 ? "linear-gradient(90deg, #2D6A4F, #1B7A8C)"
                 : "linear-gradient(90deg, #C4522A, #E8821A)",
             }}
           />
         </div>
-      </div>
+      </div>}
 
       {/* Cupom */}
       {showCoupon && (

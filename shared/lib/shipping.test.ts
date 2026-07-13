@@ -41,6 +41,12 @@ describe("regras de frete do checkout", () => {
     expect(result.options[0].customPrice).toBe(24.9);
   });
 
+  it("respeita ativação e valor mínimo configurados no admin", () => {
+    expect(applyFreeShipping(options, 500, false, 100).applied).toBe(false);
+    expect(applyFreeShipping(options, 399.99, true, 400).applied).toBe(false);
+    expect(applyFreeShipping(options, 400, true, 400).applied).toBe(true);
+  });
+
   it("divide múltiplos volumes para Correios, J&T e Loggi", () => {
     const volumes = [
       { height: 10, width: 20, length: 30, weight: 1 },

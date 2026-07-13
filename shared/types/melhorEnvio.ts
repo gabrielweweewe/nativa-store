@@ -10,6 +10,8 @@ export interface MelhorEnvioStatus {
   defaultHeightCm: number;
   defaultLengthCm: number;
   defaultWeightKg: number;
+  freeShippingEnabled: boolean;
+  freeShippingThreshold: number;
   senderName: string;
   senderEmail: string;
   senderPhone: string;
@@ -43,6 +45,8 @@ export interface MelhorEnvioSettingsInput {
   defaultHeightCm?: number;
   defaultLengthCm?: number;
   defaultWeightKg?: number;
+  freeShippingEnabled?: boolean;
+  freeShippingThreshold?: number;
   senderName?: string;
   senderEmail?: string;
   senderPhone?: string;

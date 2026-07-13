@@ -46,6 +46,8 @@ type FormState = {
   defaultHeightCm: string;
   defaultLengthCm: string;
   defaultWeightKg: string;
+  freeShippingEnabled: boolean;
+  freeShippingThreshold: string;
   senderName: string;
   senderEmail: string;
   senderPhone: string;
@@ -78,6 +80,8 @@ function toForm(status: MelhorEnvioAdminStatus): FormState {
     defaultHeightCm: String(status.defaultHeightCm),
     defaultLengthCm: String(status.defaultLengthCm),
     defaultWeightKg: String(status.defaultWeightKg),
+    freeShippingEnabled: status.freeShippingEnabled,
+    freeShippingThreshold: String(status.freeShippingThreshold),
     senderName: status.senderName,
     senderEmail: status.senderEmail,
     senderPhone: status.senderPhone,
@@ -174,6 +178,8 @@ export default function AdminIntegrations() {
         defaultHeightCm: Number(form.defaultHeightCm),
         defaultLengthCm: Number(form.defaultLengthCm),
         defaultWeightKg: Number(form.defaultWeightKg),
+        freeShippingEnabled: form.freeShippingEnabled,
+        freeShippingThreshold: Number(form.freeShippingThreshold),
         senderName: form.senderName,
         senderEmail: form.senderEmail,
         senderPhone: form.senderPhone,
@@ -271,6 +277,8 @@ export default function AdminIntegrations() {
         defaultHeightCm: Number(form.defaultHeightCm),
         defaultLengthCm: Number(form.defaultLengthCm),
         defaultWeightKg: Number(form.defaultWeightKg),
+        freeShippingEnabled: form.freeShippingEnabled,
+        freeShippingThreshold: Number(form.freeShippingThreshold),
         senderName: form.senderName,
         senderEmail: form.senderEmail,
         senderPhone: form.senderPhone,
@@ -570,6 +578,44 @@ export default function AdminIntegrations() {
                 Usados na cotação quando o produto ainda não tem peso/dimensões
                 cadastrados.
               </p>
+
+              <div className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-bg)] p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Label htmlFor="freeShippingEnabled">Frete grátis</Label>
+                    <p className="mt-1 text-xs text-[var(--admin-text-muted)]">
+                      Zera a opção mais barata quando o pedido atingir o valor mínimo.
+                    </p>
+                  </div>
+                  <Switch
+                    id="freeShippingEnabled"
+                    checked={form.freeShippingEnabled}
+                    onCheckedChange={checked =>
+                      setForm({ ...form, freeShippingEnabled: checked })
+                    }
+                  />
+                </div>
+                {form.freeShippingEnabled && (
+                  <div className="mt-4 max-w-xs space-y-2">
+                    <Label htmlFor="freeShippingThreshold">
+                      Valor mínimo do pedido (R$)
+                    </Label>
+                    <Input
+                      id="freeShippingThreshold"
+                      type="number"
+                      min={0.01}
+                      step="0.01"
+                      value={form.freeShippingThreshold}
+                      onChange={e =>
+                        setForm({
+                          ...form,
+                          freeShippingThreshold: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="originCep">CEP de origem da loja</Label>

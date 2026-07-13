@@ -986,6 +986,8 @@ var melhorEnvioSettingsSchema = z2.object({
   defaultHeightCm: z2.number().positive("Altura deve ser positiva").max(200).optional(),
   defaultLengthCm: z2.number().positive("Comprimento deve ser positivo").max(200).optional(),
   defaultWeightKg: z2.number().positive("Peso deve ser positivo").max(100).optional(),
+  freeShippingEnabled: z2.boolean().optional(),
+  freeShippingThreshold: z2.number().positive("O valor m\xEDnimo deve ser maior que zero").max(1e5).optional(),
   senderName: z2.string().max(120).optional(),
   senderEmail: z2.union([z2.literal(""), z2.string().email("E-mail inv\xE1lido")]).optional(),
   senderPhone: z2.string().max(20).optional(),
@@ -1031,9 +1033,9 @@ var CART_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1e3;
 var CART_STATUS_ACTIVE = "active";
 
 // shared/lib/shipping.ts
-function applyFreeShipping(options, subtotal) {
+function applyFreeShipping(options, subtotal, enabled = true, threshold = FREE_SHIPPING_THRESHOLD) {
   const sorted = options.map((option) => ({ ...option, packages: [...option.packages] }));
-  if (subtotal < FREE_SHIPPING_THRESHOLD || sorted.length === 0) {
+  if (!enabled || subtotal < threshold || sorted.length === 0) {
     return { options: sorted, applied: false };
   }
   sorted[0] = { ...sorted[0], price: 0, customPrice: 0 };
@@ -1128,6 +1130,8 @@ function toStatus(row) {
     defaultHeightCm: Number(row.default_height_cm),
     defaultLengthCm: Number(row.default_length_cm),
     defaultWeightKg: Number(row.default_weight_kg),
+    freeShippingEnabled: row.free_shipping_enabled ?? true,
+    freeShippingThreshold: Number(row.free_shipping_threshold ?? 299),
     senderName: row.sender_name ?? "",
     senderEmail: row.sender_email ?? "",
     senderPhone: row.sender_phone ?? "",
@@ -1170,6 +1174,13 @@ async function getMelhorEnvioStatus() {
   const row = await getMelhorEnvioSettings();
   return toStatus(row);
 }
+async function getPublicShippingConfig() {
+  const row = await getMelhorEnvioSettings();
+  return {
+    freeShippingEnabled: row.free_shipping_enabled ?? true,
+    freeShippingThreshold: Number(row.free_shipping_threshold ?? 299)
+  };
+}
 async function updateMelhorEnvioSettings(input) {
   const row = await getMelhorEnvioSettings();
   const targetEnv = input.environment ?? row.environment;
@@ -1193,6 +1204,12 @@ async function updateMelhorEnvioSettings(input) {
   if (input.defaultHeightCm !== void 0) patch.default_height_cm = input.defaultHeightCm;
   if (input.defaultLengthCm !== void 0) patch.default_length_cm = input.defaultLengthCm;
   if (input.defaultWeightKg !== void 0) patch.default_weight_kg = input.defaultWeightKg;
+  if (input.freeShippingEnabled !== void 0) {
+    patch.free_shipping_enabled = input.freeShippingEnabled;
+  }
+  if (input.freeShippingThreshold !== void 0) {
+    patch.free_shipping_threshold = input.freeShippingThreshold;
+  }
   if (input.senderName !== void 0) patch.sender_name = input.senderName.trim();
   if (input.senderEmail !== void 0) patch.sender_email = input.senderEmail.trim();
   if (input.senderPhone !== void 0) patch.sender_phone = input.senderPhone.replace(/\D/g, "");
@@ -1442,7 +1459,12 @@ async function calculateShippingDetailed(input) {
     (sum, p) => sum + p.insuranceValue * p.quantity,
     0
   );
-  const freeShipping = applyFreeShipping(options, subtotal);
+  const freeShipping = applyFreeShipping(
+    options,
+    subtotal,
+    row.free_shipping_enabled ?? true,
+    Number(row.free_shipping_threshold ?? 299)
+  );
   return {
     result: {
       options: freeShipping.options,
@@ -4166,6 +4188,13 @@ var products_default = router16;
 // server/routes/shipping.ts
 import { Router as Router17 } from "express";
 var router17 = Router17();
+router17.get("/config", async (_req, res) => {
+  try {
+    res.json(await getPublicShippingConfig());
+  } catch {
+    res.json({ freeShippingEnabled: true, freeShippingThreshold: 299 });
+  }
+});
 router17.post("/quote", async (req, res) => {
   try {
     const parsed = shippingQuoteSchema.safeParse(req.body);

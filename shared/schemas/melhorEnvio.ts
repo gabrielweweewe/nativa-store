@@ -21,6 +21,12 @@ export const melhorEnvioSettingsSchema = z.object({
   defaultHeightCm: z.number().positive("Altura deve ser positiva").max(200).optional(),
   defaultLengthCm: z.number().positive("Comprimento deve ser positivo").max(200).optional(),
   defaultWeightKg: z.number().positive("Peso deve ser positivo").max(100).optional(),
+  freeShippingEnabled: z.boolean().optional(),
+  freeShippingThreshold: z
+    .number()
+    .positive("O valor mínimo deve ser maior que zero")
+    .max(100000)
+    .optional(),
   senderName: z.string().max(120).optional(),
   senderEmail: z.union([z.literal(""), z.string().email("E-mail inválido")]).optional(),
   senderPhone: z.string().max(20).optional(),

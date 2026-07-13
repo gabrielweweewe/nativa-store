@@ -63,6 +63,8 @@ export interface MelhorEnvioSettingsRow {
   default_height_cm: number;
   default_length_cm: number;
   default_weight_kg: number;
+  free_shipping_enabled: boolean;
+  free_shipping_threshold: number;
   sender_name: string;
   sender_email: string;
   sender_phone: string;
@@ -197,6 +199,8 @@ function toStatus(row: MelhorEnvioSettingsRow): MelhorEnvioStatus {
     defaultHeightCm: Number(row.default_height_cm),
     defaultLengthCm: Number(row.default_length_cm),
     defaultWeightKg: Number(row.default_weight_kg),
+    freeShippingEnabled: row.free_shipping_enabled ?? true,
+    freeShippingThreshold: Number(row.free_shipping_threshold ?? 299),
     senderName: row.sender_name ?? "",
     senderEmail: row.sender_email ?? "",
     senderPhone: row.sender_phone ?? "",
@@ -255,6 +259,17 @@ export async function getMelhorEnvioStatus(): Promise<MelhorEnvioStatus> {
   return toStatus(row);
 }
 
+export async function getPublicShippingConfig(): Promise<{
+  freeShippingEnabled: boolean;
+  freeShippingThreshold: number;
+}> {
+  const row = await getMelhorEnvioSettings();
+  return {
+    freeShippingEnabled: row.free_shipping_enabled ?? true,
+    freeShippingThreshold: Number(row.free_shipping_threshold ?? 299),
+  };
+}
+
 export async function updateMelhorEnvioSettings(
   input: MelhorEnvioSettingsInput,
 ): Promise<MelhorEnvioStatus> {
@@ -282,6 +297,12 @@ export async function updateMelhorEnvioSettings(
   if (input.defaultHeightCm !== undefined) patch.default_height_cm = input.defaultHeightCm;
   if (input.defaultLengthCm !== undefined) patch.default_length_cm = input.defaultLengthCm;
   if (input.defaultWeightKg !== undefined) patch.default_weight_kg = input.defaultWeightKg;
+  if (input.freeShippingEnabled !== undefined) {
+    patch.free_shipping_enabled = input.freeShippingEnabled;
+  }
+  if (input.freeShippingThreshold !== undefined) {
+    patch.free_shipping_threshold = input.freeShippingThreshold;
+  }
   if (input.senderName !== undefined) patch.sender_name = input.senderName.trim();
   if (input.senderEmail !== undefined) patch.sender_email = input.senderEmail.trim();
   if (input.senderPhone !== undefined) patch.sender_phone = input.senderPhone.replace(/\D/g, "");
@@ -625,7 +646,12 @@ async function calculateShippingDetailed(
     (sum, p) => sum + p.insuranceValue * p.quantity,
     0,
   );
-  const freeShipping = applyFreeShipping(options, subtotal);
+  const freeShipping = applyFreeShipping(
+    options,
+    subtotal,
+    row.free_shipping_enabled ?? true,
+    Number(row.free_shipping_threshold ?? 299),
+  );
 
   return {
     result: {

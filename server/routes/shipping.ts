@@ -10,9 +10,18 @@ import {
 import {
   calculateShipping,
   createCheckoutShippingQuote,
+  getPublicShippingConfig,
 } from "../services/melhorEnvio";
 
 const router = Router();
+
+router.get("/config", async (_req, res) => {
+  try {
+    res.json(await getPublicShippingConfig());
+  } catch {
+    res.json({ freeShippingEnabled: true, freeShippingThreshold: 299 });
+  }
+});
 
 router.post("/quote", async (req, res) => {
   try {
