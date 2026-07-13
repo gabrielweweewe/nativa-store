@@ -276,6 +276,7 @@ function CheckoutPageContent() {
       );
       return true;
     } catch (error) {
+      setIdempotencyKey(crypto.randomUUID());
       const message =
         error instanceof OrderApiError
           ? error.message

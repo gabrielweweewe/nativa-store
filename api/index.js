@@ -1721,8 +1721,7 @@ async function createMercadoPagoOrder(params) {
     installments: Math.min(
       params.checkout.card.installments,
       settings.max_installments
-    ),
-    ...params.checkout.card.issuerId ? { issuer_id: params.checkout.card.issuerId } : {}
+    )
   } : params.checkout.paymentMethod === "pix" ? { id: "pix", type: "bank_transfer" } : { id: "boleto", type: "ticket" };
   const address = params.checkout.shippingAddress;
   const payment = {
@@ -1732,27 +1731,29 @@ async function createMercadoPagoOrder(params) {
   if (params.checkout.paymentMethod === "boleto") {
     payment.expiration_time = `P${settings.boleto_expiration_days}D`;
   }
+  const payerEmail = settings.environment === "test" ? "comprador_nativa@testuser.com" : params.payer.email;
+  const payer = params.checkout.paymentMethod === "boleto" ? {
+    email: payerEmail,
+    first_name: params.payer.firstName,
+    identification: {
+      type: "CPF",
+      number: params.checkout.payer.identificationNumber
+    },
+    address: {
+      zip_code: address.cep.replace(/\D/g, ""),
+      street_name: address.rua,
+      street_number: address.numero,
+      neighborhood: address.bairro,
+      city: address.cidade,
+      state: address.estado
+    }
+  } : { email: payerEmail };
   const payload = {
     type: "online",
     processing_mode: "automatic",
     total_amount: params.order.totalAmount.toFixed(2),
     external_reference: params.order.id,
-    payer: {
-      email: params.payer.email,
-      first_name: params.payer.firstName,
-      identification: {
-        type: "CPF",
-        number: params.checkout.payer.identificationNumber
-      },
-      address: {
-        zip_code: address.cep.replace(/\D/g, ""),
-        street_name: address.rua,
-        street_number: address.numero,
-        neighborhood: address.bairro,
-        city: address.cidade,
-        state: address.estado
-      }
-    },
+    payer,
     transactions: { payments: [payment] }
   };
   const raw = await mercadoPagoRequest("/v1/orders", settings, {
