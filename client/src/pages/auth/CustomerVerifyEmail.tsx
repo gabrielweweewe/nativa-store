@@ -16,12 +16,15 @@ export default function CustomerVerifyEmail() {
   const email = params.get("email") ?? "";
 
   const [submitting, setSubmitting] = useState(false);
+  const returnTo =
+    window.sessionStorage.getItem("nativa_auth_return_to") || "/conta";
 
   useEffect(() => {
     if (!isLoading && user) {
-      setLocation("/conta");
+      window.sessionStorage.removeItem("nativa_auth_return_to");
+      setLocation(returnTo);
     }
-  }, [isLoading, user, setLocation]);
+  }, [isLoading, user, setLocation, returnTo]);
 
   async function handleResend() {
     if (!email) {

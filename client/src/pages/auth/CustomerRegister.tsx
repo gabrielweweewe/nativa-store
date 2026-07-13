@@ -28,12 +28,15 @@ export default function CustomerRegister() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const returnTo =
+    window.sessionStorage.getItem("nativa_auth_return_to") || "/conta";
 
   useEffect(() => {
     if (!isLoading && user) {
-      setLocation("/conta");
+      window.sessionStorage.removeItem("nativa_auth_return_to");
+      setLocation(returnTo);
     }
-  }, [isLoading, user, setLocation]);
+  }, [isLoading, user, setLocation, returnTo]);
 
   const passwordHint = useMemo(() => getPasswordHint(password), [password]);
   const passwordsMatch = password === confirmPassword;
@@ -79,7 +82,8 @@ export default function CustomerRegister() {
       }
 
       toast("Cadastro criado!", { description: "Sua conta está pronta." });
-      setLocation("/conta");
+      window.sessionStorage.removeItem("nativa_auth_return_to");
+      setLocation(returnTo);
     } catch (error) {
       toast("Erro no cadastro", {
         description: error instanceof Error ? error.message : "Não foi possível criar sua conta",

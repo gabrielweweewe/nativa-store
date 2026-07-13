@@ -25,7 +25,7 @@ export default function CustomerLogin() {
       window.sessionStorage.removeItem("nativa_auth_return_to");
       setLocation(returnTo);
     }
-  }, [isLoading, user, setLocation]);
+  }, [isLoading, user, setLocation, returnTo]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
