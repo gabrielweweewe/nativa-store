@@ -12,6 +12,7 @@
     "start": "NODE_ENV=production node dist/index.js",
     "seed": "tsx --env-file=.env server/scripts/seed-products.ts",
     "migrate:nuvemshop": "tsx --env-file=.env server/scripts/migrate-tiendanube.ts",
+    "convert:nuvemshop": "tsx --env-file=.env server/scripts/convert-tiendanube-to-import.ts",
     "fix:images": "tsx --env-file=.env server/scripts/fix-product-images.ts",
     "setup:storage": "tsx --env-file=.env server/scripts/setup-storage.ts",
     "preview": "vite preview --host",

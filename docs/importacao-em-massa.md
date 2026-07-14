@@ -75,7 +75,7 @@ ou CDN), desde que o link aponte diretamente para o arquivo da imagem.
 
 ## Limites e observações
 
-- Tamanho de cada imagem enviada pelo formulário individual: até 4MB (JPG, PNG ou WEBP).
+- Tamanho de cada imagem enviada pelo formulário individual: até 4MB (JPG, PNG, WEBP ou GIF).
 - Linhas com erro **não bloqueiam** as demais — apenas aquela linha específica é ignorada.
 - Produtos são identificados pelo **slug** (gerado a partir do nome, ou informado manualmente).
   Duas linhas com o mesmo nome geram o mesmo slug e serão tratadas como o mesmo produto.

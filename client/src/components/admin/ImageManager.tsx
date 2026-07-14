@@ -191,14 +191,14 @@ export default function ImageManager({ value, onChange }: ImageManagerProps) {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp,image/gif"
           multiple
           hidden
           onChange={(e) => handleFilesSelected(e.target.files)}
         />
       </div>
       <p className="text-xs text-[var(--admin-text-muted)]">
-        Arraste as imagens para reordenar. A primeira imagem é usada como capa do produto. Formatos aceitos: JPG, PNG, WEBP (até 4MB cada).
+        Arraste as imagens para reordenar. A primeira imagem é usada como capa do produto. Formatos aceitos: JPG, PNG, WEBP, GIF (até 4MB cada). GIFs mantêm a animação na loja e no admin.
       </p>
     </div>
   );

@@ -1,6 +1,8 @@
 import { PRODUCT_IMAGES_BUCKET } from "../services/uploads";
 import { supabase } from "../lib/supabase";
 
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
 async function main() {
   const { data: buckets, error: listError } = await supabase.storage.listBuckets();
 
@@ -11,14 +13,26 @@ async function main() {
   const exists = buckets?.some((bucket) => bucket.name === PRODUCT_IMAGES_BUCKET);
 
   if (exists) {
-    console.log(`Bucket "${PRODUCT_IMAGES_BUCKET}" já existe. Nada a fazer.`);
+    const { error: updateError } = await supabase.storage.updateBucket(PRODUCT_IMAGES_BUCKET, {
+      public: true,
+      fileSizeLimit: "4MB",
+      allowedMimeTypes: ALLOWED_MIME_TYPES,
+    });
+
+    if (updateError) {
+      throw new Error(`Não foi possível atualizar o bucket: ${updateError.message}`);
+    }
+
+    console.log(
+      `Bucket "${PRODUCT_IMAGES_BUCKET}" atualizado (JPG, PNG, WEBP, GIF — leitura pública).`,
+    );
     return;
   }
 
   const { error: createError } = await supabase.storage.createBucket(PRODUCT_IMAGES_BUCKET, {
     public: true,
     fileSizeLimit: "4MB",
-    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+    allowedMimeTypes: ALLOWED_MIME_TYPES,
   });
 
   if (createError) {

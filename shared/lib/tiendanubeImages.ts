@@ -56,6 +56,11 @@ export function extractProductGalleryFromHtml(html: string): TiendanubeGalleryIm
 }
 
 export function buildTiendanubeImageUrl(storePath: string, imageFile: string, size = 480): string {
+  // Versões redimensionadas em WebP perdem a animação — usa o GIF original.
+  if (/\.gif$/i.test(imageFile)) {
+    return `https://dcdn-us.mitiendanube.com/stores/${storePath}/products/${imageFile}`;
+  }
+
   const fileBase = imageFile.replace(/\.(png|jpe?g|webp)$/i, "");
   return `https://dcdn-us.mitiendanube.com/stores/${storePath}/products/${fileBase}-${size}-0.webp`;
 }

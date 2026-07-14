@@ -32,6 +32,14 @@ export type PageMetaInput = {
 
 const MANAGED_ATTR = "data-nativa-seo";
 
+function imageMimeType(url: string): string {
+  const path = url.split("?")[0]?.toLowerCase() ?? "";
+  if (path.endsWith(".png")) return "image/png";
+  if (path.endsWith(".webp")) return "image/webp";
+  if (path.endsWith(".gif")) return "image/gif";
+  return "image/jpeg";
+}
+
 function upsertMeta(selector: { name?: string; property?: string }, content: string) {
   const attr = selector.name
     ? `meta[name="${selector.name}"]`
@@ -112,7 +120,7 @@ export function applyPageMeta(input: PageMetaInput = {}) {
   upsertMeta({ property: "og:url" }, url);
   upsertMeta({ property: "og:image" }, image);
   upsertMeta({ property: "og:image:alt" }, title);
-  upsertMeta({ property: "og:image:type" }, image.endsWith(".png") ? "image/png" : "image/jpeg");
+  upsertMeta({ property: "og:image:type" }, imageMimeType(image));
 
   upsertMeta({ name: "twitter:card" }, "summary_large_image");
   upsertMeta({ name: "twitter:site" }, SITE_TWITTER_HANDLE);

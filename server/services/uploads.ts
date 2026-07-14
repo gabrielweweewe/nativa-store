@@ -14,8 +14,9 @@ const MAX_DIMENSION_BY_FOLDER: Record<"products" | "banners", number> = {
 };
 
 /**
- * Converte qualquer JPG/PNG/WEBP para WebP otimizado.
+ * Converte JPG/PNG/WEBP para WebP otimizado.
  * Mantém transparência (PNG → WebP com alpha).
+ * GIFs animados não passam por aqui — a animação seria perdida.
  */
 async function toOptimizedWebp(
   buffer: Buffer,
@@ -35,6 +36,10 @@ async function toOptimizedWebp(
     .toBuffer();
 }
 
+function isGif(mimetype: string): boolean {
+  return mimetype === "image/gif";
+}
+
 export async function uploadProductImage(
   file: {
     buffer: Buffer;
@@ -43,22 +48,40 @@ export async function uploadProductImage(
   },
   folder: "products" | "banners" = "products",
 ): Promise<string> {
+  // GIF: envia o arquivo original para preservar animação (sharp → WebP perde frames).
+  if (isGif(file.mimetype)) {
+    const path = `${folder}/${Date.now()}-${nanoid(8)}.gif`;
+
+    const { error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).upload(path, file.buffer, {
+      contentType: "image/gif",
+      cacheControl: "31536000",
+      upsert: false,
+    });
+
+    if (error) {
+      throw new Error(`Falha ao enviar imagem para o Supabase Storage: ${error.message}`);
+    }
+
+    const { data } = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(path);
+    return data.publicUrl;
+  }
+
   let webpBuffer: Buffer;
   try {
     webpBuffer = await toOptimizedWebp(file.buffer, folder);
   } catch {
-    throw new Error("Não foi possível processar a imagem. Tente outro arquivo JPG, PNG ou WEBP.");
+    throw new Error(
+      "Não foi possível processar a imagem. Tente outro arquivo JPG, PNG, WEBP ou GIF.",
+    );
   }
 
   const path = `${folder}/${Date.now()}-${nanoid(8)}.webp`;
 
-  const { error } = await supabase.storage
-    .from(PRODUCT_IMAGES_BUCKET)
-    .upload(path, webpBuffer, {
-      contentType: "image/webp",
-      cacheControl: "31536000",
-      upsert: false,
-    });
+  const { error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).upload(path, webpBuffer, {
+    contentType: "image/webp",
+    cacheControl: "31536000",
+    upsert: false,
+  });
 
   if (error) {
     throw new Error(`Falha ao enviar imagem para o Supabase Storage: ${error.message}`);

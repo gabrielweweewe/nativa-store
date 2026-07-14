@@ -128,7 +128,15 @@ export function buildHeadBlock(options: InjectMetaOptions): string {
   ];
 
   if (image.startsWith("https://")) {
-    tags.push(metaProperty("og:image:type", image.includes(".png") ? "image/png" : "image/jpeg"));
+    const path = image.split("?")[0]?.toLowerCase() ?? "";
+    const mime = path.endsWith(".png")
+      ? "image/png"
+      : path.endsWith(".webp")
+        ? "image/webp"
+        : path.endsWith(".gif")
+          ? "image/gif"
+          : "image/jpeg";
+    tags.push(metaProperty("og:image:type", mime));
   }
 
   if (options.keywords) {
