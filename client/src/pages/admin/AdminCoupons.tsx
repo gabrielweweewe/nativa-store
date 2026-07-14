@@ -49,6 +49,7 @@ type CouponFormState = {
   type: CouponType;
   value: string;
   isActive: boolean;
+  isMapReward: boolean;
   startsAt: string;
   endsAt: string;
   minSubtotal: string;
@@ -62,6 +63,7 @@ const EMPTY_FORM: CouponFormState = {
   type: "percentage",
   value: "15",
   isActive: true,
+  isMapReward: false,
   startsAt: "",
   endsAt: "",
   minSubtotal: "",
@@ -98,6 +100,7 @@ function toFormState(coupon: Coupon): CouponFormState {
     type: coupon.type,
     value: String(coupon.value),
     isActive: coupon.isActive,
+    isMapReward: coupon.isMapReward,
     startsAt: toDatetimeLocal(coupon.startsAt),
     endsAt: toDatetimeLocal(coupon.endsAt),
     minSubtotal: coupon.minSubtotal != null ? String(coupon.minSubtotal) : "",
@@ -115,6 +118,7 @@ function toInput(form: CouponFormState): CouponInput {
     type: form.type,
     value: form.type === "free_shipping" ? 0 : valueNum,
     isActive: form.isActive,
+    isMapReward: form.type === "free_shipping" ? form.isMapReward : false,
     startsAt: fromDatetimeLocal(form.startsAt),
     endsAt: fromDatetimeLocal(form.endsAt),
     minSubtotal: parseOptionalNumber(form.minSubtotal),
@@ -228,6 +232,7 @@ export default function AdminCoupons() {
         type: coupon.type,
         value: coupon.value,
         isActive: !coupon.isActive,
+        isMapReward: coupon.isMapReward,
         startsAt: coupon.startsAt,
         endsAt: coupon.endsAt,
         minSubtotal: coupon.minSubtotal,
@@ -311,6 +316,11 @@ export default function AdminCoupons() {
                     <span className="rounded-full bg-[var(--admin-surface-hover)] px-2 py-0.5 text-xs text-[var(--admin-text-muted)]">
                       {typeLabel(coupon.type)}
                     </span>
+                    {coupon.isMapReward && (
+                      <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-700">
+                        Mapa das Origens
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-[var(--admin-text-muted)]">
                     Valor: {formatCouponValue(coupon)}
@@ -382,6 +392,7 @@ export default function AdminCoupons() {
                       ...prev,
                       type: value,
                       value: value === "free_shipping" ? "0" : prev.value || "15",
+                      isMapReward: value === "free_shipping" ? prev.isMapReward : false,
                     }))
                   }
                 >
@@ -423,6 +434,24 @@ export default function AdminCoupons() {
                 }
               />
             </div>
+
+            {form.type === "free_shipping" && (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--admin-border)] px-3 py-2">
+                <div className="min-w-0">
+                  <Label htmlFor="coupon-map-reward">Recompensa do Mapa das Origens</Label>
+                  <p className="text-xs text-[var(--admin-text-muted)]">
+                    Este código aparece no passaporte ao explorar as 5 regiões. Só um cupom por vez.
+                  </p>
+                </div>
+                <Switch
+                  id="coupon-map-reward"
+                  checked={form.isMapReward}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({ ...prev, isMapReward: checked }))
+                  }
+                />
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">

@@ -23,6 +23,7 @@ create table if not exists public.coupons (
   usage_count int not null default 0
     check (usage_count >= 0),
   description text,
+  is_map_reward boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint coupons_value_by_type_check check (
@@ -34,6 +35,10 @@ create table if not exists public.coupons (
 
 create unique index if not exists coupons_code_lower_idx
   on public.coupons (lower(code));
+
+create unique index if not exists coupons_one_map_reward_idx
+  on public.coupons (is_map_reward)
+  where is_map_reward = true;
 
 create index if not exists coupons_active_idx
   on public.coupons (is_active)
@@ -67,8 +72,8 @@ where not exists (
   select 1 from public.coupons where lower(code) = lower('NATIVA15')
 );
 
-insert into public.coupons (code, type, value, is_active, description)
-select 'BORDADO5', 'free_shipping', 0, true, 'Frete grátis na opção mais barata'
+insert into public.coupons (code, type, value, is_active, description, is_map_reward)
+select 'BORDADO5', 'free_shipping', 0, true, 'Frete grátis na opção mais barata', true
 where not exists (
   select 1 from public.coupons where lower(code) = lower('BORDADO5')
 );

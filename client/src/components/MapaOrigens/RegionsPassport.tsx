@@ -7,14 +7,8 @@
 
 import { useCart } from "@/contexts/CartContext";
 import { Gift, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { REGION_COLORS, type RegionId } from "./RegionSvg";
-
-/**
- * Código do cupom de frete grátis oferecido ao completar o passaporte.
- * Precisa existir e estar ativo em Admin → Cupons (seed: BORDADO5).
- */
-const FREE_SHIPPING_COUPON_CODE = "BORDADO5";
 
 interface RegionsPassportProps {
   regionIds: readonly RegionId[];
@@ -39,22 +33,45 @@ export default function RegionsPassport({
 }: RegionsPassportProps) {
   const { applyCoupon, isUpdating } = useCart();
   const [copied, setCopied] = useState(false);
+  const [rewardCode, setRewardCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/coupons/map-reward")
+      .then(async response => {
+        if (!response.ok) return null;
+        return (await response.json()) as { code?: string } | null;
+      })
+      .then(data => {
+        if (cancelled) return;
+        setRewardCode(data?.code?.trim() ? data.code.trim().toUpperCase() : null);
+      })
+      .catch(() => {
+        if (!cancelled) setRewardCode(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleCopyCode() {
+    if (!rewardCode) return;
     try {
-      await navigator.clipboard.writeText(FREE_SHIPPING_COUPON_CODE);
+      await navigator.clipboard.writeText(rewardCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard indisponível (permissão negada, navegador antigo etc.)
-      // — o código já está visível na tela para copiar manualmente.
+      // Clipboard indisponível — o código já está visível na tela.
     }
   }
 
   async function handleApplyToCart() {
-    await applyCoupon({ couponCode: FREE_SHIPPING_COUPON_CODE });
+    if (!rewardCode) return;
+    await applyCoupon({ couponCode: rewardCode });
     onClaimReward();
   }
+
+  const showReward = isComplete && rewardCode;
 
   return (
     <div className="mx-auto mb-8 flex max-w-xl flex-col items-center gap-3 md:mb-10">
@@ -84,7 +101,7 @@ export default function RegionsPassport({
         </div>
       </div>
 
-      {isComplete && !rewardClaimed && (
+      {showReward && !rewardClaimed && (
         <div className="relative flex w-full flex-col items-center gap-3 rounded-2xl border border-[#2D6A4F]/25 bg-[#2D6A4F]/[0.06] px-5 py-4 text-center animate-in fade-in slide-in-from-top-2 duration-500 sm:flex-row sm:justify-between sm:text-left">
           <button
             type="button"
@@ -107,7 +124,7 @@ export default function RegionsPassport({
               Você percorreu as 5 origens! Ganhe <strong className="font-semibold">frete grátis</strong> com o
               cupom{" "}
               <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs font-bold text-[#2D6A4F]">
-                {FREE_SHIPPING_COUPON_CODE}
+                {rewardCode}
               </code>
               .
             </p>
@@ -116,14 +133,14 @@ export default function RegionsPassport({
           <div className="flex shrink-0 items-center gap-2 sm:order-2">
             <button
               type="button"
-              onClick={handleCopyCode}
+              onClick={() => void handleCopyCode()}
               className="rounded-full border border-[#2D6A4F]/30 px-3 py-1.5 text-xs font-semibold text-[#2D6A4F] transition-colors hover:bg-[#2D6A4F]/10"
             >
               {copied ? "Copiado!" : "Copiar código"}
             </button>
             <button
               type="button"
-              onClick={handleApplyToCart}
+              onClick={() => void handleApplyToCart()}
               disabled={isUpdating}
               className="rounded-full px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
               style={{ background: "#2D6A4F" }}
@@ -134,9 +151,9 @@ export default function RegionsPassport({
         </div>
       )}
 
-      {isComplete && rewardClaimed && (
+      {showReward && rewardClaimed && (
         <p className="text-xs text-[#2D6A4F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-          Cupom <strong className="font-bold">{FREE_SHIPPING_COUPON_CODE}</strong> de frete grátis garantido ✓
+          Cupom <strong className="font-bold">{rewardCode}</strong> de frete grátis garantido ✓
         </p>
       )}
     </div>

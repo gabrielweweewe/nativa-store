@@ -25,6 +25,7 @@ function baseCoupon(overrides: Partial<Coupon> = {}): Coupon {
     maxUsesPerCustomer: null,
     usageCount: 0,
     description: "15% off",
+    isMapReward: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,

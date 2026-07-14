@@ -32,6 +32,7 @@ export const couponSchema = z
     minSubtotal: optionalNullableNumber,
     maxUses: optionalNullableNumber,
     maxUsesPerCustomer: optionalNullableNumber,
+    isMapReward: z.boolean().optional().default(false),
     description: z
       .union([z.string(), z.null()])
       .optional()
@@ -42,6 +43,13 @@ export const couponSchema = z
       }),
   })
   .superRefine((data, ctx) => {
+    if (data.isMapReward && data.type !== "free_shipping") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["isMapReward"],
+        message: "A recompensa do mapa precisa ser um cupom de frete grátis",
+      });
+    }
     if (data.type === "percentage") {
       if (data.value <= 0 || data.value > 100) {
         ctx.addIssue({

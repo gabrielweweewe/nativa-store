@@ -13,6 +13,7 @@ export interface Coupon {
   maxUsesPerCustomer: number | null;
   usageCount: number;
   description: string | null;
+  isMapReward: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,6 +29,13 @@ export interface CouponInput {
   maxUses?: number | null;
   maxUsesPerCustomer?: number | null;
   description?: string | null;
+  isMapReward?: boolean;
+}
+
+/** Cupom público da recompensa do Mapa das Origens. */
+export interface MapRewardCoupon {
+  code: string;
+  description: string | null;
 }
 
 /** Resultado da aplicação de um cupom sobre o subtotal dos itens. */

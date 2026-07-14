@@ -14,6 +14,7 @@ export interface CouponRow {
   max_uses_per_customer: number | null;
   usage_count: number;
   description: string | null;
+  is_map_reward?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +45,7 @@ export function mapCouponRowToCoupon(row: CouponRow): Coupon {
     maxUsesPerCustomer: row.max_uses_per_customer,
     usageCount: row.usage_count,
     description: row.description,
+    isMapReward: Boolean(row.is_map_reward),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -64,6 +66,7 @@ export function mapCouponInputToRow(input: CouponInput): Record<string, unknown>
     max_uses: input.maxUses ?? null,
     max_uses_per_customer: input.maxUsesPerCustomer ?? null,
     description: input.description ?? null,
+    is_map_reward: type === "free_shipping" ? Boolean(input.isMapReward) : false,
     updated_at: new Date().toISOString(),
   };
 }

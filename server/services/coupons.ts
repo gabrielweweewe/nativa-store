@@ -13,7 +13,60 @@ import type { Coupon, CouponApplication, CouponInput } from "@shared/types/coupo
 import { supabase } from "../lib/supabase";
 
 const COUPON_SELECT =
-  "id, code, type, value, is_active, starts_at, ends_at, min_subtotal, max_uses, max_uses_per_customer, usage_count, description, created_at, updated_at";
+  "id, code, type, value, is_active, starts_at, ends_at, min_subtotal, max_uses, max_uses_per_customer, usage_count, description, is_map_reward, created_at, updated_at";
+
+async function clearOtherMapRewards(exceptId?: string): Promise<void> {
+  let query = supabase
+    .from("coupons")
+    .update({ is_map_reward: false, updated_at: new Date().toISOString() })
+    .eq("is_map_reward", true);
+  if (exceptId) {
+    query = query.neq("id", exceptId);
+  }
+  const { error } = await query;
+  if (error) {
+    throw new Error(`Erro ao atualizar recompensa do mapa: ${error.message}`);
+  }
+}
+
+/** Cupom ativo marcado para o passaporte do Mapa das Origens. */
+export async function getMapRewardCoupon(): Promise<{
+  code: string;
+  description: string | null;
+} | null> {
+  const { data: marked, error: markedError } = await supabase
+    .from("coupons")
+    .select("code, description")
+    .eq("is_map_reward", true)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (markedError) {
+    throw new Error(`Erro ao buscar cupom do mapa: ${markedError.message}`);
+  }
+  if (marked) {
+    return { code: marked.code, description: marked.description };
+  }
+
+  // Fallback: único frete grátis ativo (ex.: código renomeado sem flag)
+  const { data: freeShipping, error: freeError } = await supabase
+    .from("coupons")
+    .select("code, description")
+    .eq("type", "free_shipping")
+    .eq("is_active", true)
+    .order("created_at", { ascending: true })
+    .limit(2);
+
+  if (freeError) {
+    throw new Error(`Erro ao buscar cupom do mapa: ${freeError.message}`);
+  }
+  if ((freeShipping ?? []).length === 1) {
+    const only = freeShipping![0];
+    return { code: only.code, description: only.description };
+  }
+
+  return null;
+}
 
 export async function listAllCoupons(): Promise<Coupon[]> {
   const { data, error } = await supabase
@@ -107,6 +160,9 @@ export async function assertCouponApplicable(params: {
 
 export async function createCoupon(input: CouponInput): Promise<Coupon> {
   const row = mapCouponInputToRow(input);
+  if (row.is_map_reward) {
+    await clearOtherMapRewards();
+  }
 
   const { data, error } = await supabase
     .from("coupons")
@@ -126,6 +182,9 @@ export async function createCoupon(input: CouponInput): Promise<Coupon> {
 
 export async function updateCoupon(id: string, input: CouponInput): Promise<Coupon> {
   const row = mapCouponInputToRow(input);
+  if (row.is_map_reward) {
+    await clearOtherMapRewards(id);
+  }
 
   const { data, error } = await supabase
     .from("coupons")
