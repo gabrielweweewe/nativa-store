@@ -16,17 +16,17 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Link } from "wouter";
 import { ArrowLeft, Trash2 } from "lucide-react";
-import { useEffect } from "react";
+import { usePageMeta } from "@/lib/seo";
 
 export default function CartPage() {
   const { items, itemCount, isLoading, clearCart, isUpdating } = useCart();
 
-  useEffect(() => {
-    document.title = "Carrinho — Nativa Store";
-    return () => {
-      document.title = "Nativa Store — Artesanato com Alma";
-    };
-  }, []);
+  usePageMeta({
+    title: "Carrinho — Nativa Store",
+    description: "Revise os itens do seu carrinho na Nativa Store antes de finalizar a compra.",
+    path: "/carrinho",
+    noIndex: true,
+  });
 
   return (
     <div className="min-h-screen" style={{ background: "#FAF7F2" }}>

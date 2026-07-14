@@ -26,6 +26,7 @@ import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import ProductGallery from "@/components/product/ProductGallery";
 import ProductShippingQuote from "@/components/product/ProductShippingQuote";
+import ProductWhatsAppButton from "@/components/product/ProductWhatsAppButton";
 import {
   FeatherOrange,
   FeatherGreen,
@@ -49,6 +50,9 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { formatPrice, fetchProductBySlug, fetchProducts, getRelatedProducts } from "@/lib/products";
+import { buildProductJsonLd, usePageMeta } from "@/lib/seo";
+import { stripHtml } from "@shared/lib/seo";
+import { SITE_KEYWORDS, SITE_NAME } from "@shared/const/site";
 import { useCart } from "@/contexts/CartContext";
 import type { Product } from "@shared/types/product";
 import NotFound from "@/pages/NotFound";
@@ -70,6 +74,38 @@ export default function ProductPage() {
   const { addItem, openDrawer, isUpdating } = useCart();
   const mainCtaRef = useRef<HTMLDivElement>(null);
   const sizeSectionRef = useRef<HTMLDivElement>(null);
+
+  usePageMeta(
+    product
+      ? {
+          title: `${product.name} — ${SITE_NAME}`,
+          description: stripHtml(product.shortDescription || product.description) || product.name,
+          path: `/produto/${product.slug}`,
+          image: product.image || product.images[0],
+          type: "product",
+          keywords: `${product.name}, ${product.category}, ${SITE_KEYWORDS}`,
+          product: {
+            price: product.price,
+            currency: "BRL",
+            availability: product.inStock ? "in stock" : "out of stock",
+          },
+          jsonLd: buildProductJsonLd({
+            name: product.name,
+            slug: product.slug,
+            description: product.shortDescription || product.description,
+            image: product.images?.length ? product.images : [product.image],
+            price: product.price,
+            sku: product.sku,
+            category: product.category,
+            inStock: product.inStock,
+          }),
+        }
+      : {
+          title: loading ? `Carregando… — ${SITE_NAME}` : `Produto — ${SITE_NAME}`,
+          noIndex: true,
+          path: params.slug ? `/produto/${params.slug}` : undefined,
+        },
+  );
 
   useEffect(() => {
     const slug = params.slug ?? "";
@@ -105,7 +141,6 @@ export default function ProductPage() {
 
   useEffect(() => {
     if (product) {
-      document.title = `${product.name} — Nativa Store`;
       setSelectedSize(product.sizes.find((s) => s.available)?.label ?? "");
       setSelectedColor(product.colors[0]?.name ?? "");
       setQuantity(1);
@@ -113,9 +148,6 @@ export default function ProductPage() {
       setHighlightSizes(false);
       window.scrollTo(0, 0);
     }
-    return () => {
-      document.title = "Nativa Store — Artesanato com Alma";
-    };
   }, [product]);
 
   useEffect(() => {
@@ -457,36 +489,43 @@ export default function ProductPage() {
                   </div>
                 </div>
 
-                <div ref={mainCtaRef} className="flex flex-col gap-3 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={handleAddToCart}
-                    disabled={isUpdating || !product.inStock}
-                    className="nativa-btn-primary flex flex-1 items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold text-white shadow-lg transition-all duration-200 hover:scale-[1.01] hover:shadow-xl disabled:pointer-events-none disabled:opacity-60"
-                    style={{
-                      background: "linear-gradient(135deg, #C4522A, #E8821A)",
-                      fontFamily: "'Nunito', sans-serif",
-                      boxShadow: "0 10px 28px oklch(0.52 0.14 38 / 0.28)",
-                    }}
-                  >
-                    <ShoppingBag size={20} />
-                    {product.inStock ? "Adicionar ao Carrinho" : "Esgotado"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsFav(!isFav);
-                      toast(isFav ? "Removido dos favoritos" : "Adicionado aos favoritos!");
-                    }}
-                    className={`flex items-center justify-center rounded-2xl border-2 px-5 py-4 transition-all duration-200 ${
-                      isFav
-                        ? "border-[#C4522A] bg-[#C4522A]/10 text-[#C4522A]"
-                        : "border-[#E8D5C4] text-[#3D2B1F] hover:border-[#C4522A]/50"
-                    }`}
-                    aria-label={isFav ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-                  >
-                    <Heart size={20} className={isFav ? "fill-[#C4522A]" : ""} />
-                  </button>
+                <div ref={mainCtaRef} className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={handleAddToCart}
+                      disabled={isUpdating || !product.inStock}
+                      className="nativa-btn-primary flex flex-1 items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold text-white shadow-lg transition-all duration-200 hover:scale-[1.01] hover:shadow-xl disabled:pointer-events-none disabled:opacity-60"
+                      style={{
+                        background: "linear-gradient(135deg, #C4522A, #E8821A)",
+                        fontFamily: "'Nunito', sans-serif",
+                        boxShadow: "0 10px 28px oklch(0.52 0.14 38 / 0.28)",
+                      }}
+                    >
+                      <ShoppingBag size={20} />
+                      {product.inStock ? "Adicionar ao Carrinho" : "Esgotado"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsFav(!isFav);
+                        toast(isFav ? "Removido dos favoritos" : "Adicionado aos favoritos!");
+                      }}
+                      className={`flex items-center justify-center rounded-2xl border-2 px-5 py-4 transition-all duration-200 ${
+                        isFav
+                          ? "border-[#C4522A] bg-[#C4522A]/10 text-[#C4522A]"
+                          : "border-[#E8D5C4] text-[#3D2B1F] hover:border-[#C4522A]/50"
+                      }`}
+                      aria-label={isFav ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                    >
+                      <Heart size={20} className={isFav ? "fill-[#C4522A]" : ""} />
+                    </button>
+                  </div>
+                  <ProductWhatsAppButton
+                    name={product.name}
+                    slug={product.slug}
+                    price={product.price}
+                  />
                 </div>
 
                 <ProductShippingQuote
@@ -743,7 +782,7 @@ export default function ProductPage() {
         }`}
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
-        <div className="container flex items-center gap-3 py-3">
+        <div className="container flex items-center gap-2.5 py-3 sm:gap-3">
           <div className="min-w-0 flex-1">
             <p
               className="truncate text-xs text-[#8B6F5E]"
@@ -758,6 +797,12 @@ export default function ProductPage() {
               {formatPrice(product.price)}
             </p>
           </div>
+          <ProductWhatsAppButton
+            name={product.name}
+            slug={product.slug}
+            price={product.price}
+            variant="icon"
+          />
           <button
             type="button"
             onClick={handleAddToCart}

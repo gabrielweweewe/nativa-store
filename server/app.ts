@@ -10,6 +10,7 @@ import mercadoPagoRouter from "./routes/mercadoPago";
 import mercadoPagoWebhookRouter from "./routes/mercadoPagoWebhook";
 import productsRouter from "./routes/products";
 import shippingRouter from "./routes/shipping";
+import seoRouter from "./routes/seo";
 
 export function createApiApp() {
   const app = express();
@@ -26,6 +27,7 @@ export function createApiApp() {
   app.use("/api/webhooks/mercado-pago", mercadoPagoWebhookRouter);
   app.use("/api/products", productsRouter);
   app.use("/api/shipping", shippingRouter);
+  app.use("/api/seo", seoRouter);
 
   return app;
 }

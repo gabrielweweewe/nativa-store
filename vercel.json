@@ -10,6 +10,14 @@
       "destination": "/api"
     },
     {
+      "source": "/produto/:slug",
+      "destination": "/api/seo/produto/:slug"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/seo/sitemap.xml"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

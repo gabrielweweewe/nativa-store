@@ -22,6 +22,7 @@ import CheckoutPage from "./pages/CheckoutPage";
 import { CartProvider } from "./contexts/CartContext";
 import CartDrawer from "./components/cart/CartDrawer";
 import ScrollToTop from "./components/ScrollToTop";
+import WhatsAppFloatingButton from "./components/WhatsAppFloatingButton";
 
 // Lazy: o painel admin (e a lib de planilhas usada na importação em massa) só é
 // carregado quando alguém acessa /admin — não pesa o bundle da loja pública.
@@ -87,6 +88,7 @@ function App() {
               <StorePageViewTracker />
               <ScrollToTop />
               <CartDrawer />
+              <WhatsAppFloatingButton />
               <Router />
             </TooltipProvider>
           </CartProvider>

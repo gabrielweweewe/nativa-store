@@ -9,6 +9,7 @@ import { AlertCircle, Lock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
+import { usePageMeta } from "@/lib/seo";
 
 function getPasswordHint(password: string) {
   if (password.length < 8) return "Use pelo menos 8 caracteres";
@@ -18,6 +19,13 @@ function getPasswordHint(password: string) {
 export default function CustomerResetPassword() {
   const { isLoading, session, updatePassword } = useCustomerAuth();
   const [, setLocation] = useLocation();
+
+  usePageMeta({
+    title: "Redefinir senha — Nativa Store",
+    description: "Escolha uma nova senha para sua conta na Nativa Store.",
+    path: "/redefinir-senha",
+    noIndex: true,
+  });
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

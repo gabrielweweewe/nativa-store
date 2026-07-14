@@ -8,10 +8,18 @@ import { KeyRound, Mail } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
+import { usePageMeta } from "@/lib/seo";
 
 export default function CustomerForgotPassword() {
   const { isLoading, user, resetPassword } = useCustomerAuth();
   const [, setLocation] = useLocation();
+
+  usePageMeta({
+    title: "Recuperar senha — Nativa Store",
+    description: "Redefina a senha da sua conta na Nativa Store.",
+    path: "/recuperar-senha",
+    noIndex: true,
+  });
 
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);

@@ -7,6 +7,7 @@ import { MailCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Link, useLocation, useSearch } from "wouter";
+import { usePageMeta } from "@/lib/seo";
 
 export default function CustomerVerifyEmail() {
   const { isLoading, user, resendSignupConfirmation } = useCustomerAuth();
@@ -14,6 +15,13 @@ export default function CustomerVerifyEmail() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const email = params.get("email") ?? "";
+
+  usePageMeta({
+    title: "Verificar e-mail — Nativa Store",
+    description: "Confirme seu e-mail para ativar a conta na Nativa Store.",
+    path: "/verificar-email",
+    noIndex: true,
+  });
 
   const [submitting, setSubmitting] = useState(false);
   const returnTo =

@@ -19,6 +19,9 @@ build/
 # Vercel
 .vercel/
 
+# HTML do SPA copiado no build para injeção de meta tags (Vercel)
+api/spa.html
+
 # Manus dev tools
 .manus-logs/
 

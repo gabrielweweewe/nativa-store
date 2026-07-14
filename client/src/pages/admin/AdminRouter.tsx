@@ -1,6 +1,7 @@
 import RequireAdminAuth from "@/components/admin/RequireAdminAuth";
 import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
 import { AdminNotificationsProvider } from "@/contexts/AdminNotificationsContext";
+import { usePageMeta } from "@/lib/seo";
 import NotFound from "@/pages/NotFound";
 import { Redirect, Route, Switch } from "wouter";
 import AdminBanners from "./AdminBanners";
@@ -23,10 +24,20 @@ function ProtectedAdmin({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AdminSeo() {
+  usePageMeta({
+    title: "Admin — Nativa Store",
+    description: "Painel administrativo da Nativa Store.",
+    noIndex: true,
+  });
+  return null;
+}
+
 /** Roteador do painel admin — carregado sob demanda (lazy) para não pesar o bundle da loja. */
 export default function AdminRouter() {
   return (
     <AdminAuthProvider>
+      <AdminSeo />
       <Switch>
         <Route path="/admin/login" component={AdminLogin} />
         <Route path="/admin">

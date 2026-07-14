@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Instagram, Facebook, Youtube, Mail, MapPin, Phone } from "lucide-react";
 import NativaLogo from "./NativaLogo";
 import { WaveDividerDown } from "./NativaDecorations";
+import { buildWhatsAppUrl, defaultWhatsAppMessage, WHATSAPP_DISPLAY } from "@/lib/whatsapp";
 
 const FOOTER_BG = "#1A3D2B";
 
@@ -66,21 +67,35 @@ export default function Footer() {
 
             {/* Contact info */}
             <div className="space-y-2 mb-6">
-              {[
-                { icon: <Mail size={14} />, text: "contato@nativa.com.br" },
-                { icon: <Phone size={14} />, text: "(11) 9 9999-9999" },
-                { icon: <MapPin size={14} />, text: "São Paulo, SP — Brasil" },
-              ].map((item) => (
-                <div key={item.text} className="flex items-center justify-center md:justify-start gap-2 text-white/55">
-                  <span className="text-[#E8821A]">{item.icon}</span>
-                  <span
-                    className="text-xs"
-                    style={{ fontFamily: "'Nunito', sans-serif" }}
-                  >
-                    {item.text}
-                  </span>
-                </div>
-              ))}
+              <div className="flex items-center justify-center md:justify-start gap-2 text-white/55">
+                <span className="text-[#E8821A]">
+                  <Mail size={14} />
+                </span>
+                <span className="text-xs" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                  contato@nativa.com.br
+                </span>
+              </div>
+              <a
+                href={buildWhatsAppUrl(defaultWhatsAppMessage())}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 text-white/55 transition-colors hover:text-[#25D366] md:justify-start"
+              >
+                <span className="text-[#E8821A]">
+                  <Phone size={14} />
+                </span>
+                <span className="text-xs" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                  {WHATSAPP_DISPLAY}
+                </span>
+              </a>
+              <div className="flex items-center justify-center md:justify-start gap-2 text-white/55">
+                <span className="text-[#E8821A]">
+                  <MapPin size={14} />
+                </span>
+                <span className="text-xs" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                  São Paulo, SP — Brasil
+                </span>
+              </div>
             </div>
 
             {/* Social links */}

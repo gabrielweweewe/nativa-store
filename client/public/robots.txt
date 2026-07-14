@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /conta
+Disallow: /checkout
+Disallow: /carrinho
+Disallow: /entrar
+Disallow: /cadastro
+Disallow: /recuperar-senha
+Disallow: /redefinir-senha
+Disallow: /verificar-email
+Disallow: /api/
+
+Sitemap: /sitemap.xml

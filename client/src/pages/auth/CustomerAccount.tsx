@@ -17,6 +17,7 @@ import { BadgeCheck, Lock, LogOut, MapPin, Package, Phone, Shield, UserCircle } 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { usePageMeta } from "@/lib/seo";
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -28,6 +29,13 @@ function getInitials(name: string): string {
 function CustomerAccountContent() {
   const { session, user, signOut, updatePassword } = useCustomerAuth();
   const [, setLocation] = useLocation();
+
+  usePageMeta({
+    title: "Minha conta — Nativa Store",
+    description: "Gerencie seu perfil, endereços e pedidos na Nativa Store.",
+    path: "/conta",
+    noIndex: true,
+  });
 
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);

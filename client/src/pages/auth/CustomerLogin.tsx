@@ -9,10 +9,18 @@ import { LogIn, Mail, Lock, Package, ShieldCheck, Sparkles } from "lucide-react"
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
+import { usePageMeta } from "@/lib/seo";
 
 export default function CustomerLogin() {
   const { isLoading, user, signIn } = useCustomerAuth();
   const [, setLocation] = useLocation();
+
+  usePageMeta({
+    title: "Entrar — Nativa Store",
+    description: "Acesse sua conta na Nativa Store para acompanhar pedidos e comprar com mais praticidade.",
+    path: "/entrar",
+    noIndex: true,
+  });
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

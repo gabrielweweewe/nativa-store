@@ -11,6 +11,7 @@ import { UserPlus, Mail, Lock, User, Phone, Heart, ShoppingBag, Truck } from "lu
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
+import { usePageMeta } from "@/lib/seo";
 
 function getPasswordHint(password: string) {
   if (password.length < 8) return "Use pelo menos 8 caracteres";
@@ -20,6 +21,13 @@ function getPasswordHint(password: string) {
 export default function CustomerRegister() {
   const { isLoading, user, signUp } = useCustomerAuth();
   const [, setLocation] = useLocation();
+
+  usePageMeta({
+    title: "Criar conta — Nativa Store",
+    description: "Cadastre-se na Nativa Store e acompanhe pedidos de artesanato brasileiro.",
+    path: "/cadastro",
+    noIndex: true,
+  });
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");

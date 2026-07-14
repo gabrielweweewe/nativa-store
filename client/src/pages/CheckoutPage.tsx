@@ -23,6 +23,7 @@ import { fetchCustomerProfile } from "@/lib/customerApi";
 import { fetchCheckoutShippingQuote } from "@/lib/shippingApi";
 import { OrderApiError, checkoutOrder } from "@/lib/orderApi";
 import { fetchCustomerOrder, fetchMercadoPagoConfig } from "@/lib/orderApi";
+import { usePageMeta } from "@/lib/seo";
 import { checkoutSchema } from "@shared/schemas/order";
 import { formatCepInput } from "@shared/lib/viacep";
 import type { CustomerProfile } from "@shared/types/customer";
@@ -117,12 +118,12 @@ function CheckoutPageContent() {
   const [shippingLoading, setShippingLoading] = useState(false);
   const [isCardProcessing, setIsCardProcessing] = useState(false);
 
-  useEffect(() => {
-    document.title = "Checkout — Nativa Store";
-    return () => {
-      document.title = "Nativa Store — Artesanato com Alma";
-    };
-  }, []);
+  usePageMeta({
+    title: "Checkout — Nativa Store",
+    description: "Finalize sua compra com segurança na Nativa Store.",
+    path: "/checkout",
+    noIndex: true,
+  });
 
   useEffect(() => {
     if (!isLoading && itemCount === 0 && !completedOrder) {

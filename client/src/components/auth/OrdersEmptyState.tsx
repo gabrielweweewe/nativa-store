@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { ArrowRight, Package, Sparkles, Truck } from "lucide-react";
+import { buildWhatsAppUrl, defaultWhatsAppMessage } from "@/lib/whatsapp";
 
 export default function OrdersEmptyState() {
   return (
@@ -39,7 +40,11 @@ export default function OrdersEmptyState() {
           </Link>
         </Button>
         <Button asChild variant="outline" className="rounded-full border-[#C4522A]/30 text-[#C4522A]">
-          <a href="https://wa.me/5511976984558" target="_blank" rel="noopener noreferrer">
+          <a
+            href={buildWhatsAppUrl(defaultWhatsAppMessage())}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Falar no WhatsApp
           </a>
         </Button>
