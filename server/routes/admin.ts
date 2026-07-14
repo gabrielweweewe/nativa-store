@@ -8,7 +8,7 @@ import {
 } from "../lib/adminAuth";
 import { upload } from "../lib/upload";
 import { requireAdmin } from "../middleware/requireAdmin";
-import { uploadProductImage } from "../services/uploads";
+import { createSignedImageUpload, uploadProductImage } from "../services/uploads";
 import adminBannersRouter from "./adminBanners";
 import adminCustomersRouter from "./adminCustomers";
 import adminDashboardRouter from "./adminDashboard";
@@ -113,5 +113,27 @@ router.post(
     }
   }
 );
+
+/** Prepara upload direto ao Supabase (evita limite de payload da Vercel). */
+router.post("/uploads/sign", requireAdmin, async (req, res) => {
+  try {
+    const folderRaw = typeof req.body?.folder === "string" ? req.body.folder : "products";
+    const folder = folderRaw === "banners" ? "banners" : "products";
+    const contentType =
+      typeof req.body?.contentType === "string" ? req.body.contentType : "";
+
+    if (!contentType) {
+      res.status(400).json({ error: "Informe o contentType do arquivo" });
+      return;
+    }
+
+    const signed = await createSignedImageUpload({ folder, contentType });
+    res.json(signed);
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : "Erro ao preparar upload",
+    });
+  }
+});
 
 export default router;

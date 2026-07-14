@@ -21,6 +21,7 @@ import type {
 } from "@shared/types/mercadoPago";
 import type { ProductInput } from "@shared/schemas/product";
 import type { Product } from "@shared/types/product";
+import { supabaseClient } from "@/lib/supabaseClient";
 
 export class AdminApiError extends Error {
   issues?: unknown;
@@ -80,6 +81,38 @@ export async function uploadProductImage(
   file: File,
   folder: "products" | "banners" = "products"
 ): Promise<{ url: string }> {
+  // GIF e arquivos maiores: upload direto ao Supabase (Vercel limita ~4,5MB no body da function).
+  const mustUseDirectUpload =
+    file.type === "image/gif" || file.size > 3 * 1024 * 1024;
+
+  if (mustUseDirectUpload) {
+    if (file.size > 15 * 1024 * 1024) {
+      throw new AdminApiError("Arquivo muito grande. O limite é 15MB por imagem.");
+    }
+
+    const signed = await request<{
+      path: string;
+      token: string;
+      publicUrl: string;
+    }>("/api/admin/uploads/sign", {
+      method: "POST",
+      body: JSON.stringify({ folder, contentType: file.type || "image/gif" }),
+    });
+
+    const { error } = await supabaseClient.storage
+      .from("product-images")
+      .uploadToSignedUrl(signed.path, signed.token, file, {
+        contentType: file.type || "image/gif",
+        upsert: false,
+      });
+
+    if (error) {
+      throw new AdminApiError(error.message || "Falha no upload direto da imagem");
+    }
+
+    return { url: signed.publicUrl };
+  }
+
   const formData = new FormData();
   formData.append("file", file);
   formData.append("folder", folder);

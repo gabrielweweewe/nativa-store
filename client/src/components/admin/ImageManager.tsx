@@ -198,7 +198,7 @@ export default function ImageManager({ value, onChange }: ImageManagerProps) {
         />
       </div>
       <p className="text-xs text-[var(--admin-text-muted)]">
-        Arraste as imagens para reordenar. A primeira imagem é usada como capa do produto. Formatos aceitos: JPG, PNG, WEBP, GIF (até 4MB cada). GIFs mantêm a animação na loja e no admin.
+        Arraste as imagens para reordenar. A primeira imagem é usada como capa do produto. Formatos: JPG, PNG, WEBP (até 4MB, otimizados no servidor) ou GIF (até 15MB, animação preservada).
       </p>
     </div>
   );
