@@ -1,6 +1,6 @@
 /**
  * Quick view — bottom sheet no mobile, dialog no desktop.
- * Permite escolher cor/tamanho e adicionar sem sair da grade.
+ * Galeria com swipe + variantes sem sair da grade.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -27,6 +27,104 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "@/components/ui/carousel";
+
+function QuickViewGallery({
+  product,
+  onImageChange,
+}: {
+  product: Product;
+  onImageChange: (src: string) => void;
+}) {
+  const images = useMemo(() => {
+    const list = product.images?.length ? product.images : [product.image];
+    return Array.from(new Set(list.filter(Boolean)));
+  }, [product]);
+
+  const [api, setApi] = useState<CarouselApi>();
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+
+    const sync = () => {
+      const next = api.selectedScrollSnap();
+      setIndex(next);
+      onImageChange(images[next] ?? product.image);
+    };
+
+    sync();
+    api.on("select", sync);
+    return () => {
+      api.off("select", sync);
+    };
+  }, [api, images, onImageChange, product.image]);
+
+  useEffect(() => {
+    setIndex(0);
+    api?.scrollTo(0, true);
+    onImageChange(images[0] ?? product.image);
+  }, [product.slug, api, images, onImageChange, product.image]);
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-[#F5F0E8]">
+      <Carousel
+        setApi={setApi}
+        opts={{ loop: images.length > 1, align: "start", dragFree: false }}
+        className="w-full"
+      >
+        <CarouselContent className="-ml-0">
+          {images.map((src, i) => (
+            <CarouselItem key={`${src}-${i}`} className="pl-0 basis-full">
+              <img
+                src={src}
+                alt={`${product.name} — foto ${i + 1}`}
+                className="aspect-[4/5] w-full object-cover sm:aspect-square"
+                draggable={false}
+              />
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+      </Carousel>
+
+      <div
+        className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-xs font-bold text-white"
+        style={{ background: product.badgeColor, fontFamily: "'Nunito', sans-serif" }}
+      >
+        {product.badge}
+      </div>
+
+      {images.length > 1 && (
+        <>
+          <div
+            className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm"
+            style={{ fontFamily: "'Nunito', sans-serif" }}
+          >
+            {index + 1}/{images.length}
+          </div>
+          <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-1.5">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                aria-label={`Ir para foto ${i + 1}`}
+                onClick={() => api?.scrollTo(i)}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === index ? "w-5 bg-white" : "w-1.5 bg-white/55"
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function QuickViewBody({
   product,
@@ -82,24 +180,12 @@ function QuickViewBody({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        <div className="relative overflow-hidden rounded-2xl bg-[#F5F0E8]">
-          <img
-            src={activeImage}
-            alt={product.name}
-            className="aspect-[4/5] w-full object-cover sm:aspect-square"
-          />
-          <div
-            className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-xs font-bold text-white"
-            style={{ background: product.badgeColor, fontFamily: "'Nunito', sans-serif" }}
-          >
-            {product.badge}
-          </div>
-        </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <QuickViewGallery product={product} onImageChange={setActiveImage} />
 
-        <div className="flex flex-col gap-3">
-          <div>
+        <div className="flex flex-col gap-4">
+          <div className="space-y-2">
             <p
               className="text-xs font-semibold uppercase tracking-wider text-[#1B7A8C]"
               style={{ fontFamily: "'Nunito', sans-serif" }}
@@ -107,12 +193,12 @@ function QuickViewBody({
               {product.category}
             </p>
             <h3
-              className="mt-1 text-xl font-semibold leading-tight text-[#3D2B1F]"
+              className="text-xl font-semibold leading-snug text-[#3D2B1F]"
               style={{ fontFamily: "'Playfair Display', serif" }}
             >
               {product.name}
             </h3>
-            <div className="mt-2 flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 pt-0.5">
               <span
                 className="text-2xl font-bold text-[#C4522A]"
                 style={{ fontFamily: "'Playfair Display', serif" }}
@@ -131,14 +217,14 @@ function QuickViewBody({
           </div>
 
           {product.colors.length > 0 && (
-            <div>
+            <div className="space-y-2.5">
               <p
-                className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#8B6F5E]"
+                className="text-xs font-semibold uppercase tracking-wider text-[#8B6F5E]"
                 style={{ fontFamily: "'Nunito', sans-serif" }}
               >
                 Cor — {selectedColor || "escolha"}
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2.5">
                 {product.colors.map((color) => (
                   <button
                     key={color.name}
@@ -146,7 +232,7 @@ function QuickViewBody({
                     onClick={() => setSelectedColor(color.name)}
                     className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-transform active:scale-95 ${
                       selectedColor === color.name
-                        ? "border-[#C4522A] scale-105"
+                        ? "scale-105 border-[#C4522A]"
                         : "border-[#E8D5C4]"
                     }`}
                     style={{ background: color.hex }}
@@ -159,9 +245,9 @@ function QuickViewBody({
           )}
 
           {availableSizes.length > 0 && (
-            <div>
+            <div className="space-y-2.5">
               <p
-                className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#8B6F5E]"
+                className="text-xs font-semibold uppercase tracking-wider text-[#8B6F5E]"
                 style={{ fontFamily: "'Nunito', sans-serif" }}
               >
                 Tamanho
@@ -187,7 +273,7 @@ function QuickViewBody({
             </div>
           )}
 
-          <div className="mt-auto flex flex-col gap-2 pt-1 sm:flex-row">
+          <div className="mt-auto flex flex-col gap-2.5 pt-1 sm:flex-row">
             <button
               type="button"
               onClick={handleAdd}
@@ -218,7 +304,7 @@ function QuickViewBody({
           <Link
             href={`/produto/${product.slug}`}
             onClick={onClose}
-            className="inline-flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-[#C4522A]"
+            className="inline-flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold text-[#C4522A]"
             style={{ fontFamily: "'Nunito', sans-serif" }}
           >
             Ver página completa
@@ -238,20 +324,23 @@ export default function QuickView() {
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={(v) => !v && closeQuickView()} shouldScaleBackground={false}>
-        <DrawerContent className="flex max-h-[94vh] flex-col border-[#E8D5C4] bg-[#FAF7F2]">
-          <DrawerHeader className="pb-0 text-left">
+        <DrawerContent className="flex max-h-[94vh] flex-col overflow-hidden border-[#E8D5C4] bg-[#FAF7F2]">
+          <DrawerHeader className="gap-2 px-5 pb-3 pt-2 text-left">
             <DrawerTitle
-              className="text-[#3D2B1F]"
+              className="text-xl leading-snug text-[#3D2B1F]"
               style={{ fontFamily: "'Playfair Display', serif" }}
             >
               Visualização rápida
             </DrawerTitle>
-            <DrawerDescription className="sr-only">
-              Escolha opções e adicione ao carrinho
+            <DrawerDescription
+              className="text-sm leading-normal text-[#8B6F5E]"
+              style={{ fontFamily: "'Nunito', sans-serif" }}
+            >
+              Deslize as fotos · escolha opções e adicione
             </DrawerDescription>
           </DrawerHeader>
           {quickViewProduct ? (
-            <div className="min-h-0 flex-1 px-4 pb-4">
+            <div className="min-h-0 flex-1 px-5 pb-5 pt-1">
               <QuickViewBody product={quickViewProduct} onClose={closeQuickView} />
             </div>
           ) : null}
@@ -263,18 +352,21 @@ export default function QuickView() {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && closeQuickView()}>
       <DialogContent
-        className="max-h-[90vh] w-full max-w-2xl overflow-hidden border-[#E8D5C4] bg-[#FAF7F2] p-5 sm:max-w-2xl"
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 overflow-hidden border-[#E8D5C4] bg-[#FAF7F2] p-6 sm:max-w-2xl"
         showCloseButton
       >
-        <DialogHeader className="pr-8 text-left">
+        <DialogHeader className="space-y-2 overflow-visible pr-8 text-left">
           <DialogTitle
-            className="text-[#3D2B1F]"
+            className="text-xl leading-snug text-[#3D2B1F]"
             style={{ fontFamily: "'Playfair Display', serif" }}
           >
             Visualização rápida
           </DialogTitle>
-          <DialogDescription className="sr-only">
-            Escolha opções e adicione ao carrinho
+          <DialogDescription
+            className="text-sm leading-normal text-[#8B6F5E]"
+            style={{ fontFamily: "'Nunito', sans-serif" }}
+          >
+            Passe as fotos · escolha opções e adicione
           </DialogDescription>
         </DialogHeader>
         {quickViewProduct ? (

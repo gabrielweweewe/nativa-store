@@ -146,11 +146,11 @@ function SearchPanel({
   inputRef: React.RefObject<HTMLInputElement | null>;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col pt-1">
-      <div className="relative px-1 pb-3 pt-1">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="relative px-0.5 pb-4 pt-3">
         <Search
           size={18}
-          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8B6F5E]"
+          className="pointer-events-none absolute left-4 top-[calc(50%+0.125rem)] -translate-y-1/2 text-[#8B6F5E]"
         />
         <input
           ref={inputRef}
@@ -168,14 +168,14 @@ function SearchPanel({
           <button
             type="button"
             onClick={() => setQuery("")}
-            className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#8B6F5E] hover:bg-[#C4522A]/10 hover:text-[#C4522A]"
+            className="absolute right-3 top-[calc(50%+0.125rem)] flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#8B6F5E] hover:bg-[#C4522A]/10 hover:text-[#C4522A]"
             aria-label="Limpar busca"
           >
             <X size={16} />
           </button>
         ) : null}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pb-2">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-0.5 pb-2">
         <SearchResults
           products={results}
           loading={loading}
@@ -242,7 +242,7 @@ export default function StoreSearch() {
         shouldScaleBackground={false}
       >
         <DrawerContent className="flex max-h-[92vh] flex-col overflow-hidden border-[#E8D5C4] bg-[#FAF7F2]">
-          <DrawerHeader className="gap-2 pb-2 text-left">
+          <DrawerHeader className="gap-2.5 px-5 pb-1 pt-3 text-left">
             <DrawerTitle
               className="text-xl leading-snug text-[#3D2B1F]"
               style={{ fontFamily: "'Playfair Display', serif" }}
@@ -250,13 +250,13 @@ export default function StoreSearch() {
               Buscar na Nativa
             </DrawerTitle>
             <DrawerDescription
-              className="text-sm leading-normal text-[#8B6F5E]"
+              className="pb-1 text-sm leading-relaxed text-[#8B6F5E]"
               style={{ fontFamily: "'Nunito', sans-serif" }}
             >
               Encontre peças por nome, categoria ou código
             </DrawerDescription>
           </DrawerHeader>
-          <div className="flex min-h-0 flex-1 flex-col px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="flex min-h-0 flex-1 flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
             {panel}
           </div>
         </DrawerContent>
