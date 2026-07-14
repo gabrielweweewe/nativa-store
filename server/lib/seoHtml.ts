@@ -41,7 +41,9 @@ export function isSocialCrawler(userAgent: string | undefined): boolean {
 function resolveSpaHtmlPath(): string | null {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [
+    // Vercel includeFiles: api/spa.html (ao lado do bundle api/index.js)
     path.join(here, "spa.html"),
+    path.join(process.cwd(), "spa.html"),
     path.join(process.cwd(), "api", "spa.html"),
     path.join(process.cwd(), "dist", "public", "index.html"),
     path.join(process.cwd(), "public", "index.html"),
@@ -161,7 +163,7 @@ export function buildHeadBlock(options: InjectMetaOptions): string {
   return tags.join("\n    ");
 }
 
-/** HTML mínimo só com OG — ideal para crawlers (WhatsApp/Facebook). */
+/** HTML mínimo só com OG — fallback para crawlers quando o SPA não carrega. */
 export function buildStandaloneOgHtml(options: InjectMetaOptions): string {
   const block = buildHeadBlock(options);
   return `<!DOCTYPE html>

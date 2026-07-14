@@ -24,25 +24,38 @@ function requestBaseUrl(req: Request): string {
 async function sendSeoHtml(req: Request, res: Response, options: InjectMetaOptions, status = 200) {
   const ua = req.headers["user-agent"];
   const crawler = isSocialCrawler(typeof ua === "string" ? ua : undefined);
+  const spaHtml = await loadSpaHtmlAsync(requestBaseUrl(req));
 
-  // Crawlers: HTML mínimo com OG (WhatsApp não executa JS)
-  if (crawler) {
+  // Sempre preferir o SPA com OG no <head> (WhatsApp/Facebook leem só as meta tags).
+  // HTML mínimo era cacheado no CDN sem Vary e quebrava a loja no navegador.
+  if (!spaHtml) {
     res
       .status(status)
-      .setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600")
+      .setHeader("Cache-Control", "private, no-store")
+      .setHeader("Vary", "User-Agent")
       .type("html")
-      .send(buildStandaloneOgHtml(options));
+      .send(
+        crawler
+          ? buildStandaloneOgHtml(options)
+          : buildStandaloneOgHtml(options).replace(
+              "</body>",
+              `<p><a href="/">Abrir a Nativa Store</a></p>
+    <script>
+      // Evita ficar na página de fallback: vai à home (SPA) e o usuário navega de novo.
+      setTimeout(function () { location.replace("/"); }, 100);
+    </script>
+  </body>`,
+            ),
+      );
     return;
   }
-
-  const spaHtml = await loadSpaHtmlAsync(requestBaseUrl(req));
-  const html = spaHtml ? injectSeoIntoHtml(spaHtml, options) : buildStandaloneOgHtml(options);
 
   res
     .status(status)
     .setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300")
+    .setHeader("Vary", "User-Agent")
     .type("html")
-    .send(html);
+    .send(injectSeoIntoHtml(spaHtml, options));
 }
 
 router.get("/produto/:slug", async (req, res) => {
@@ -119,9 +132,16 @@ router.get("/produto/:slug", async (req, res) => {
     });
   } catch (error) {
     console.error("[seo] falha ao montar meta do produto:", error);
+    // Em erro, tenta o SPA sem meta específica em vez de HTML mínimo (quebra a loja).
+    const spaHtml = await loadSpaHtmlAsync(baseUrl);
+    if (spaHtml) {
+      res.status(200).type("html").setHeader("Cache-Control", "no-store").send(spaHtml);
+      return;
+    }
     res
       .status(200)
       .type("html")
+      .setHeader("Cache-Control", "private, no-store")
       .send(
         buildStandaloneOgHtml({
           title: SITE_NAME,
