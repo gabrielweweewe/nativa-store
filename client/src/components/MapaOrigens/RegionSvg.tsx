@@ -22,41 +22,41 @@ const REGION_SHAPES: RegionShape[] = [
     id: "norte",
     shortLabel: "Norte",
     color: "#2D6A4F",
-    path: "M40 70 C30 40, 70 15, 110 20 C150 10, 190 5, 225 25 C260 40, 255 75, 230 95 C200 115, 160 110, 120 105 C85 100, 50 100, 40 70 Z",
-    labelX: 132,
-    labelY: 62,
+    path: "M60 75 C50 45, 90 20, 130 22 C170 15, 210 20, 235 45 C250 65, 240 90, 210 95 C175 100, 130 98, 95 95 C70 92, 55 90, 60 75 Z",
+    labelX: 150,
+    labelY: 60,
   },
   {
     id: "nordeste",
     shortLabel: "Nordeste",
     color: "#C4522A",
-    path: "M235 95 C245 75, 275 70, 295 90 C310 105, 305 130, 290 150 C275 168, 250 175, 230 160 C215 148, 210 120, 220 105 C225 98, 230 96, 235 95 Z",
-    labelX: 258,
-    labelY: 122,
+    path: "M280 130 C300 122, 318 140, 315 165 C312 190, 298 208, 278 210 C262 212, 250 195, 252 172 C254 150, 262 136, 280 130 Z",
+    labelX: 286,
+    labelY: 168,
   },
   {
     id: "centro-oeste",
     shortLabel: "Centro-Oeste",
     color: "#C9922A",
-    path: "M110 130 C100 115, 130 100, 160 105 C190 108, 210 120, 215 145 C220 168, 205 190, 180 195 C155 200, 125 190, 112 168 C102 150, 105 138, 110 130 Z",
-    labelX: 160,
-    labelY: 152,
+    path: "M110 160 C100 140, 130 122, 160 128 C195 132, 215 150, 218 178 C220 205, 200 225, 172 228 C145 231, 115 218, 105 195 C98 180, 100 168, 110 160 Z",
+    labelX: 158,
+    labelY: 178,
   },
   {
     id: "sudeste",
     shortLabel: "Sudeste",
     color: "#1B7A8C",
-    path: "M175 205 C170 195, 195 188, 215 195 C235 200, 245 215, 240 232 C235 248, 215 255, 198 250 C182 245, 170 232, 170 218 C170 213, 172 208, 175 205 Z",
-    labelX: 205,
-    labelY: 224,
+    path: "M228 270 C222 255, 252 248, 275 255 C298 262, 308 280, 301 300 C294 320, 268 330, 246 325 C226 320, 213 305, 216 285 C217 278, 220 272, 228 270 Z",
+    labelX: 259,
+    labelY: 291,
   },
   {
     id: "sul",
     shortLabel: "Sul",
     color: "#52A87A",
-    path: "M140 255 C135 248, 155 242, 172 248 C188 253, 195 268, 188 285 C182 300, 165 310, 150 305 C137 300, 128 288, 128 272 C128 265, 132 258, 140 255 Z",
-    labelX: 160,
-    labelY: 278,
+    path: "M100 295 C95 280, 125 272, 150 278 C172 283, 182 300, 175 320 C168 338, 145 348, 122 343 C102 338, 88 322, 92 302 C93 298, 96 297, 100 295 Z",
+    labelX: 132,
+    labelY: 311,
   },
 ];
 
@@ -78,7 +78,7 @@ export default function RegionSvg({ selectedId, onSelect, getRegionName }: Regio
 
   return (
     <svg
-      viewBox="0 0 320 320"
+      viewBox="0 0 320 360"
       className="h-auto w-full max-w-md mx-auto"
       role="group"
       aria-label="Mapa do Brasil dividido em cinco regiões"
@@ -103,7 +103,7 @@ export default function RegionSvg({ selectedId, onSelect, getRegionName }: Regio
               fill={shape.color}
               stroke={isSelected || isFocused ? "#3D2B1F" : "#F5F0E8"}
               strokeWidth={isSelected || isFocused ? 3 : 2}
-              opacity={isDimmed ? 0.35 : 1}
+              opacity={isDimmed ? 0.65 : 1}
               className="cursor-pointer outline-none transition-all duration-300 ease-out hover:opacity-90"
               style={{ transformOrigin: "center" }}
             />
@@ -112,7 +112,7 @@ export default function RegionSvg({ selectedId, onSelect, getRegionName }: Regio
               y={shape.labelY}
               textAnchor="middle"
               pointerEvents="none"
-              opacity={isDimmed ? 0.45 : 1}
+              opacity={isDimmed ? 0.65 : 1}
               className="select-none transition-opacity duration-300"
               style={{
                 fontFamily: "'Nunito', sans-serif",
