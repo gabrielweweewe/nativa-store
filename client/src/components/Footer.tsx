@@ -62,7 +62,7 @@ export default function Footer() {
               className="text-white/65 text-sm leading-relaxed mb-6 max-w-xs mx-auto md:mx-0"
               style={{ fontFamily: "'Lora', serif", fontStyle: "italic" }}
             >
-              Peças autorais e exclusivas, criadas para contar histórias e vestir identidade. Moda artesanal brasileira com alma.
+              Peças autorais e exclusivas: bolsas artesanais feitas à mão para contar histórias brasileiras.
             </p>
 
             {/* Contact info */}

@@ -39,7 +39,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
 
-const CATEGORIES: ProductCategory[] = ["Roupas", "Bolsas", "Acessórios"];
+const CATEGORIES: ProductCategory[] = ["Bolsas"];
 
 export default function AdminProductsList() {
   const [products, setProducts] = useState<Product[]>([]);

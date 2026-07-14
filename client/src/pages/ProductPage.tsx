@@ -10,7 +10,6 @@ import { decodeHtmlEntities, sanitizeProductHtml } from "@/lib/productHtml";
 import {
   Heart,
   ShoppingBag,
-  Star,
   Truck,
   Shield,
   RotateCcw,
@@ -317,25 +316,6 @@ export default function ProductPage() {
                   {product.name}
                 </h1>
 
-                <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
-                  <div className="flex gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        size={15}
-                        className={
-                          i < Math.floor(product.rating)
-                            ? "fill-[#C9922A] text-[#C9922A]"
-                            : "text-[#D4C5B5]"
-                        }
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-                    {product.rating} · {product.reviews} avaliações
-                  </span>
-                </div>
-
                 <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <span
                     className="text-3xl font-bold text-[#C4522A] sm:text-4xl"
@@ -627,7 +607,7 @@ export default function ProductPage() {
                 className="text-2xl font-bold text-[#3D2B1F] md:text-3xl"
                 style={{ fontFamily: "'Playfair Display', serif" }}
               >
-                Detalhes da Peça
+                Detalhes da Bolsa
               </h2>
             </div>
 
@@ -750,7 +730,7 @@ export default function ProductPage() {
                     className="text-2xl font-bold text-[#3D2B1F] md:text-3xl"
                     style={{ fontFamily: "'Playfair Display', serif" }}
                   >
-                    Peças Relacionadas
+                    Bolsas Relacionadas
                   </h2>
                 </div>
                 <Link

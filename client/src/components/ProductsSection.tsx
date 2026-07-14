@@ -35,7 +35,7 @@ export default function ProductsSection() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const filters = ["Todos", "Roupas", "Bolsas", "Acessórios"];
+  const filters = ["Todos", "Bolsas"];
 
   useEffect(() => {
     fetchProducts()
@@ -47,7 +47,7 @@ export default function ProductsSection() {
   useEffect(() => {
     function onSetCategory(event: Event) {
       const detail = (event as CustomEvent<string>).detail;
-      if (detail === "Todos" || detail === "Roupas" || detail === "Bolsas" || detail === "Acessórios") {
+      if (detail === "Todos" || detail === "Bolsas") {
         setActiveFilter(detail);
       }
     }
@@ -89,7 +89,7 @@ export default function ProductsSection() {
                 fontFamily: "'Nunito', sans-serif",
               }}
             >
-              ✦ Peças Autorais
+              ✦ Bolsas Artesanais
             </div>
             <h2
               className="text-3xl md:text-5xl font-bold leading-tight"
@@ -107,7 +107,7 @@ export default function ProductsSection() {
               className="text-[#8B6F5E] text-base mt-2 max-w-sm"
               style={{ fontFamily: "'Lora', serif", fontStyle: "italic" }}
             >
-              Cada peça é única, feita à mão com amor e identidade brasileira
+              Cada bolsa é única, feita à mão com amor e identidade brasileira
             </p>
           </div>
 
@@ -169,10 +169,10 @@ export default function ProductsSection() {
 
         <div className="text-center mt-8">
           <button
-            onClick={() => toast("Mais peças em breve!", { description: "Estamos preparando novas criações." })}
+            onClick={() => toast("Mais bolsas em breve!", { description: "Estamos preparando novas criações artesanais." })}
             className="nativa-btn-outline px-10 py-3.5 rounded-full text-sm"
           >
-            Ver Mais Peças
+            Ver Mais Bolsas
           </button>
         </div>
       </div>

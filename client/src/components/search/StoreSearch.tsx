@@ -73,10 +73,10 @@ function SearchResults({
           className="text-base font-semibold text-[#3D2B1F]"
           style={{ fontFamily: "'Playfair Display', serif" }}
         >
-          Nenhuma peça encontrada
+          Nenhuma bolsa encontrada
         </p>
         <p className="mt-1 text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-          Tente outro nome, categoria ou SKU.
+          Tente outro nome, cor ou SKU.
         </p>
       </div>
     );
@@ -156,7 +156,7 @@ function SearchPanel({
           ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar peças, bolsas, cores…"
+          placeholder="Buscar bolsas, cores, nomes…"
           className="h-12 w-full rounded-2xl border border-[#E8D5C4] bg-white py-3 pl-11 pr-11 text-base text-[#3D2B1F] outline-none ring-[#C4522A]/30 placeholder:text-[#B0A090] focus:ring-2"
           style={{ fontFamily: "'Nunito', sans-serif" }}
           autoComplete="off"
@@ -253,7 +253,7 @@ export default function StoreSearch() {
               className="pb-1 text-sm leading-relaxed text-[#8B6F5E]"
               style={{ fontFamily: "'Nunito', sans-serif" }}
             >
-              Encontre peças por nome, categoria ou código
+              Encontre bolsas por nome, cor ou código
             </DrawerDescription>
           </DrawerHeader>
           <div className="flex min-h-0 flex-1 flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
@@ -281,7 +281,7 @@ export default function StoreSearch() {
             className="text-sm leading-normal text-[#8B6F5E]"
             style={{ fontFamily: "'Nunito', sans-serif" }}
           >
-            Encontre peças por nome, categoria ou código
+            Encontre bolsas por nome, cor ou código
           </DialogDescription>
         </DialogHeader>
         {panel}

@@ -85,17 +85,10 @@ function extractListItems(html: string, sectionPattern: RegExp): string[] {
 }
 
 function inferCategory(name: string, tags: string, categories: string): ProductCategory {
-  const text = `${name} ${tags} ${categories}`.toLowerCase();
-
-  if (/(bolsa|bag|shoulder|sholder|pochete|tote|carteiro)/i.test(text)) {
-    return "Bolsas";
-  }
-
-  if (/(blusa|vestido|camisa|calça|calca|saia|roupa|macacão|macacao)/i.test(text)) {
-    return "Roupas";
-  }
-
-  return "Acessórios";
+  void name;
+  void tags;
+  void categories;
+  return "Bolsas";
 }
 
 function resolvePrices(regular: number | null, promotional: number | null) {

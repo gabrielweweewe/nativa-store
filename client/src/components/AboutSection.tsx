@@ -151,7 +151,7 @@ function AboutPhotoCard() {
             className="text-xs text-[#8B6F5E] leading-snug"
             style={{ fontFamily: "'Lora', serif" }}
           >
-            Cada peça costurada com carinho no nosso ateliê
+            Cada bolsa costurada com carinho no nosso ateliê
           </p>
         </div>
       </div>
@@ -163,7 +163,7 @@ const values = [
   {
     icon: "🪡",
     title: "100% Artesanal",
-    desc: "Cada peça é bordada e costurada à mão por artesãs brasileiras.",
+    desc: "Cada bolsa é bordada e costurada à mão por artesãs brasileiras.",
   },
   {
     icon: "🌿",
@@ -223,7 +223,7 @@ export default function AboutSection() {
                   backgroundClip: "text",
                 }}
               >
-                Vestir identidade<br />
+                Carregar identidade<br />
                 <span style={{ WebkitTextFillColor: "#3D2B1F", backgroundClip: "unset" }}>
                   é nossa missão
                 </span>
@@ -233,13 +233,13 @@ export default function AboutSection() {
                 className="text-[#5C4033] text-base leading-relaxed mb-4"
                 style={{ fontFamily: "'Lora', serif" }}
               >
-                A Nativa nasceu do amor pela cultura brasileira e pelo artesanato. Cada peça que criamos carrega a essência da nossa terra — as cores vibrantes da Amazônia, os padrões dos povos originários e a riqueza da fauna e flora nativa.
+                A Nativa nasceu do amor pela cultura brasileira e pelo artesanato. Cada bolsa que criamos carrega a essência da nossa terra — as cores vibrantes da Amazônia, os padrões dos povos originários e a riqueza da fauna e flora nativa.
               </p>
               <p
                 className="text-[#8B6F5E] text-base leading-relaxed mb-8"
                 style={{ fontFamily: "'Lora', serif", fontStyle: "italic" }}
               >
-                "Não fazemos moda. Fazemos memória vestível."
+                "Não fazemos moda. Fazemos bolsas com memória."
               </p>
 
               {/* Values */}

@@ -22,7 +22,7 @@ export default function WishlistPage() {
 
   usePageMeta({
     title: `Favoritos — ${SITE_NAME}`,
-    description: "Suas peças salvas na Nativa Store.",
+    description: "Suas bolsas salvas na Nativa Store.",
     path: "/favoritos",
     noIndex: true,
   });
@@ -66,8 +66,8 @@ export default function WishlistPage() {
           </h1>
           <p className="mt-2 text-[#8B6F5E]" style={{ fontFamily: "'Lora', serif" }}>
             {count === 0
-              ? "Salve peças com o coração para encontrar depois."
-              : `${count} ${count === 1 ? "peça salva" : "peças salvas"} neste aparelho.`}
+              ? "Salve bolsas com o coração para encontrar depois."
+              : `${count} ${count === 1 ? "bolsa salva" : "bolsas salvas"} neste aparelho.`}
           </p>
         </div>
 
@@ -87,7 +87,7 @@ export default function WishlistPage() {
               Ainda sem favoritos
             </p>
             <p className="mt-1 max-w-sm text-sm text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-              Explore a coleção e toque no coração nas peças que você ama.
+              Explore a coleção e toque no coração nas bolsas que você ama.
             </p>
             <Link
               href="/#colecoes"

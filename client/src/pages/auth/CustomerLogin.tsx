@@ -72,7 +72,7 @@ export default function CustomerLogin() {
             { icon: ShieldCheck, text: "Dados protegidos com login seguro" },
             { icon: Sparkles, text: "Checkout mais rápido nas próximas visitas" },
           ]}
-          footer="&ldquo;Artesanato feito à mão, com alma e cuidado em cada peça.&rdquo;"
+          footer="&ldquo;Bolsas artesanais feitas à mão, com alma e cuidado em cada ponto.&rdquo;"
         />
 
         <AuthFormCard

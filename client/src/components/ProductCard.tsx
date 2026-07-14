@@ -3,7 +3,7 @@
  * Reusable card for product grids and related products
  */
 
-import { Heart, ShoppingBag, Star, Expand } from "lucide-react";
+import { Heart, ShoppingBag, Expand } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import type { Product } from "@shared/types/product";
@@ -205,21 +205,6 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
           >
             {product.name}
           </h3>
-
-          <div className="flex items-center gap-1.5">
-            <div className="flex gap-0.5">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  size={10}
-                  className={i < Math.floor(product.rating) ? "fill-[#C9922A] text-[#C9922A]" : "text-[#D4C5B5]"}
-                />
-              ))}
-            </div>
-            <span className="text-xs text-[#8B6F5E]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-              {product.rating} ({product.reviews})
-            </span>
-          </div>
 
           <div className="flex items-center gap-2 mt-auto pt-1">
             <span

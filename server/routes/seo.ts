@@ -145,7 +145,7 @@ router.get("/produto/:slug", async (req, res) => {
       .send(
         buildStandaloneOgHtml({
           title: SITE_NAME,
-          description: "Moda artesanal brasileira com alma.",
+          description: "Bolsas artesanais brasileiras feitas à mão.",
           url: absoluteUrl(baseUrl, `/produto/${encodeURIComponent(slug)}`),
           image: absoluteUrl(baseUrl, "/images/bannerNativa.jpg"),
         }),

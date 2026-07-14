@@ -7,33 +7,6 @@ import type { ReactElement } from "react";
 import { FeatherBlue, FeatherGreen, FeatherOrange } from "./NativaDecorations";
 import { toast } from "sonner";
 
-function IconRoupas({ className = "w-9 h-9" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden>
-      <path d="M16 8 L8 16 L12 18 L12 40 L36 40 L36 18 L40 16 L32 8 C30 12 26 14 24 14 C22 14 18 12 16 8Z" fill="currentColor" opacity="0.85" />
-      <circle cx="20" cy="24" r="1.5" fill="#E8821A" />
-      <circle cx="24" cy="22" r="1.5" fill="#2D6A4F" />
-      <circle cx="28" cy="24" r="1.5" fill="#1B7A8C" />
-      <circle cx="24" cy="28" r="1.5" fill="#C9922A" />
-      <path d="M20 8 C22 12 26 12 28 8" stroke="white" strokeWidth="1.5" fill="none" opacity="0.55" />
-    </svg>
-  );
-}
-
-function IconAcessorios({ className = "w-9 h-9" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden>
-      <path d="M12 16 Q24 8 36 16 Q40 24 36 32 Q24 40 12 32 Q8 24 12 16Z" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.75" />
-      <circle cx="24" cy="36" r="4" fill="currentColor" opacity="0.85" />
-      <circle cx="14" cy="20" r="2" fill="#C4522A" />
-      <circle cx="20" cy="12" r="2" fill="#E8821A" />
-      <circle cx="28" cy="12" r="2" fill="#2D6A4F" />
-      <circle cx="34" cy="20" r="2" fill="#C9922A" />
-      <path d="M22 36 C20 32, 18 28, 20 24 C22 20, 26 20, 26 24 C26 28, 24 32, 22 36Z" fill="#E8821A" opacity="0.7" />
-    </svg>
-  );
-}
-
 function IconBolsas({ className = "w-9 h-9" }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden>
@@ -45,11 +18,21 @@ function IconBolsas({ className = "w-9 h-9" }: { className?: string }) {
   );
 }
 
-function IconColecoes({ className = "w-9 h-9" }: { className?: string }) {
+function IconNovidades({ className = "w-9 h-9" }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden>
       <path d="M24 8 L26 18 L36 16 L28 22 L32 32 L24 26 L16 32 L20 22 L12 16 L22 18 Z" fill="currentColor" opacity="0.9" />
       <path d="M30 32 C32 28, 34 24, 32 20 C30 16, 28 20, 30 32Z" fill="#E8821A" opacity="0.65" />
+    </svg>
+  );
+}
+
+function IconColecoes({ className = "w-9 h-9" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden>
+      <rect x="10" y="14" width="28" height="22" rx="3" fill="currentColor" opacity="0.8" />
+      <path d="M16 14 C16 10, 32 10, 32 14" stroke="currentColor" strokeWidth="2" fill="none" />
+      <circle cx="24" cy="25" r="4" fill="#E8821A" opacity="0.85" />
     </svg>
   );
 }
@@ -67,7 +50,7 @@ function IconPresentes({ className = "w-9 h-9" }: { className?: string }) {
   );
 }
 
-type CategoryFilter = "Todos" | "Roupas" | "Bolsas" | "Acessórios" | null;
+type CategoryFilter = "Todos" | "Bolsas" | null;
 
 type CategoryItem = {
   id: string;
@@ -81,31 +64,22 @@ type CategoryItem = {
 
 const categories: CategoryItem[] = [
   {
-    id: "roupas",
-    name: "Roupas",
-    description: "Bordadas à mão",
-    color: "#C4522A",
-    wash: "radial-gradient(circle at 35% 30%, #E8821A28, #C4522A14 55%, transparent 72%)",
-    filter: "Roupas",
-    Icon: IconRoupas,
-  },
-  {
-    id: "acessorios",
-    name: "Acessórios",
-    description: "Joias nativas",
-    color: "#1B7A8C",
-    wash: "radial-gradient(circle at 35% 30%, #2D9CAE28, #1B7A8C14 55%, transparent 72%)",
-    filter: "Acessórios",
-    Icon: IconAcessorios,
-  },
-  {
     id: "bolsas",
     name: "Bolsas",
-    description: "Arte em tela",
+    description: "Feitas à mão",
     color: "#2D6A4F",
     wash: "radial-gradient(circle at 35% 30%, #52A87A28, #2D6A4F14 55%, transparent 72%)",
     filter: "Bolsas",
     Icon: IconBolsas,
+  },
+  {
+    id: "novidades",
+    name: "Novidades",
+    description: "Chegou agora",
+    color: "#C4522A",
+    wash: "radial-gradient(circle at 35% 30%, #E8821A28, #C4522A14 55%, transparent 72%)",
+    filter: "Todos",
+    Icon: IconNovidades,
   },
   {
     id: "colecoes",
@@ -120,8 +94,8 @@ const categories: CategoryItem[] = [
     id: "presentes",
     name: "Presentes",
     description: "Com carinho",
-    color: "#C4522A",
-    wash: "radial-gradient(circle at 35% 30%, #E8821A22, #C4522A10 55%, transparent 72%)",
+    color: "#1B7A8C",
+    wash: "radial-gradient(circle at 35% 30%, #2D9CAE28, #1B7A8C14 55%, transparent 72%)",
     filter: null,
     Icon: IconPresentes,
   },
@@ -140,7 +114,7 @@ function StitchDot() {
 function openCategory(cat: CategoryItem) {
   if (cat.filter == null) {
     toast("Presentes em breve", {
-      description: "Estamos preparando kits especiais com alma brasileira.",
+      description: "Estamos preparando kits especiais com bolsas artesanais.",
     });
     return;
   }
@@ -186,13 +160,13 @@ export default function CategoriesSection() {
               backgroundClip: "text",
             }}
           >
-            Explore por categoria
+            Explore nossa loja
           </h2>
           <p
             className="text-base text-[#8B6F5E] md:text-lg"
             style={{ fontFamily: "'Lora', serif", fontStyle: "italic" }}
           >
-            Cada peça, uma história bordada com amor
+            Cada bolsa, uma história costurada com amor
           </p>
         </div>
 

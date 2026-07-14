@@ -25,7 +25,7 @@ export default function CartEmptyState({ compact = false }: { compact?: boolean 
         className="text-sm text-[#8B6F5E] mb-6 max-w-xs"
         style={{ fontFamily: "'Lora', serif" }}
       >
-        Explore nossas coleções de artesanato brasileiro e encontre peças únicas feitas com alma.
+        Explore nossas bolsas artesanais brasileiras e encontre peças únicas feitas com alma.
       </p>
       <Link
         href="/#colecoes"

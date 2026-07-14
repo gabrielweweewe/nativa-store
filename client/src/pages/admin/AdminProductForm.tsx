@@ -39,7 +39,7 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Link, useLocation, useParams } from "wouter";
 
-const CATEGORIES = ["Roupas", "Bolsas", "Acessórios"] as const;
+const CATEGORIES = ["Bolsas"] as const;
 
 const FORM_TABS = [
   { value: "geral", label: "Geral", short: "Geral", icon: Info },

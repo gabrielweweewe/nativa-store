@@ -35,7 +35,7 @@ seu navegador.
 | Coluna | Obrigatória | Descrição |
 |---|---|---|
 | `nome` | Sim | Nome do produto. |
-| `categoria` | Sim | `Roupas`, `Bolsas` ou `Acessórios` (exatamente um desses valores). |
+| `categoria` | Sim | Preferencialmente `Bolsas` (a loja vende apenas bolsas artesanais). Valores técnicos aceitos: `Roupas`, `Bolsas` ou `Acessórios`. |
 | `preco` | Sim | Preço de venda atual. Use ponto ou vírgula como separador decimal (ex: `129.90`). |
 | `preco_original` | Não | Preço "de" (antes da promoção). Deixe vazio se não houver promoção. |
 | `sku` | Não | Código interno do produto. Se vazio, usa o slug gerado. |
