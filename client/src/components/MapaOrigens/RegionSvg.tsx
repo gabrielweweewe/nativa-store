@@ -45,7 +45,7 @@ export default function RegionSvg({ selectedId, onSelect, getRegionName }: Regio
   return (
     <svg
       viewBox={BRAZIL_MAP_VIEWBOX}
-      className="h-auto w-full max-w-md mx-auto"
+      className="h-auto w-full max-w-xl mx-auto"
       role="group"
       aria-label="Mapa do Brasil dividido em cinco regiões"
     >
