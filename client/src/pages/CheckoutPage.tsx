@@ -6,6 +6,7 @@ import AddressForm, {
   type AddressFormValues,
 } from "@/components/address/AddressForm";
 import CheckoutOrderSummary from "@/components/checkout/CheckoutOrderSummary";
+import CheckoutProcessingOverlay from "@/components/checkout/CheckoutProcessingOverlay";
 import CheckoutSuccessView from "@/components/checkout/CheckoutSuccessView";
 import RequireCustomerAuth from "@/components/RequireCustomerAuth";
 import { Input } from "@/components/ui/input";
@@ -114,6 +115,7 @@ function CheckoutPageContent() {
     null
   );
   const [shippingLoading, setShippingLoading] = useState(false);
+  const [isCardProcessing, setIsCardProcessing] = useState(false);
 
   useEffect(() => {
     document.title = "Checkout — Nativa Store";
@@ -427,6 +429,7 @@ function CheckoutPageContent() {
 
   return (
     <div className="min-h-screen" style={{ background: "#FAF7F2" }}>
+      {isCardProcessing && <CheckoutProcessingOverlay />}
       <Navbar />
 
       <main className="pb-32 pt-20 md:pt-24 lg:pb-16">
@@ -873,20 +876,24 @@ function CheckoutPageContent() {
                         }}
                         locale="pt-BR"
                         onSubmit={async formData => {
+                          setIsCardProcessing(true);
                           const success = await handleSubmit({
                             token: formData.token,
                             paymentMethodId: formData.payment_method_id,
                             installments: formData.installments,
                             issuerId: formData.issuer_id,
                           });
-                          if (!success)
+                          if (!success) {
+                            setIsCardProcessing(false);
                             throw new Error("Pagamento não concluído");
+                          }
                         }}
-                        onError={() =>
+                        onError={() => {
+                          setIsCardProcessing(false);
                           toast.error(
                             "Não foi possível carregar o formulário do cartão"
-                          )
-                        }
+                          );
+                        }}
                       />
                     ) : (
                       <p className="px-3 py-5 text-center text-sm text-[#8B6F5E]">
