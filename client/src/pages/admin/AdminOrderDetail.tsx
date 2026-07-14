@@ -2,6 +2,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import OrderDetailContent from "@/components/orders/OrderDetailContent";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -12,18 +13,25 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import {
   fetchAdminOrder,
+  retryAdminOrderEmail,
   retryAdminOrderShipment,
+  updateAdminOrderFulfillment,
   updateAdminOrderStatus,
 } from "@/lib/adminApi";
 import { formatPrice } from "@/lib/products";
 import {
   formatOrderShortId,
+  FULFILLMENT_STATUS_LABELS,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_STYLES,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
 } from "@shared/lib/orderLabels";
-import type { AdminOrderDetail, OrderStatus } from "@shared/types/order";
+import type {
+  AdminOrderDetail,
+  FulfillmentStatus,
+  OrderStatus,
+} from "@shared/types/order";
 import {
   ArrowLeft,
   Calendar,
@@ -53,6 +61,8 @@ export default function AdminOrderDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isRetryingShipment, setIsRetryingShipment] = useState(false);
+  const [trackingCode, setTrackingCode] = useState("");
+  const [trackingUrl, setTrackingUrl] = useState("");
 
   async function loadOrder() {
     if (!orderId) return;
@@ -60,10 +70,32 @@ export default function AdminOrderDetail() {
     try {
       const data = await fetchAdminOrder(orderId);
       setOrder(data);
+      setTrackingCode(data.trackingCode ?? "");
+      setTrackingUrl(data.trackingUrl ?? "");
     } catch {
       toast.error("Não foi possível carregar o pedido");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleFulfillmentChange(status: FulfillmentStatus) {
+    if (!order || !orderId) return;
+    setIsSaving(true);
+    try {
+      const updated = await updateAdminOrderFulfillment(orderId, {
+        status,
+        trackingCode: trackingCode.trim() || null,
+        trackingUrl: trackingUrl.trim() || null,
+      });
+      setOrder(updated);
+      toast.success("Etapa de entrega atualizada e e-mail processado");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível atualizar a entrega"
+      );
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -98,6 +130,19 @@ export default function AdminOrderDetail() {
       );
     } finally {
       setIsRetryingShipment(false);
+    }
+  }
+
+  async function handleEmailRetry(deliveryId: string) {
+    if (!orderId) return;
+    setIsSaving(true);
+    try {
+      setOrder(await retryAdminOrderEmail(orderId, deliveryId));
+      toast.success("E-mail reenviado");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível reenviar");
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -291,6 +336,63 @@ export default function AdminOrderDetail() {
           )}
         </div>
 
+        <div className="admin-card overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-[var(--admin-border)] px-4 py-3 sm:px-5">
+            <Truck className="size-4 text-[var(--admin-accent)]" />
+            <h3 className="text-sm font-bold text-[var(--admin-text)]">
+              Preparação e entrega
+            </h3>
+          </div>
+          <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-[var(--admin-text-muted)]">
+                Etapa atual
+              </label>
+              <Select
+                value={order.fulfillmentStatus}
+                onValueChange={value =>
+                  void handleFulfillmentChange(value as FulfillmentStatus)
+                }
+                disabled={isSaving}
+              >
+                <SelectTrigger className="w-full rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(
+                    Object.keys(FULFILLMENT_STATUS_LABELS) as FulfillmentStatus[]
+                  ).map(value => (
+                    <SelectItem key={value} value={value}>
+                      {FULFILLMENT_STATUS_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-[var(--admin-text-muted)]">
+                Código de rastreio
+              </label>
+              <Input
+                value={trackingCode}
+                onChange={event => setTrackingCode(event.target.value)}
+                placeholder="Obrigatório ao marcar como enviado"
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <label className="text-xs font-medium text-[var(--admin-text-muted)]">
+                URL de rastreio
+              </label>
+              <Input
+                type="url"
+                value={trackingUrl}
+                onChange={event => setTrackingUrl(event.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+          </div>
+        </div>
+
         {order.shippingServiceId && (
           <div className="admin-card overflow-hidden">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--admin-border)] px-4 py-3 sm:px-5">
@@ -367,6 +469,64 @@ export default function AdminOrderDetail() {
             Detalhes do pedido
           </h3>
           <OrderDetailContent order={order} variant="admin" />
+        </div>
+
+        <div className="admin-card overflow-hidden">
+          <div className="border-b border-[var(--admin-border)] px-4 py-3 sm:px-5">
+            <h3 className="text-sm font-bold text-[var(--admin-text)]">
+              E-mails do pedido
+            </h3>
+          </div>
+          {order.emailDeliveries.length === 0 ? (
+            <p className="p-4 text-sm text-[var(--admin-text-muted)] sm:p-5">
+              Nenhum e-mail processado para este pedido.
+            </p>
+          ) : (
+            <div className="divide-y divide-[var(--admin-border)]">
+              {order.emailDeliveries.map(delivery => (
+                <div
+                  key={delivery.id}
+                  className="flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-5"
+                >
+                  <div>
+                    <p className="font-semibold text-[var(--admin-text)]">
+                      {delivery.event?.replaceAll("_", " ") || "E-mail transacional"}
+                    </p>
+                    <p className="text-xs text-[var(--admin-text-muted)]">
+                      {delivery.recipientEmail} · tentativa {delivery.attemptCount}
+                    </p>
+                    {delivery.errorMessage && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {delivery.errorMessage}
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      delivery.status === "sent" || delivery.status === "delivered"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : delivery.status === "failed"
+                          ? "bg-red-50 text-red-700"
+                          : "bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    {delivery.status}
+                  </span>
+                  {delivery.status === "failed" && delivery.attemptCount < 3 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isSaving}
+                      onClick={() => void handleEmailRetry(delivery.id)}
+                    >
+                      Tentar novamente
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

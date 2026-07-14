@@ -7,6 +7,7 @@ import {
   verifyMercadoPagoSignature,
 } from "../services/mercadoPago";
 import { ensurePaidOrderInMelhorEnvioCart } from "../services/melhorEnvio";
+import { dispatchPaymentStatusEmail } from "../services/orderEmails";
 
 const router = Router();
 
@@ -60,6 +61,12 @@ router.post("/", async (req, res) => {
       p_response: payload,
     });
     if (error) throw new Error(error.message);
+    if (reconciledOrderId) {
+      await dispatchPaymentStatusEmail(
+        String(reconciledOrderId),
+        identity.status
+      );
+    }
     if (identity.status === "approved" && reconciledOrderId) {
       try {
         await ensurePaidOrderInMelhorEnvioCart(String(reconciledOrderId));

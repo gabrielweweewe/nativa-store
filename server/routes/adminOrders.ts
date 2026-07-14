@@ -1,4 +1,5 @@
 import {
+  fulfillmentUpdateSchema,
   orderBulkExportSchema,
   orderBulkIdsSchema,
   orderStatusUpdateSchema,
@@ -11,10 +12,12 @@ import {
   getOrdersByIds,
   listAllOrders,
   updateOrderStatus,
+  updateOrderFulfillment,
 } from "../services/orders";
 import { buildOrdersCsv } from "../services/ordersCsv";
 import { buildOrdersPdfBuffer } from "../services/ordersPdf";
 import { ensurePaidOrderInMelhorEnvioCart } from "../services/melhorEnvio";
+import { retryOrderEmail } from "../services/orderEmails";
 
 const router = Router();
 
@@ -112,6 +115,22 @@ router.patch("/:id/status", requireAdmin, async (req, res) => {
   }
 });
 
+router.patch("/:id/fulfillment", requireAdmin, async (req, res) => {
+  try {
+    const parsed = fulfillmentUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inválidos", issues: parsed.error.issues });
+      return;
+    }
+
+    res.json(await updateOrderFulfillment(req.params.id, parsed.data));
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao atualizar entrega";
+    res.status(message.includes("não encontrado") ? 404 : 500).json({ error: message });
+  }
+});
+
 router.post("/:id/shipment/retry", requireAdmin, async (req, res) => {
   try {
     await ensurePaidOrderInMelhorEnvioCart(req.params.id);
@@ -120,6 +139,21 @@ router.post("/:id/shipment/retry", requireAdmin, async (req, res) => {
     const message =
       error instanceof Error ? error.message : "Erro ao reenviar para o Melhor Envio";
     res.status(400).json({ error: message });
+  }
+});
+
+router.post("/:id/emails/:deliveryId/retry", requireAdmin, async (req, res) => {
+  try {
+    const result = await retryOrderEmail(req.params.id, req.params.deliveryId);
+    if (result === "failed") {
+      res.status(400).json({ error: "E-mail não encontrado ou limite atingido" });
+      return;
+    }
+    res.json(await getOrderById(req.params.id));
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : "Erro ao reenviar e-mail",
+    });
   }
 });
 

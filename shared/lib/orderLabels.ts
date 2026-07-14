@@ -1,4 +1,8 @@
-import type { OrderStatus, PaymentMethod } from "@shared/types/order";
+import type {
+  FulfillmentStatus,
+  OrderStatus,
+  PaymentMethod,
+} from "@shared/types/order";
 import type { PaymentStatus } from "@shared/types/mercadoPago";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
@@ -27,6 +31,14 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   canceled: "Pagamento cancelado",
   expired: "Pagamento expirado",
   refunded: "Pagamento reembolsado",
+};
+
+export const FULFILLMENT_STATUS_LABELS: Record<FulfillmentStatus, string> = {
+  unfulfilled: "Aguardando preparação",
+  processing: "Em preparação",
+  shipped: "Enviado",
+  delivered: "Entregue",
+  canceled: "Envio cancelado",
 };
 
 export function formatOrderShortId(orderId: string): string {

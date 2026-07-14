@@ -10,6 +10,13 @@ export type { ShippingAddress };
 
 export type OrderStatus = "pending" | "paid" | "canceled";
 
+export type FulfillmentStatus =
+  | "unfulfilled"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "canceled";
+
 export type PaymentMethod = "pix" | "credit_card" | "boleto";
 
 export interface OrderItem {
@@ -50,6 +57,12 @@ export interface Order {
   paymentExpiresAt: string | null;
   paidAt: string | null;
   paymentInstructions: PaymentInstructions | null;
+  fulfillmentStatus: FulfillmentStatus;
+  trackingCode: string | null;
+  trackingUrl: string | null;
+  processingAt: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
   items: OrderItem[];
   createdAt: string;
 }
@@ -68,6 +81,7 @@ export interface OrderSummary {
   couponCode: string | null;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  fulfillmentStatus: FulfillmentStatus;
   itemCount: number;
   createdAt: string;
 }
@@ -82,6 +96,17 @@ export interface AdminOrderDetail extends Order {
   customerName: string | null;
   customerEmail: string | null;
   customerPhone: string | null;
+  emailDeliveries: Array<{
+    id: string;
+    event: string;
+    status: string;
+    recipientEmail: string;
+    brevoMessageId: string | null;
+    errorMessage: string | null;
+    attemptCount: number;
+    sentAt: string | null;
+    createdAt: string;
+  }>;
   shipments: Array<{
     id: string;
     volumeIndex: number;

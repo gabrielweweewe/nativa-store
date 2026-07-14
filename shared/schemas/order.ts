@@ -58,6 +58,28 @@ export const orderStatusUpdateSchema = z.object({
   status: z.enum(["pending", "paid", "canceled"]),
 });
 
+export const fulfillmentUpdateSchema = z
+  .object({
+    status: z.enum([
+      "unfulfilled",
+      "processing",
+      "shipped",
+      "delivered",
+      "canceled",
+    ]),
+    trackingCode: z.string().trim().max(120).optional().nullable(),
+    trackingUrl: z.string().trim().url("URL de rastreio inválida").optional().nullable(),
+  })
+  .superRefine((value, context) => {
+    if (value.status === "shipped" && !value.trackingCode?.trim()) {
+      context.addIssue({
+        code: "custom",
+        path: ["trackingCode"],
+        message: "Informe o código de rastreio",
+      });
+    }
+  });
+
 export const orderBulkIdsSchema = z.object({
   ids: z
     .array(z.string().uuid("ID de pedido inválido"))
@@ -71,5 +93,6 @@ export const orderBulkExportSchema = orderBulkIdsSchema.extend({
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type OrderStatusUpdateInput = z.infer<typeof orderStatusUpdateSchema>;
+export type FulfillmentUpdateInput = z.infer<typeof fulfillmentUpdateSchema>;
 export type OrderBulkIdsInput = z.infer<typeof orderBulkIdsSchema>;
 export type OrderBulkExportInput = z.infer<typeof orderBulkExportSchema>;

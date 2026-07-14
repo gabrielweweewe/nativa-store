@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkoutSchema } from "./order";
+import { checkoutSchema, fulfillmentUpdateSchema } from "./order";
 
 const base = {
   shippingAddress: {
@@ -60,5 +60,29 @@ describe("checkoutSchema Mercado Pago", () => {
       paymentMethod: "pix",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("fulfillmentUpdateSchema", () => {
+  it("exige rastreio ao marcar o pedido como enviado", () => {
+    expect(
+      fulfillmentUpdateSchema.safeParse({ status: "shipped" }).success
+    ).toBe(false);
+    expect(
+      fulfillmentUpdateSchema.safeParse({
+        status: "shipped",
+        trackingCode: "BR123456789",
+        trackingUrl: "https://rastreamento.example/BR123456789",
+      }).success
+    ).toBe(true);
+  });
+
+  it("aceita preparação e entrega sem alterar rastreio", () => {
+    expect(
+      fulfillmentUpdateSchema.safeParse({ status: "processing" }).success
+    ).toBe(true);
+    expect(
+      fulfillmentUpdateSchema.safeParse({ status: "delivered" }).success
+    ).toBe(true);
   });
 });

@@ -17,6 +17,7 @@ import {
   ImageIcon,
   LayoutDashboard,
   LogOut,
+  MailCheck,
   Map,
   MoreHorizontal,
   Package,
@@ -76,6 +77,12 @@ const navItems: NavItem[] = [
     href: "/admin/regioes",
     icon: Map,
     match: (path) => path.startsWith("/admin/regioes"),
+  },
+  {
+    label: "Email Marketing",
+    href: "/admin/email-marketing/campanhas",
+    icon: MailCheck,
+    match: (path) => path.startsWith("/admin/email-marketing"),
   },
   {
     label: "Integrações",

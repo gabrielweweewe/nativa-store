@@ -10,14 +10,47 @@ import { FeatherOrange, FeatherBlue, FeatherGreen } from "./NativaDecorations";
 
 export default function PromoSection() {
   const [email, setEmail] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [website, setWebsite] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
+    "idle"
+  );
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    toast("Obrigada por se inscrever!", {
-      description: "Você receberá novidades e ofertas exclusivas.",
-    });
-    setEmail("");
+    if (!email || !consent || status === "loading") return;
+    setStatus("loading");
+    setErrorMessage("");
+    try {
+      const response = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          consent: true,
+          website,
+          source: "home_newsletter",
+        }),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(body?.error ?? "Não foi possível concluir sua inscrição.");
+      }
+      setStatus("success");
+      setEmail("");
+      setConsent(false);
+      toast.success("Inscrição confirmada!", {
+        description: "Você receberá novidades e ofertas exclusivas.",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível concluir sua inscrição.";
+      setErrorMessage(message);
+      setStatus("error");
+    }
   };
 
   return (
@@ -118,25 +151,68 @@ export default function PromoSection() {
             Inscreva-se e seja a primeira a saber sobre novas coleções, promoções exclusivas e histórias das nossas artesãs.
           </p>
 
-          <form onSubmit={handleSubmit} className="flex gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
-              className="flex-1 px-5 py-3 rounded-full border border-[#C4522A]/25 bg-white text-[#3D2B1F] text-sm outline-none focus:border-[#C4522A]/60 focus:ring-2 focus:ring-[#C4522A]/15 transition-all duration-200"
-              style={{ fontFamily: "'Lora', serif" }}
-            />
-            <button
-              type="submit"
-              className="nativa-btn-primary px-6 py-3 rounded-full text-sm whitespace-nowrap"
-            >
-              Inscrever-se
-            </button>
+          <form onSubmit={handleSubmit} className="max-w-md mx-auto">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (status !== "loading") setStatus("idle");
+                }}
+                placeholder="seu@email.com"
+                aria-label="Seu e-mail"
+                className="min-w-0 flex-1 px-5 py-3 rounded-full border border-[#C4522A]/25 bg-white text-[#3D2B1F] text-sm outline-none focus:border-[#C4522A]/60 focus:ring-2 focus:ring-[#C4522A]/15 transition-all duration-200"
+                style={{ fontFamily: "'Lora', serif" }}
+              />
+              <button
+                type="submit"
+                disabled={status === "loading" || !consent}
+                className="nativa-btn-primary px-6 py-3 rounded-full text-sm whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {status === "loading" ? "Inscrevendo..." : "Inscrever-se"}
+              </button>
+            </div>
+            <div className="absolute -left-[10000px] top-auto size-px overflow-hidden" aria-hidden="true">
+              <label htmlFor="newsletter-website">Não preencha este campo</label>
+              <input
+                id="newsletter-website"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                value={website}
+                onChange={event => setWebsite(event.target.value)}
+              />
+            </div>
+            <label className="mt-3 flex cursor-pointer items-start gap-2 text-left text-xs text-[#8B6F5E]">
+              <input
+                type="checkbox"
+                required
+                checked={consent}
+                onChange={event => setConsent(event.target.checked)}
+                className="mt-0.5 size-4 shrink-0 accent-[#C4522A]"
+              />
+              <span>
+                Concordo em receber novidades, promoções e conteúdos da Nativa
+                por e-mail. Posso cancelar a qualquer momento.
+              </span>
+            </label>
+            <div aria-live="polite" className="mt-2 min-h-5 text-xs">
+              {status === "success" && (
+                <p className="font-semibold text-[#2D6A4F]">
+                  Inscrição realizada com sucesso!
+                </p>
+              )}
+              {status === "error" && (
+                <p className="font-semibold text-red-700">{errorMessage}</p>
+              )}
+            </div>
           </form>
 
           <p
-            className="text-xs text-[#B0A090] mt-3"
+            className="text-xs text-[#B0A090] mt-1"
             style={{ fontFamily: "'Nunito', sans-serif" }}
           >
             Sem spam. Cancele quando quiser.

@@ -24,6 +24,12 @@ export interface OrderRow {
   payment_expires_at?: string | null;
   paid_at?: string | null;
   payment_instructions?: PaymentInstructions | null;
+  fulfillment_status?: string;
+  tracking_code?: string | null;
+  tracking_url?: string | null;
+  processing_at?: string | null;
+  shipped_at?: string | null;
+  delivered_at?: string | null;
   created_at: string;
 }
 
@@ -90,6 +96,13 @@ export function mapOrderRowToOrder(row: OrderRow, items: OrderItem[]): Order {
     paymentExpiresAt: row.payment_expires_at ?? null,
     paidAt: row.paid_at ?? null,
     paymentInstructions: row.payment_instructions ?? null,
+    fulfillmentStatus: (row.fulfillment_status ??
+      "unfulfilled") as Order["fulfillmentStatus"],
+    trackingCode: row.tracking_code ?? null,
+    trackingUrl: row.tracking_url ?? null,
+    processingAt: row.processing_at ?? null,
+    shippedAt: row.shipped_at ?? null,
+    deliveredAt: row.delivered_at ?? null,
     items,
     createdAt: row.created_at,
   };
@@ -108,6 +121,8 @@ export function mapOrderRowToSummary(
     paymentMethod: row.payment_method as OrderSummary["paymentMethod"],
     paymentStatus: (row.payment_status ??
       "pending") as OrderSummary["paymentStatus"],
+    fulfillmentStatus: (row.fulfillment_status ??
+      "unfulfilled") as OrderSummary["fulfillmentStatus"],
     itemCount,
     createdAt: row.created_at,
   };

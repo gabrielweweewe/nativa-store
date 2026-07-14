@@ -3,11 +3,13 @@ import express, { type NextFunction, type Request, type Response } from "express
 import adminRouter from "./routes/admin";
 import analyticsRouter from "./routes/analytics";
 import bannersRouter from "./routes/banners";
+import brevoWebhookRouter from "./routes/brevoWebhook";
 import cartRouter from "./routes/cart";
 import customersRouter from "./routes/customers";
 import ordersRouter from "./routes/orders";
 import mercadoPagoRouter from "./routes/mercadoPago";
 import mercadoPagoWebhookRouter from "./routes/mercadoPagoWebhook";
+import newsletterRouter from "./routes/newsletter";
 import productsRouter from "./routes/products";
 import regionsRouter from "./routes/regions";
 import shippingRouter from "./routes/shipping";
@@ -61,6 +63,8 @@ export function createApiApp() {
   app.use("/api/orders", ordersRouter);
   app.use("/api/mercado-pago", mercadoPagoRouter);
   app.use("/api/webhooks/mercado-pago", mercadoPagoWebhookRouter);
+  app.use("/api/webhooks/brevo", brevoWebhookRouter);
+  app.use("/api/newsletter", newsletterRouter);
   app.use("/api/products", productsRouter);
   app.use("/api/regions", regionsRouter);
   app.use("/api/shipping", shippingRouter);

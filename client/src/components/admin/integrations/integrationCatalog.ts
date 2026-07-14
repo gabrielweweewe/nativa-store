@@ -102,7 +102,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     categoryId: "marketing",
     name: "Brevo",
     description: "E-mails transacionais, newsletters e automações.",
-    availability: "coming_soon",
+    availability: "available",
     icon: Mail,
     iconBg: "bg-emerald-50",
     iconColor: "text-emerald-600",

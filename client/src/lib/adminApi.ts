@@ -7,6 +7,7 @@ import type { AdminNotification } from "@shared/types/notification";
 import type {
   AdminOrderDetail,
   AdminOrderSummary,
+  FulfillmentStatus,
   OrderStatus,
 } from "@shared/types/order";
 import type { Banner, BannerInput } from "@shared/types/banner";
@@ -198,9 +199,32 @@ export function updateAdminOrderStatus(orderId: string, status: OrderStatus) {
   );
 }
 
+export function updateAdminOrderFulfillment(
+  orderId: string,
+  input: {
+    status: FulfillmentStatus;
+    trackingCode?: string | null;
+    trackingUrl?: string | null;
+  }
+) {
+  return request<AdminOrderDetail>(
+    `/api/admin/orders/${encodeURIComponent(orderId)}/fulfillment`,
+    { method: "PATCH", body: JSON.stringify(input) }
+  );
+}
+
 export function retryAdminOrderShipment(orderId: string) {
   return request<AdminOrderDetail>(
     `/api/admin/orders/${encodeURIComponent(orderId)}/shipment/retry`,
+    { method: "POST" }
+  );
+}
+
+export function retryAdminOrderEmail(orderId: string, deliveryId: string) {
+  return request<AdminOrderDetail>(
+    `/api/admin/orders/${encodeURIComponent(orderId)}/emails/${encodeURIComponent(
+      deliveryId
+    )}/retry`,
     { method: "POST" }
   );
 }
@@ -391,4 +415,393 @@ export function testMercadoPagoCredentials(
     method: "POST",
     body: JSON.stringify({ environment }),
   });
+}
+
+export interface BrevoStatus {
+  enabled: boolean;
+  configured: boolean;
+  hasApiKey: boolean;
+  hasWebhookToken: boolean;
+  webhookUrl: string;
+  connected?: boolean;
+  accountEmail?: string | null;
+  webhookConfigured?: boolean;
+  lastTestedAt?: string | null;
+  defaultSenderId?: number | null;
+  defaultSenderEmail?: string;
+  defaultSenderName?: string;
+  replyTo?: string;
+  defaultListId?: number | null;
+  templateOrderReceived?: number | null;
+  templatePaymentApproved?: number | null;
+  templatePaymentFailed?: number | null;
+  templatePaymentRefunded?: number | null;
+  templateOrderProcessing?: number | null;
+  templateOrderShipped?: number | null;
+  templateOrderDelivered?: number | null;
+}
+
+export interface BrevoSettingsInput {
+  enabled: boolean;
+  apiKey?: string;
+  webhookToken?: string;
+  defaultSenderId?: number | null;
+  defaultSenderEmail?: string;
+  defaultSenderName?: string;
+  replyTo?: string;
+  defaultListId?: number | null;
+  templateOrderReceived?: number | null;
+  templatePaymentApproved?: number | null;
+  templatePaymentFailed?: number | null;
+  templatePaymentRefunded?: number | null;
+  templateOrderProcessing?: number | null;
+  templateOrderShipped?: number | null;
+  templateOrderDelivered?: number | null;
+}
+
+export interface BrevoSender {
+  id: number;
+  name: string;
+  email: string;
+  active?: boolean;
+}
+
+export interface BrevoTemplate {
+  id: number;
+  name: string;
+  subject?: string;
+  htmlContent?: string;
+  isActive?: boolean;
+}
+
+export interface BrevoList {
+  id: number;
+  name: string;
+  totalSubscribers?: number;
+  createdAt?: string;
+}
+
+export interface BrevoContact {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  listIds?: number[];
+  subscribed?: boolean;
+  createdAt?: string;
+}
+
+export type BrevoCampaignStatus =
+  | "draft"
+  | "scheduled"
+  | "sent"
+  | "paused"
+  | "failed";
+
+export interface BrevoCampaign {
+  id: string | number;
+  name: string;
+  subject: string;
+  htmlContent?: string;
+  senderId?: number;
+  listIds?: number[];
+  status: BrevoCampaignStatus;
+  scheduledAt?: string | null;
+  sentAt?: string | null;
+  createdAt?: string;
+}
+
+export interface BrevoCampaignInput {
+  name: string;
+  subject: string;
+  htmlContent: string;
+  senderId: number;
+  listIds: number[];
+}
+
+export interface BrevoCampaignMetrics {
+  delivered: number;
+  opened: number;
+  uniqueOpens?: number;
+  clicked: number;
+  uniqueClicks?: number;
+  bounced: number;
+  unsubscribed: number;
+  openRate: number;
+  clickRate: number;
+}
+
+export function fetchBrevoStatus() {
+  return request<BrevoStatus>("/api/admin/brevo/status");
+}
+
+export function updateBrevoSettings(input: BrevoSettingsInput) {
+  return request<BrevoStatus>("/api/admin/brevo/settings", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function testBrevoConnection() {
+  return request<{ success: true; account?: unknown }>(
+    "/api/admin/brevo/test",
+    { method: "POST" }
+  );
+}
+
+export function configureBrevoWebhook() {
+  return request<{ success: true; webhookUrl: string }>(
+    "/api/admin/brevo/webhook/configure",
+    { method: "POST" }
+  );
+}
+
+export async function fetchBrevoTemplates() {
+  return request<BrevoTemplate[]>("/api/admin/brevo/templates");
+}
+
+export async function fetchBrevoSenders() {
+  return request<BrevoSender[]>("/api/admin/brevo/senders");
+}
+
+export async function fetchBrevoLists() {
+  const result = await request<
+    Array<BrevoList & { uniqueSubscribers?: number }>
+  >("/api/admin/brevo/lists");
+  return result.map(list => ({
+    ...list,
+    totalSubscribers: list.totalSubscribers ?? list.uniqueSubscribers ?? 0,
+  }));
+}
+
+export function createBrevoList(name: string, folderId?: number) {
+  return request<BrevoList>("/api/admin/brevo/lists", {
+    method: "POST",
+    body: JSON.stringify({ name, folderId }),
+  });
+}
+
+export function deleteBrevoList(listId: number) {
+  return request<void>(`/api/admin/brevo/lists/${listId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchBrevoContacts(params: {
+  search?: string;
+  listId?: number;
+} = {}) {
+  const result = await request<
+    Array<{
+      id: string | number;
+      email: string;
+      attributes?: Record<string, string | undefined>;
+      listIds?: number[];
+      emailBlacklisted?: boolean;
+      createdAt?: string;
+    }>
+  >("/api/admin/brevo/contacts?limit=500");
+  const query = params.search?.trim().toLowerCase();
+  return result
+    .map(contact => ({
+      id: String(contact.id),
+      email: contact.email,
+      firstName: contact.attributes?.NOME ?? contact.attributes?.FIRSTNAME,
+      lastName: contact.attributes?.SOBRENOME ?? contact.attributes?.LASTNAME,
+      listIds: contact.listIds ?? [],
+      subscribed: !contact.emailBlacklisted,
+      createdAt: contact.createdAt,
+    }))
+    .filter(contact => {
+      const matchesList =
+        !params.listId || contact.listIds?.includes(params.listId);
+      const haystack = `${contact.firstName ?? ""} ${contact.lastName ?? ""} ${contact.email}`.toLowerCase();
+      return matchesList && (!query || haystack.includes(query));
+    });
+}
+
+export function createBrevoContact(input: {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  listIds: number[];
+}) {
+  return request<{ id?: string | number }>("/api/admin/brevo/contacts", {
+    method: "POST",
+    body: JSON.stringify({
+      email: input.email,
+      attributes: {
+        ...(input.firstName ? { NOME: input.firstName } : {}),
+        ...(input.lastName ? { SOBRENOME: input.lastName } : {}),
+      },
+      listIds: input.listIds,
+      updateEnabled: true,
+    }),
+  }).then(result => ({
+    id: String(result.id ?? input.email),
+    email: input.email,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    listIds: input.listIds,
+    subscribed: true,
+  }));
+}
+
+export function removeBrevoContact(email: string) {
+  return request<void>(
+    `/api/admin/brevo/contacts/${encodeURIComponent(email)}`,
+    { method: "DELETE" }
+  );
+}
+
+type BrevoRawCampaign = {
+  id: string | number;
+  name?: string;
+  subject?: string;
+  htmlContent?: string;
+  sender?: { id?: number; email?: string; name?: string };
+  recipients?: { lists?: number[]; listIds?: number[] };
+  status?: string;
+  scheduledAt?: string;
+  sentDate?: string;
+  createdAt?: string;
+};
+
+function normalizeBrevoCampaign(campaign: BrevoRawCampaign): BrevoCampaign {
+  const rawStatus = campaign.status?.toLowerCase();
+  const status: BrevoCampaignStatus =
+    rawStatus === "sent"
+      ? "sent"
+      : rawStatus === "queued" || Boolean(campaign.scheduledAt)
+        ? "scheduled"
+        : rawStatus === "suspended" || rawStatus === "archive"
+          ? "paused"
+          : rawStatus === "draft"
+            ? "draft"
+            : "failed";
+  return {
+    id: campaign.id,
+    name: campaign.name ?? `Campanha ${campaign.id}`,
+    subject: campaign.subject ?? "Sem assunto",
+    htmlContent: campaign.htmlContent,
+    senderId: campaign.sender?.id,
+    listIds: campaign.recipients?.lists ?? campaign.recipients?.listIds ?? [],
+    status,
+    scheduledAt: campaign.scheduledAt,
+    sentAt: campaign.sentDate,
+    createdAt: campaign.createdAt,
+  };
+}
+
+export async function fetchBrevoCampaigns() {
+  const result = await request<BrevoRawCampaign[]>(
+    "/api/admin/brevo/campaigns"
+  );
+  return result.map(normalizeBrevoCampaign);
+}
+
+export async function fetchBrevoCampaign(campaignId: string) {
+  const campaign = await request<BrevoRawCampaign>(
+    `/api/admin/brevo/campaigns/${encodeURIComponent(campaignId)}`
+  );
+  return normalizeBrevoCampaign(campaign);
+}
+
+function brevoCampaignPayload(input: BrevoCampaignInput) {
+  return {
+    name: input.name,
+    subject: input.subject,
+    htmlContent: input.htmlContent,
+    senderId: input.senderId,
+    recipients: { listIds: input.listIds },
+  };
+}
+
+export async function createBrevoCampaign(input: BrevoCampaignInput) {
+  const result = await request<{ id: string | number }>(
+    "/api/admin/brevo/campaigns",
+    {
+    method: "POST",
+      body: JSON.stringify(brevoCampaignPayload(input)),
+    }
+  );
+  return { ...input, id: result.id, status: "draft" as const };
+}
+
+export function updateBrevoCampaign(
+  campaignId: string,
+  input: BrevoCampaignInput
+) {
+  return request<BrevoRawCampaign>(
+    `/api/admin/brevo/campaigns/${encodeURIComponent(campaignId)}`,
+    { method: "PUT", body: JSON.stringify(brevoCampaignPayload(input)) }
+  ).then(result =>
+    normalizeBrevoCampaign({ ...result, id: result.id ?? campaignId })
+  );
+}
+
+export function sendBrevoCampaign(campaignId: string) {
+  return request<unknown>(
+    `/api/admin/brevo/campaigns/${encodeURIComponent(campaignId)}/send-now`,
+    { method: "POST" }
+  );
+}
+
+export function scheduleBrevoCampaign(campaignId: string, scheduledAt: string) {
+  return request<unknown>(
+    `/api/admin/brevo/campaigns/${encodeURIComponent(campaignId)}/schedule`,
+    { method: "POST", body: JSON.stringify({ scheduledAt }) }
+  );
+}
+
+export function sendBrevoTestEmail(input: {
+  email: string;
+  subject: string;
+  htmlContent: string;
+  senderId: number;
+}) {
+  return request<{ success: true }>("/api/admin/brevo/campaigns/test", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchBrevoCampaignMetrics(campaignId: string) {
+  const result = await request<BrevoCampaignMetrics & {
+    statistics?: {
+      globalStats?: {
+        delivered?: number;
+        viewed?: number;
+        uniqueViews?: number;
+        clicks?: number;
+        clickers?: number;
+        hardBounces?: number;
+        softBounces?: number;
+        unsubscriptions?: number;
+      };
+    };
+  }>(
+    `/api/admin/brevo/campaigns/${encodeURIComponent(campaignId)}/metrics`
+  );
+  if (
+    typeof result.delivered === "number" &&
+    typeof result.openRate === "number"
+  ) {
+    return result;
+  }
+  const stats = result.statistics?.globalStats ?? {};
+  const delivered = stats.delivered ?? 0;
+  const opened = stats.uniqueViews ?? stats.viewed ?? 0;
+  const clicked = stats.clickers ?? stats.clicks ?? 0;
+  return {
+    delivered,
+    opened,
+    uniqueOpens: stats.uniqueViews,
+    clicked,
+    uniqueClicks: stats.clickers,
+    bounced: (stats.hardBounces ?? 0) + (stats.softBounces ?? 0),
+    unsubscribed: stats.unsubscriptions ?? 0,
+    openRate: delivered ? (opened / delivered) * 100 : 0,
+    clickRate: delivered ? (clicked / delivered) * 100 : 0,
+  };
 }

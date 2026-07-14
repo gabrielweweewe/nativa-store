@@ -1,4 +1,5 @@
 import AdminLayout from "@/components/admin/AdminLayout";
+import BrevoIntegrationCard from "@/components/admin/BrevoIntegrationCard";
 import MelhorEnvioIntegrationCard from "@/components/admin/MelhorEnvioIntegrationCard";
 import MercadoPagoIntegrationCard from "@/components/admin/MercadoPagoIntegrationCard";
 import {
@@ -11,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   AdminApiError,
+  fetchBrevoStatus,
   fetchMelhorEnvioStatus,
   fetchMercadoPagoStatus,
 } from "@/lib/adminApi";
@@ -178,10 +180,11 @@ export default function AdminIntegrations() {
 
     async function loadStatuses() {
       try {
-        const [mpTest, mpProd, me] = await Promise.all([
+        const [mpTest, mpProd, me, brevo] = await Promise.all([
           fetchMercadoPagoStatus("test").catch(() => null),
           fetchMercadoPagoStatus("production").catch(() => null),
           fetchMelhorEnvioStatus().catch(() => null),
+          fetchBrevoStatus().catch(() => null),
         ]);
 
         if (cancelled) return;
@@ -201,6 +204,13 @@ export default function AdminIntegrations() {
           next["melhor-envio"] = me.connected ? "active" : "inactive";
         } else {
           next["melhor-envio"] = "unknown";
+        }
+
+        if (brevo) {
+          next.brevo =
+            brevo.enabled && brevo.configured ? "active" : "inactive";
+        } else {
+          next.brevo = "unknown";
         }
 
         setLiveStatus(next);
@@ -270,6 +280,7 @@ export default function AdminIntegrations() {
             <div className="max-w-3xl">
               {selected.id === "mercado-pago" && <MercadoPagoIntegrationCard />}
               {selected.id === "melhor-envio" && <MelhorEnvioIntegrationCard />}
+              {selected.id === "brevo" && <BrevoIntegrationCard />}
             </div>
           </div>
         ) : (

@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@fancyapps/ui": "^6.1.14",
+    "@getbrevo/brevo": "^6.0.2",
     "@hookform/resolvers": "^5.2.2",
     "@mercadopago/sdk-react": "^1.0.7",
     "@radix-ui/react-accordion": "^1.2.12",

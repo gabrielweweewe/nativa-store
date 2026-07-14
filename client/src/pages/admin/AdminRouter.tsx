@@ -8,6 +8,10 @@ import AdminBanners from "./AdminBanners";
 import AdminCustomerDetail from "./AdminCustomerDetail";
 import AdminCustomersList from "./AdminCustomersList";
 import AdminDashboard from "./AdminDashboard";
+import AdminEmailCampaignEditor from "./AdminEmailCampaignEditor";
+import AdminEmailCampaigns from "./AdminEmailCampaigns";
+import AdminEmailContacts from "./AdminEmailContacts";
+import AdminEmailLists from "./AdminEmailLists";
 import AdminIntegrations from "./AdminIntegrations";
 import AdminLogin from "./AdminLogin";
 import AdminOrderDetail from "./AdminOrderDetail";
@@ -102,6 +106,34 @@ export default function AdminRouter() {
         <Route path="/admin/integracoes">
           <ProtectedAdmin>
             <AdminIntegrations />
+          </ProtectedAdmin>
+        </Route>
+        <Route path="/admin/email-marketing">
+          <Redirect to="/admin/email-marketing/campanhas" />
+        </Route>
+        <Route path="/admin/email-marketing/campanhas">
+          <ProtectedAdmin>
+            <AdminEmailCampaigns />
+          </ProtectedAdmin>
+        </Route>
+        <Route path="/admin/email-marketing/campanhas/nova">
+          <ProtectedAdmin>
+            <AdminEmailCampaignEditor />
+          </ProtectedAdmin>
+        </Route>
+        <Route path="/admin/email-marketing/campanhas/:id/editar">
+          <ProtectedAdmin>
+            <AdminEmailCampaignEditor />
+          </ProtectedAdmin>
+        </Route>
+        <Route path="/admin/email-marketing/listas">
+          <ProtectedAdmin>
+            <AdminEmailLists />
+          </ProtectedAdmin>
+        </Route>
+        <Route path="/admin/email-marketing/contatos">
+          <ProtectedAdmin>
+            <AdminEmailContacts />
           </ProtectedAdmin>
         </Route>
         <Route>

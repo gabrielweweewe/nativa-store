@@ -8,7 +8,10 @@ import {
   mapOrderRowToSummary,
   type OrderRow,
 } from "@shared/lib/orderMapper";
-import type { CheckoutInput } from "@shared/schemas/order";
+import type {
+  CheckoutInput,
+  FulfillmentUpdateInput,
+} from "@shared/schemas/order";
 import type { CheckoutPaymentResult } from "@shared/types/mercadoPago";
 import type {
   AdminOrderDetail,
@@ -28,6 +31,10 @@ import {
   ensurePaidOrderInMelhorEnvioCart,
   validateShippingSelection,
 } from "./melhorEnvio";
+import {
+  dispatchOrderEmail,
+  dispatchPaymentStatusEmail,
+} from "./orderEmails";
 
 async function fetchCustomerCartRow(
   customerId: string
@@ -177,6 +184,7 @@ export async function getCustomerOrder(
           p_status_detail: identity.statusDetail,
           p_response: payload,
         });
+        await dispatchPaymentStatusEmail(orderId, identity.status);
         if (identity.status === "approved") {
           try {
             await ensurePaidOrderInMelhorEnvioCart(orderId);
@@ -340,6 +348,7 @@ export async function createOrderFromCheckout(
           })
           .eq("order_id", order.id),
       ]);
+      await dispatchPaymentStatusEmail(order.id, "rejected");
     } else {
       const { error: acceptError } = await supabase.rpc(
         "checkout_accept_payment",
@@ -355,6 +364,7 @@ export async function createOrderFromCheckout(
         }
       );
       if (acceptError) throw new Error(acceptError.message);
+      await dispatchOrderEmail(order.id, "order_received");
 
       if (identity.status === "approved") {
         const { error: reconcileError } = await supabase.rpc(
@@ -368,6 +378,7 @@ export async function createOrderFromCheckout(
           }
         );
         if (reconcileError) throw new Error(reconcileError.message);
+        await dispatchPaymentStatusEmail(order.id, "approved");
         try {
           await ensurePaidOrderInMelhorEnvioCart(order.id);
         } catch (shippingError) {
@@ -490,7 +501,7 @@ export async function listAllOrders(): Promise<AdminOrderSummary[]> {
 
 export async function getOrderById(orderId: string): Promise<AdminOrderDetail> {
   const order = await fetchOrderWithItems(orderId);
-  const [customerInfo, shipmentResult] = await Promise.all([
+  const [customerInfo, shipmentResult, deliveryResult] = await Promise.all([
     fetchCustomerInfo(order.customerId),
     supabase
       .from("melhor_envio_shipments")
@@ -499,14 +510,33 @@ export async function getOrderById(orderId: string): Promise<AdminOrderDetail> {
       )
       .eq("order_id", orderId)
       .order("volume_index", { ascending: true }),
+    supabase
+      .from("brevo_email_deliveries")
+      .select(
+        "id, event, status, recipient_email, message_id, error_message, attempt_count, sent_at, created_at"
+      )
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false }),
   ]);
   if (shipmentResult.error) throw new Error(shipmentResult.error.message);
+  if (deliveryResult.error) throw new Error(deliveryResult.error.message);
 
   return {
     ...order,
     customerName: customerInfo.name,
     customerEmail: customerInfo.email,
     customerPhone: customerInfo.phone,
+    emailDeliveries: (deliveryResult.data ?? []).map(delivery => ({
+      id: delivery.id,
+      event: delivery.event,
+      status: delivery.status,
+      recipientEmail: delivery.recipient_email,
+      brevoMessageId: delivery.message_id,
+      errorMessage: delivery.error_message,
+      attemptCount: Number(delivery.attempt_count),
+      sentAt: delivery.sent_at,
+      createdAt: delivery.created_at,
+    })),
     shipments: (shipmentResult.data ?? []).map(shipment => ({
       id: shipment.id,
       volumeIndex: Number(shipment.volume_index),
@@ -531,6 +561,54 @@ export async function updateOrderStatus(
 
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Pedido não encontrado");
+
+  if (status === "canceled") {
+    await dispatchOrderEmail(orderId, "payment_failed");
+  } else if (status === "paid") {
+    await dispatchOrderEmail(orderId, "payment_approved");
+  }
+
+  return getOrderById(orderId);
+}
+
+export async function updateOrderFulfillment(
+  orderId: string,
+  input: FulfillmentUpdateInput
+): Promise<AdminOrderDetail> {
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = {
+    fulfillment_status: input.status,
+  };
+
+  if (input.trackingCode !== undefined) {
+    patch.tracking_code = input.trackingCode?.trim() || null;
+  }
+  if (input.trackingUrl !== undefined) {
+    patch.tracking_url = input.trackingUrl?.trim() || null;
+  }
+  if (input.status === "processing") patch.processing_at = now;
+  if (input.status === "shipped") patch.shipped_at = now;
+  if (input.status === "delivered") patch.delivered_at = now;
+
+  const { data, error } = await supabase
+    .from("orders")
+    .update(patch)
+    .eq("id", orderId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Pedido não encontrado");
+
+  const event =
+    input.status === "processing"
+      ? "order_processing"
+      : input.status === "shipped"
+        ? "order_shipped"
+        : input.status === "delivered"
+          ? "order_delivered"
+          : null;
+  if (event) await dispatchOrderEmail(orderId, event);
 
   return getOrderById(orderId);
 }
