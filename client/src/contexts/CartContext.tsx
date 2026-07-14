@@ -40,6 +40,9 @@ interface CartContextType {
   isLoading: boolean;
   isUpdating: boolean;
   isDrawerOpen: boolean;
+  /** Incrementa a cada add bem-sucedido — anima o badge do carrinho. */
+  cartPulse: number;
+  celebrateAdd: () => void;
   openDrawer: () => void;
   closeDrawer: () => void;
   toggleDrawer: () => void;
@@ -65,6 +68,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [cartPulse, setCartPulse] = useState(0);
+
+  const celebrateAdd = useCallback(() => {
+    setCartPulse((n) => n + 1);
+  }, []);
 
   const mergedForUserRef = useRef<string | null>(null);
   const prevUserIdRef = useRef<string | null>(null);
@@ -157,6 +165,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       try {
         const data = await addCartItemApi(input, token);
         applyCartState(setCart, data);
+        setCartPulse((n) => n + 1);
         return true;
       } catch (error) {
         toast.error("Não foi possível adicionar", {
@@ -276,6 +285,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       isLoading,
       isUpdating,
       isDrawerOpen,
+      cartPulse,
+      celebrateAdd,
       openDrawer,
       closeDrawer,
       toggleDrawer,
@@ -295,6 +306,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       isLoading,
       isUpdating,
       isDrawerOpen,
+      cartPulse,
+      celebrateAdd,
       openDrawer,
       closeDrawer,
       toggleDrawer,

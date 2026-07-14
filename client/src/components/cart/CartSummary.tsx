@@ -6,8 +6,8 @@ import {
 } from "@/lib/shippingApi";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
-import { ArrowRight, Tag, Truck } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowRight, Check, Tag, Truck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 interface CartSummaryProps {
   compact?: boolean;
@@ -24,10 +24,12 @@ export default function CartSummary({
 }: CartSummaryProps) {
   const { summary, couponCode, applyCoupon, isUpdating, itemCount } = useCart();
   const [couponInput, setCouponInput] = useState(couponCode ?? "");
+  const [shippingUnlock, setShippingUnlock] = useState(false);
   const [shippingConfig, setShippingConfig] = useState<PublicShippingConfig>({
     freeShippingEnabled: true,
     freeShippingThreshold: 299,
   });
+  const prevQualifiesRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     setCouponInput(couponCode ?? "");
@@ -53,6 +55,17 @@ export default function CartSummary({
         (summary.subtotal / shippingConfig.freeShippingThreshold) * 100,
       );
 
+  useEffect(() => {
+    if (!shippingConfig.freeShippingEnabled) return;
+    const prev = prevQualifiesRef.current;
+    prevQualifiesRef.current = qualifiesForFreeShipping;
+    if (prev === false && qualifiesForFreeShipping) {
+      setShippingUnlock(true);
+      const t = window.setTimeout(() => setShippingUnlock(false), 700);
+      return () => window.clearTimeout(t);
+    }
+  }, [qualifiesForFreeShipping, shippingConfig.freeShippingEnabled]);
+
   async function handleApplyCoupon(e: React.FormEvent) {
     e.preventDefault();
     await applyCoupon({ couponCode: couponInput.trim() });
@@ -63,33 +76,39 @@ export default function CartSummary({
   return (
     <div className={`space-y-4 ${compact ? "" : "rounded-2xl border border-[#E8D5C4] bg-white p-5"}`}>
       {/* Frete grátis */}
-      {shippingConfig.freeShippingEnabled && <div className="space-y-2">
-        <div className="flex items-center gap-2 text-sm">
-          <Truck size={16} className={qualifiesForFreeShipping ? "text-[#2D6A4F]" : "text-[#8B6F5E]"} />
-          {qualifiesForFreeShipping ? (
-            <span className="font-semibold text-[#2D6A4F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-              Você ganhou frete grátis!
-            </span>
-          ) : (
-            <span className="text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-              Faltam{" "}
-              <strong className="text-[#C4522A]">{formatPrice(freeShippingRemaining)}</strong>{" "}
-              para frete grátis
-            </span>
-          )}
+      {shippingConfig.freeShippingEnabled && (
+        <div className={`space-y-2 ${shippingUnlock ? "shipping-unlock-pop" : ""}`}>
+          <div className="flex items-center gap-2 text-sm">
+            {qualifiesForFreeShipping ? (
+              <Check size={16} className="text-[#2D6A4F]" strokeWidth={2.75} />
+            ) : (
+              <Truck size={16} className="text-[#8B6F5E]" />
+            )}
+            {qualifiesForFreeShipping ? (
+              <span className="font-semibold text-[#2D6A4F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                Frete grátis desbloqueado!
+              </span>
+            ) : (
+              <span className="text-[#3D2B1F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
+                Faltam{" "}
+                <strong className="text-[#C4522A]">{formatPrice(freeShippingRemaining)}</strong>{" "}
+                para frete grátis
+              </span>
+            )}
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-[#E8D5C4]/60">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${progressPercent}%`,
+                background: qualifiesForFreeShipping
+                  ? "linear-gradient(90deg, #2D6A4F, #1B7A8C)"
+                  : "linear-gradient(90deg, #C4522A, #E8821A)",
+              }}
+            />
+          </div>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-[#E8D5C4]/60">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{
-              width: `${progressPercent}%`,
-              background: qualifiesForFreeShipping
-                ? "linear-gradient(90deg, #2D6A4F, #1B7A8C)"
-                : "linear-gradient(90deg, #C4522A, #E8821A)",
-            }}
-          />
-        </div>
-      </div>}
+      )}
 
       {/* Cupom */}
       {showCoupon && (

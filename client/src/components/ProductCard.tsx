@@ -3,13 +3,15 @@
  * Reusable card for product grids and related products
  */
 
-import { useState } from "react";
-import { Heart, ShoppingBag, Star } from "lucide-react";
+import { Heart, ShoppingBag, Star, Expand } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import type { Product } from "@shared/types/product";
 import { formatPrice } from "@/lib/products";
+import { showAddToCartReward } from "@/lib/cartReward";
 import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
+import { useStoreDiscovery } from "@/contexts/StoreDiscoveryContext";
 
 export type ProductCardVariant = "default" | "featured" | "wide" | "tall" | "compact";
 
@@ -35,16 +37,23 @@ function hasComplexVariants(product: Product): boolean {
 }
 
 export default function ProductCard({ product, variant = "default" }: ProductCardProps) {
-  const [isFav, setIsFav] = useState(false);
   const { addItem, openDrawer, isUpdating } = useCart();
+  const { isFavorite, toggleFavorite } = useWishlist();
+  const { openQuickView } = useStoreDiscovery();
+  const isFav = isFavorite(product.slug);
 
   const imageAspect = "aspect-[4/5]";
 
   const handleFav = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsFav(!isFav);
-    toast(isFav ? "Removido dos favoritos" : "Adicionado aos favoritos!");
+    toggleFavorite(product.slug, product.name);
+  };
+
+  const handleQuickView = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openQuickView(product);
   };
 
   const handleAddToCart = async (e: React.MouseEvent) => {
@@ -57,9 +66,7 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
     }
 
     if (hasComplexVariants(product)) {
-      toast("Escolha as opções na página do produto", {
-        description: "Este item possui tamanhos ou cores para selecionar.",
-      });
+      openQuickView(product);
       return;
     }
 
@@ -77,7 +84,12 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
     });
 
     if (ok) {
-      toast.success(`${product.name} adicionada!`);
+      showAddToCartReward({
+        name: product.name,
+        image: product.image,
+        price: product.price,
+        details: size,
+      });
       openDrawer();
     }
   };
@@ -100,7 +112,6 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          {/* Desktop: overlay no hover | Mobile: sombra suave sob o botão */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
           <div
@@ -111,11 +122,26 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
           </div>
 
           <button
+            type="button"
             onClick={handleFav}
-            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm transition-all duration-200 hover:scale-110 active:scale-95"
+            className="absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm transition-all duration-200 hover:scale-110 active:scale-95"
             aria-label={isFav ? "Remover dos favoritos" : "Adicionar aos favoritos"}
           >
-            <Heart size={14} className={isFav ? "fill-[#C4522A] text-[#C4522A]" : "text-[#8B6F5E]"} />
+            <Heart
+              size={14}
+              className={`transition-transform duration-200 ${
+                isFav ? "fill-[#C4522A] text-[#C4522A] scale-110" : "text-[#8B6F5E]"
+              }`}
+            />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleQuickView}
+            className="absolute top-3 right-14 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm transition-all duration-200 hover:scale-110 active:scale-95 md:opacity-0 md:group-hover:opacity-100"
+            aria-label="Visualização rápida"
+          >
+            <Expand size={14} className="text-[#8B6F5E]" />
           </button>
 
           {/* Mobile: botão circular sempre visível */}
@@ -129,13 +155,13 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
               boxShadow: "0 8px 20px oklch(0.52 0.14 38 / 0.4)",
               fontFamily: "'Nunito', sans-serif",
             }}
-            aria-label="Adicionar ao carrinho"
+            aria-label={hasComplexVariants(product) ? "Escolher opções" : "Adicionar ao carrinho"}
           >
             <ShoppingBag size={18} strokeWidth={2.25} />
           </button>
 
           {/* Desktop: barra completa no hover */}
-          <div className="absolute bottom-3 left-3 right-3 hidden translate-y-2 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 md:block">
+          <div className="absolute bottom-3 left-3 right-3 z-10 hidden translate-y-2 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 md:block">
             <button
               type="button"
               onClick={handleAddToCart}
@@ -147,7 +173,7 @@ export default function ProductCard({ product, variant = "default" }: ProductCar
               }}
             >
               <ShoppingBag size={13} />
-              Adicionar ao Carrinho
+              {hasComplexVariants(product) ? "Escolher opções" : "Adicionar ao Carrinho"}
             </button>
           </div>
 

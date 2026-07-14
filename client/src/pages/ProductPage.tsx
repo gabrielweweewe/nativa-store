@@ -27,6 +27,8 @@ import ProductCard from "@/components/ProductCard";
 import ProductGallery from "@/components/product/ProductGallery";
 import ProductShippingQuote from "@/components/product/ProductShippingQuote";
 import ProductWhatsAppButton from "@/components/product/ProductWhatsAppButton";
+import { showAddToCartReward } from "@/lib/cartReward";
+import { useWishlist } from "@/contexts/WishlistContext";
 import {
   FeatherOrange,
   FeatherGreen,
@@ -67,11 +69,12 @@ export default function ProductPage() {
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [isFav, setIsFav] = useState(false);
   const [highlightSizes, setHighlightSizes] = useState(false);
   const [showStickyCta, setShowStickyCta] = useState(false);
 
   const { addItem, openDrawer, isUpdating } = useCart();
+  const { isFavorite, toggleFavorite } = useWishlist();
+  const isFav = product ? isFavorite(product.slug) : false;
   const mainCtaRef = useRef<HTMLDivElement>(null);
   const sizeSectionRef = useRef<HTMLDivElement>(null);
 
@@ -144,7 +147,6 @@ export default function ProductPage() {
       setSelectedSize(product.sizes.find((s) => s.available)?.label ?? "");
       setSelectedColor(product.colors[0]?.name ?? "");
       setQuantity(1);
-      setIsFav(false);
       setHighlightSizes(false);
       window.scrollTo(0, 0);
     }
@@ -188,8 +190,11 @@ export default function ProductPage() {
     });
 
     if (ok) {
-      toast.success(`${product.name} adicionada ao carrinho!`, {
-        description: `${quantity}x ${selectedSize}${product.colors.length > 1 ? ` · ${selectedColor}` : ""}`,
+      showAddToCartReward({
+        name: product.name,
+        image: product.image,
+        price: product.price,
+        details: `${quantity}x ${selectedSize}${product.colors.length > 1 ? ` · ${selectedColor}` : ""}`,
       });
       openDrawer();
     }
@@ -507,10 +512,7 @@ export default function ProductPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setIsFav(!isFav);
-                        toast(isFav ? "Removido dos favoritos" : "Adicionado aos favoritos!");
-                      }}
+                      onClick={() => toggleFavorite(product.slug, product.name)}
                       className={`flex items-center justify-center rounded-2xl border-2 px-5 py-4 transition-all duration-200 ${
                         isFav
                           ? "border-[#C4522A] bg-[#C4522A]/10 text-[#C4522A]"

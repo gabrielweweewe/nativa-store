@@ -411,6 +411,69 @@
     text-underline-offset: 2px;
   }
 
+  /* Cart reward — badge bounce + confetti */
+  @keyframes cart-badge-pop {
+    0% { transform: scale(0.6); }
+    45% { transform: scale(1.25); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes cart-icon-wiggle {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-8deg) scale(1.08); }
+    55% { transform: rotate(8deg) scale(1.08); }
+    75% { transform: rotate(-4deg) scale(1.02); }
+  }
+
+  .cart-badge-bounce {
+    animation: cart-badge-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .cart-icon-pulse {
+    animation: cart-icon-wiggle 0.55s ease;
+  }
+
+  .cart-confetti-root {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    overflow: hidden;
+  }
+
+  .cart-confetti-piece {
+    position: absolute;
+    top: 12%;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--c, #C4522A);
+    opacity: 0.95;
+    animation: cart-confetti-fall var(--d, 0.7s) ease-out forwards;
+    transform: translateX(0) rotate(0deg);
+  }
+
+  @keyframes cart-confetti-fall {
+    0% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate3d(var(--x, 40px), 140px, 0) rotate(var(--r, 180deg)) scale(0.4);
+    }
+  }
+
+  @keyframes shipping-unlock {
+    0% { transform: scale(0.96); }
+    40% { transform: scale(1.04); }
+    100% { transform: scale(1); }
+  }
+
+  .shipping-unlock-pop {
+    animation: shipping-unlock 0.55s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .feather-float, .feather-float-delay, .feather-float-delay2 {
       animation: none;
@@ -425,6 +488,15 @@
     .animate-fade-in-up-delay-4 {
       animation: none;
       opacity: 1;
+    }
+    .cart-badge-bounce,
+    .cart-icon-pulse,
+    .shipping-unlock-pop {
+      animation: none;
+    }
+    .cart-confetti-piece {
+      animation: none;
+      opacity: 0;
     }
   }
 }

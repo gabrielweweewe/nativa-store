@@ -19,8 +19,13 @@ import CustomerResetPassword from "./pages/auth/CustomerResetPassword";
 import CustomerVerifyEmail from "./pages/auth/CustomerVerifyEmail";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
+import WishlistPage from "./pages/WishlistPage";
 import { CartProvider } from "./contexts/CartContext";
+import { WishlistProvider } from "./contexts/WishlistContext";
+import { StoreDiscoveryProvider } from "./contexts/StoreDiscoveryContext";
 import CartDrawer from "./components/cart/CartDrawer";
+import StoreSearch from "./components/search/StoreSearch";
+import QuickView from "./components/product/QuickView";
 import ScrollToTop from "./components/ScrollToTop";
 import WhatsAppFloatingButton from "./components/WhatsAppFloatingButton";
 
@@ -60,6 +65,7 @@ function Router() {
       <Route path={"/conta"} component={CustomerAccount} />
       <Route path={"/carrinho"} component={CartPage} />
       <Route path={"/checkout"} component={CheckoutPage} />
+      <Route path={"/favoritos"} component={WishlistPage} />
       <Route path={"/produto/:slug"} component={ProductPage} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
@@ -81,17 +87,23 @@ function App() {
         // switchable
       >
         <CustomerAuthProvider>
-          <CartProvider>
-            <AuthHashRouter />
-            <TooltipProvider>
-              <Toaster />
-              <StorePageViewTracker />
-              <ScrollToTop />
-              <CartDrawer />
-              <WhatsAppFloatingButton />
-              <Router />
-            </TooltipProvider>
-          </CartProvider>
+          <WishlistProvider>
+            <CartProvider>
+              <StoreDiscoveryProvider>
+                <AuthHashRouter />
+                <TooltipProvider>
+                  <Toaster />
+                  <StorePageViewTracker />
+                  <ScrollToTop />
+                  <CartDrawer />
+                  <StoreSearch />
+                  <QuickView />
+                  <WhatsAppFloatingButton />
+                  <Router />
+                </TooltipProvider>
+              </StoreDiscoveryProvider>
+            </CartProvider>
+          </WishlistProvider>
         </CustomerAuthProvider>
       </ThemeProvider>
     </ErrorBoundary>

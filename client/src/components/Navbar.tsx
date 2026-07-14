@@ -6,10 +6,11 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { ShoppingBag, Menu, X, Search, Heart, UserRound } from "lucide-react";
-import { toast } from "sonner";
 import NativaLogo from "./NativaLogo";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
+import { useStoreDiscovery } from "@/contexts/StoreDiscoveryContext";
 
 const navLinks = [
   { label: "Coleções", href: "#colecoes" },
@@ -32,7 +33,9 @@ export default function Navbar() {
     location.startsWith("/verificar-email");
   const showSolidHeader = scrolled || !isHome || isAuthPage;
   const { user, isLoading } = useCustomerAuth();
-  const { itemCount, openDrawer } = useCart();
+  const { itemCount, openDrawer, cartPulse } = useCart();
+  const { count: wishlistCount } = useWishlist();
+  const { openSearch } = useStoreDiscovery();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
@@ -96,7 +99,7 @@ export default function Navbar() {
             </nav>
 
             {/* Actions */}
-            <div className="relative z-10 flex items-center gap-3">
+            <div className="relative z-10 flex items-center gap-1.5 sm:gap-2 md:gap-3">
               {!isLoading && (
                 <Link
                   href={user ? "/conta" : "/entrar"}
@@ -113,35 +116,50 @@ export default function Navbar() {
                 </Link>
               )}
               <button
-                onClick={() => toast("Busca em breve!", { description: "Funcionalidade sendo desenvolvida." })}
-                className="hidden md:flex items-center justify-center w-9 h-9 rounded-full hover:bg-[#C4522A]/10 text-[#3D2B1F] hover:text-[#C4522A] transition-all duration-200"
+                type="button"
+                onClick={openSearch}
+                className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-[#C4522A]/10 text-[#3D2B1F] hover:text-[#C4522A] transition-all duration-200"
                 aria-label="Buscar"
               >
                 <Search size={18} />
               </button>
-              <button
-                onClick={() => toast("Lista de desejos em breve!", { description: "Funcionalidade sendo desenvolvida." })}
-                className="hidden md:flex items-center justify-center w-9 h-9 rounded-full hover:bg-[#C4522A]/10 text-[#3D2B1F] hover:text-[#C4522A] transition-all duration-200"
-                aria-label="Favoritos"
-              >
-                <Heart size={18} />
-              </button>
-              <button
-                onClick={openDrawer}
+              <Link
+                href="/favoritos"
                 className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-[#C4522A]/10 text-[#3D2B1F] hover:text-[#C4522A] transition-all duration-200"
+                aria-label={`Favoritos${wishlistCount > 0 ? `, ${wishlistCount} itens` : ""}`}
+              >
+                <Heart size={18} className={wishlistCount > 0 ? "fill-[#C4522A]/20" : ""} />
+                {wishlistCount > 0 && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, #C4522A, #E8821A)" }}
+                  >
+                    {wishlistCount > 99 ? "99+" : wishlistCount}
+                  </span>
+                )}
+              </Link>
+              <button
+                type="button"
+                onClick={openDrawer}
+                className={`relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-[#C4522A]/10 text-[#3D2B1F] hover:text-[#C4522A] transition-all duration-200 ${
+                  cartPulse > 0 ? "cart-icon-pulse" : ""
+                }`}
+                key={cartPulse > 0 ? `cart-pulse-${cartPulse}` : "cart-idle"}
                 aria-label={`Carrinho${itemCount > 0 ? `, ${itemCount} itens` : ""}`}
               >
                 <ShoppingBag size={18} />
                 {itemCount > 0 && (
                   <span
-                    className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white animate-in zoom-in duration-200"
+                    className="cart-badge-bounce absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
                     style={{ background: "linear-gradient(135deg, #C4522A, #E8821A)" }}
+                    key={`badge-${cartPulse}-${itemCount}`}
                   >
                     {itemCount > 99 ? "99+" : itemCount}
                   </span>
                 )}
               </button>
               <button
+                type="button"
                 className="md:hidden flex items-center justify-center w-9 h-9 rounded-full hover:bg-[#C4522A]/10 text-[#3D2B1F] transition-all duration-200"
                 onClick={() => setMobileOpen(!mobileOpen)}
                 aria-label="Menu"
@@ -178,6 +196,30 @@ export default function Navbar() {
                   {link.label}
                 </a>
               ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileOpen(false);
+                  openSearch();
+                }}
+                className="flex items-center gap-3 py-3 px-4 rounded-lg text-base font-semibold text-[#3D2B1F] hover:bg-[#C4522A]/10 hover:text-[#C4522A] transition-all duration-200 text-left"
+                style={{ fontFamily: "'Nunito', sans-serif" }}
+              >
+                <Search size={18} />
+                Buscar
+              </button>
+              <Link
+                href="/favoritos"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-3 py-3 px-4 rounded-lg text-base font-semibold text-[#3D2B1F] hover:bg-[#C4522A]/10 hover:text-[#C4522A] transition-all duration-200"
+                style={{ fontFamily: "'Nunito', sans-serif" }}
+              >
+                <Heart size={18} />
+                Favoritos
+                {wishlistCount > 0 ? (
+                  <span className="ml-auto text-xs font-bold text-[#C4522A]">{wishlistCount}</span>
+                ) : null}
+              </Link>
             </nav>
             <div className="mt-auto pt-6 border-t border-[#C4522A]/15">
               {!isLoading && (
