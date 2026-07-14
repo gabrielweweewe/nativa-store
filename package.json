@@ -16,6 +16,7 @@
     "convert:nuvemshop": "tsx --env-file=.env server/scripts/convert-tiendanube-to-import.ts",
     "fix:images": "tsx --env-file=.env server/scripts/fix-product-images.ts",
     "setup:storage": "tsx --env-file=.env server/scripts/setup-storage.ts",
+    "generate:brazil-map": "tsx server/scripts/generate-brazil-map.ts",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
     "test": "vitest run",
