@@ -35,6 +35,18 @@ export const brevoTemplateTestSchema = z.object({
   email: z.email().max(320),
 });
 
+export const brevoStoreTemplateUpdateSchema = z.object({
+  event: z.enum([
+    "order_received",
+    "order_received_merchant",
+    "payment_approved",
+  ]),
+  name: z.string().trim().min(1).max(150).optional(),
+  subject: z.string().trim().min(1).max(998),
+  htmlContent: z.string().trim().min(1).max(1_000_000),
+  enabled: z.boolean().optional(),
+});
+
 export const brevoContactSchema = z.object({
   email: z.email().max(320),
   firstName: z.string().trim().min(1).max(100).optional(),

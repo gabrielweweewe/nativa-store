@@ -1,9 +1,14 @@
 import type { PaymentStatus } from "@shared/types/mercadoPago";
+import { renderStoreEmailTemplate } from "../lib/storeEmailTemplate";
 import { supabase } from "../lib/supabase";
 import {
   getBrevoTransactionalConfig,
   sendBrevoTransactionalEmail,
 } from "./brevo";
+import {
+  getStoreEmailTemplate,
+  type StoreEmailEvent,
+} from "./storeEmailTemplates";
 
 export type OrderEmailEvent =
   | "order_received"
@@ -14,6 +19,12 @@ export type OrderEmailEvent =
   | "order_processing"
   | "order_shipped"
   | "order_delivered";
+
+const STORE_EVENTS = new Set<OrderEmailEvent>([
+  "order_received",
+  "order_received_merchant",
+  "payment_approved",
+]);
 
 function appUrl(): string {
   const raw =
@@ -139,6 +150,31 @@ async function loadOrderEmailContext(orderId: string) {
   return { order, email, customerName, params };
 }
 
+async function resolveEmailContent(
+  event: OrderEmailEvent,
+  params: Record<string, unknown>,
+  brevoTemplateId: number | null | undefined
+): Promise<
+  | { mode: "html"; subject: string; htmlContent: string }
+  | { mode: "brevo"; templateId: number }
+  | null
+> {
+  if (STORE_EVENTS.has(event)) {
+    const store = await getStoreEmailTemplate(event as StoreEmailEvent);
+    if (store?.enabled && store.htmlContent.trim()) {
+      return {
+        mode: "html",
+        subject: renderStoreEmailTemplate(store.subject, params),
+        htmlContent: renderStoreEmailTemplate(store.htmlContent, params),
+      };
+    }
+  }
+  if (brevoTemplateId) {
+    return { mode: "brevo", templateId: brevoTemplateId };
+  }
+  return null;
+}
+
 export async function dispatchOrderEmail(
   orderId: string,
   event: OrderEmailEvent
@@ -150,11 +186,15 @@ export async function dispatchOrderEmail(
     return "skipped";
   }
 
-  const templateId = config.templates[event];
-  if (!templateId) return "skipped";
-
   const context = await loadOrderEmailContext(orderId);
   if (!context) return "failed";
+
+  const resolved = await resolveEmailContent(
+    event,
+    context.params,
+    config.templates[event as keyof typeof config.templates]
+  );
+  if (!resolved) return "skipped";
 
   const isMerchant = event === "order_received_merchant";
   const email = isMerchant
@@ -175,9 +215,10 @@ export async function dispatchOrderEmail(
         idempotency_key: idempotencyKey,
         kind: "transactional",
         recipient_email: email,
-        template_id: templateId,
+        template_id: resolved.mode === "brevo" ? resolved.templateId : null,
+        subject: resolved.mode === "html" ? resolved.subject : null,
         status: "queued",
-        metadata: { orderId, event },
+        metadata: { orderId, event, mode: resolved.mode },
       },
       { onConflict: "idempotency_key", ignoreDuplicates: true }
     )
@@ -220,14 +261,24 @@ export async function dispatchOrderEmail(
   }
 
   try {
+    const payload =
+      resolved.mode === "html"
+        ? {
+            to: [{ email, name: recipientName }],
+            replyTo: config.replyTo ? { email: config.replyTo } : undefined,
+            subject: resolved.subject,
+            htmlContent: resolved.htmlContent,
+            tags: ["order", event],
+          }
+        : {
+            to: [{ email, name: recipientName }],
+            replyTo: config.replyTo ? { email: config.replyTo } : undefined,
+            templateId: resolved.templateId,
+            params: context.params,
+            tags: ["order", event],
+          };
     const result = await sendBrevoTransactionalEmail(
-      {
-        to: [{ email, name: recipientName }],
-        replyTo: config.replyTo ? { email: config.replyTo } : undefined,
-        templateId,
-        params: context.params,
-        tags: ["order", event],
-      },
+      payload,
       "transactional",
       { record: false }
     );
@@ -294,13 +345,13 @@ export async function retryOrderEmail(
 }
 
 export async function sendOrderTemplateTest(input: {
-  event: "order_received" | "order_received_merchant" | "payment_approved";
+  event: StoreEmailEvent;
   email: string;
 }) {
   const config = await getBrevoTransactionalConfig();
-  const templateId = config.templates[input.event];
-  if (!templateId) {
-    throw new Error("Template não configurado para este evento");
+  const store = await getStoreEmailTemplate(input.event);
+  if (!store?.enabled || !store.htmlContent.trim()) {
+    throw new Error("Edite e salve este e-mail no admin antes de testar");
   }
   const email = input.email.trim().toLowerCase();
   const params = {
@@ -321,8 +372,8 @@ export async function sendOrderTemplateTest(input: {
         },
       ],
       replyTo: config.replyTo ? { email: config.replyTo } : undefined,
-      templateId,
-      params,
+      subject: renderStoreEmailTemplate(store.subject, params),
+      htmlContent: renderStoreEmailTemplate(store.htmlContent, params),
       tags: ["order", "test", input.event],
     },
     "test"

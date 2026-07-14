@@ -566,6 +566,32 @@ export function testBrevoOrderTemplate(input: {
   );
 }
 
+export interface StoreEmailTemplate {
+  event: "order_received" | "order_received_merchant" | "payment_approved";
+  name: string;
+  subject: string;
+  htmlContent: string;
+  enabled: boolean;
+  updatedAt: string;
+}
+
+export function fetchStoreEmailTemplates() {
+  return request<StoreEmailTemplate[]>("/api/admin/brevo/store-templates");
+}
+
+export function updateStoreEmailTemplate(input: {
+  event: StoreEmailTemplate["event"];
+  name?: string;
+  subject: string;
+  htmlContent: string;
+  enabled?: boolean;
+}) {
+  return request<StoreEmailTemplate>("/api/admin/brevo/store-templates", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
 export function configureBrevoWebhook() {
   return request<{ success: true; webhookUrl: string }>(
     "/api/admin/brevo/webhook/configure",

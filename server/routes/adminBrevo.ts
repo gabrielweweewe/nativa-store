@@ -6,6 +6,7 @@ import {
   brevoListCreateSchema,
   brevoQuickTestSchema,
   brevoSettingsSchema,
+  brevoStoreTemplateUpdateSchema,
   brevoTemplateTestSchema,
   brevoTransactionalEmailSchema,
 } from "@shared/schemas/brevo";
@@ -38,6 +39,10 @@ import {
   upsertBrevoContact,
 } from "../services/brevo";
 import { sendOrderTemplateTest } from "../services/orderEmails";
+import {
+  listStoreEmailTemplates,
+  updateStoreEmailTemplate,
+} from "../services/storeEmailTemplates";
 
 const router = Router();
 const paginationSchema = z.object({
@@ -217,6 +222,24 @@ router.post("/emails/test-template", async (req, res) => {
     res.status(201).json(await sendOrderTemplateTest(parsed.data));
   } catch (error) {
     failure(res, error, "Erro ao enviar teste do template");
+  }
+});
+
+router.get("/store-templates", async (_req, res) => {
+  try {
+    res.json(await listStoreEmailTemplates());
+  } catch (error) {
+    failure(res, error, "Erro ao listar e-mails da loja");
+  }
+});
+
+router.put("/store-templates", async (req, res) => {
+  const parsed = brevoStoreTemplateUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return invalid(res, parsed.error.issues);
+  try {
+    res.json(await updateStoreEmailTemplate(parsed.data));
+  } catch (error) {
+    failure(res, error, "Erro ao salvar e-mail da loja");
   }
 });
 

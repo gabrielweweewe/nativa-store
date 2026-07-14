@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AdminApiError,
   configureBrevoWebhook,
@@ -18,13 +19,16 @@ import {
   fetchBrevoSenders,
   fetchBrevoStatus,
   fetchBrevoTemplates,
+  fetchStoreEmailTemplates,
   testBrevoConnection,
   testBrevoOrderTemplate,
   updateBrevoSettings,
+  updateStoreEmailTemplate,
   type BrevoList,
   type BrevoSender,
   type BrevoStatus,
   type BrevoTemplate,
+  type StoreEmailTemplate,
 } from "@/lib/adminApi";
 import {
   CheckCircle2,
@@ -38,36 +42,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
 
-type TestEvent =
-  | "order_received"
-  | "order_received_merchant"
-  | "payment_approved";
-
-const PRIMARY_TEMPLATES: Array<{
-  key: string;
-  label: string;
-  help: string;
-  testEvent?: TestEvent;
-}> = [
-  {
-    key: "templateOrderReceived",
-    label: "Pedido criado → cliente",
-    help: "Enviado quando o pedido é aceito no checkout.",
-    testEvent: "order_received",
-  },
-  {
-    key: "templateOrderReceivedMerchant",
-    label: "Pedido criado → loja",
-    help: "Aviso para o e-mail da loja no mesmo momento.",
-    testEvent: "order_received_merchant",
-  },
-  {
-    key: "templatePaymentApproved",
-    label: "Pagamento aprovado → cliente",
-    help: "Enviado quando o Mercado Pago confirma o pagamento.",
-    testEvent: "payment_approved",
-  },
-];
+type TestEvent = StoreEmailTemplate["event"];
 
 const EXTRA_TEMPLATES: Array<[string, string]> = [
   ["templatePaymentFailed", "Pagamento recusado/cancelado"],
@@ -82,6 +57,7 @@ export default function BrevoIntegrationCard() {
   const [senders, setSenders] = useState<BrevoSender[]>([]);
   const [lists, setLists] = useState<BrevoList[]>([]);
   const [templates, setTemplates] = useState<BrevoTemplate[]>([]);
+  const [storeTemplates, setStoreTemplates] = useState<StoreEmailTemplate[]>([]);
   const [enabled, setEnabled] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [webhookToken, setWebhookToken] = useState("");
@@ -93,6 +69,7 @@ export default function BrevoIntegrationCard() {
   const [templateIds, setTemplateIds] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingEvent, setSavingEvent] = useState<TestEvent | null>(null);
   const [testing, setTesting] = useState(false);
   const [testingEvent, setTestingEvent] = useState<TestEvent | null>(null);
   const [configuringWebhook, setConfiguringWebhook] = useState(false);
@@ -115,15 +92,6 @@ export default function BrevoIntegrationCard() {
           ""
       );
       setTemplateIds({
-        templateOrderReceived: data.templateOrderReceived
-          ? String(data.templateOrderReceived)
-          : "",
-        templateOrderReceivedMerchant: data.templateOrderReceivedMerchant
-          ? String(data.templateOrderReceivedMerchant)
-          : "",
-        templatePaymentApproved: data.templatePaymentApproved
-          ? String(data.templatePaymentApproved)
-          : "",
         templatePaymentFailed: data.templatePaymentFailed
           ? String(data.templatePaymentFailed)
           : "",
@@ -140,16 +108,23 @@ export default function BrevoIntegrationCard() {
           ? String(data.templateOrderDelivered)
           : "",
       });
-      const [senderData, listData, templateData] = data.hasApiKey
+      const [senderData, listData, templateData, storeData] = data.hasApiKey
         ? await Promise.all([
             fetchBrevoSenders().catch(() => []),
             fetchBrevoLists().catch(() => []),
             fetchBrevoTemplates().catch(() => []),
+            fetchStoreEmailTemplates().catch(() => []),
           ])
-        : [[], [], []];
+        : [
+            [],
+            [],
+            [],
+            await fetchStoreEmailTemplates().catch(() => []),
+          ];
       setSenders(senderData);
       setLists(listData);
       setTemplates(templateData);
+      setStoreTemplates(storeData);
       const selectedSender =
         senderData.find(sender => sender.id === data.defaultSenderId) ??
         senderData.find(
@@ -172,6 +147,17 @@ export default function BrevoIntegrationCard() {
   useEffect(() => {
     void load();
   }, []);
+
+  function updateLocalTemplate(
+    event: TestEvent,
+    patch: Partial<Pick<StoreEmailTemplate, "subject" | "htmlContent" | "enabled">>
+  ) {
+    setStoreTemplates(current =>
+      current.map(template =>
+        template.event === event ? { ...template, ...patch } : template
+      )
+    );
+  }
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -214,6 +200,29 @@ export default function BrevoIntegrationCard() {
       toast.error(error instanceof AdminApiError ? error.message : "Erro ao salvar");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveStoreTemplate(template: StoreEmailTemplate) {
+    setSavingEvent(template.event);
+    try {
+      const saved = await updateStoreEmailTemplate({
+        event: template.event,
+        name: template.name,
+        subject: template.subject,
+        htmlContent: template.htmlContent,
+        enabled: template.enabled,
+      });
+      setStoreTemplates(current =>
+        current.map(item => (item.event === saved.event ? saved : item))
+      );
+      toast.success(`E-mail "${saved.name}" salvo`);
+    } catch (error) {
+      toast.error(
+        error instanceof AdminApiError ? error.message : "Erro ao salvar e-mail"
+      );
+    } finally {
+      setSavingEvent(null);
     }
   }
 
@@ -289,7 +298,7 @@ export default function BrevoIntegrationCard() {
             <div>
               <h2 className="text-lg font-bold text-[var(--admin-text)]">Brevo</h2>
               <p className="mt-1 text-sm text-[var(--admin-text-muted)]">
-                E-mails de pedido, pagamento e avisos da loja.
+                Edite os e-mails aqui. O Brevo só dispara.
               </p>
             </div>
           </div>
@@ -404,68 +413,16 @@ export default function BrevoIntegrationCard() {
 
         <div className="space-y-3">
           <div>
-            <Label>E-mails principais</Label>
+            <Label>E-mails da loja</Label>
             <p className="text-xs text-[var(--admin-text-muted)]">
-              Crie os templates no Brevo e selecione aqui. Depois use o botão de
-              teste.
+              Edite assunto e conteúdo aqui. Variáveis:{" "}
+              <code className="text-[11px]">{"{{CUSTOMER_NAME}}"}</code>,{" "}
+              <code className="text-[11px]">{"{{ORDER_SHORT_ID}}"}</code>,{" "}
+              <code className="text-[11px]">{"{{TOTAL}}"}</code>,{" "}
+              <code className="text-[11px]">{"{{ITEMS_HTML}}"}</code>,{" "}
+              <code className="text-[11px]">{"{{ADDRESS}}"}</code>,{" "}
+              <code className="text-[11px]">{"{{ORDER_URL}}"}</code>.
             </p>
-          </div>
-          <div className="space-y-3">
-            {PRIMARY_TEMPLATES.map(item => (
-              <div
-                key={item.key}
-                className="space-y-2 rounded-xl border border-[var(--admin-border)] p-3"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium text-[var(--admin-text)]">
-                      {item.label}
-                    </p>
-                    <p className="text-xs text-[var(--admin-text-muted)]">
-                      {item.help}
-                    </p>
-                  </div>
-                  {item.testEvent && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={
-                        !status.hasApiKey ||
-                        !templateIds[item.key] ||
-                        testingEvent === item.testEvent
-                      }
-                      onClick={() => void sendTemplateTest(item.testEvent!)}
-                      className="gap-1.5"
-                    >
-                      {testingEvent === item.testEvent ? (
-                        <Spinner className="size-3.5" />
-                      ) : (
-                        <TestTube2 className="size-3.5" />
-                      )}
-                      Testar
-                    </Button>
-                  )}
-                </div>
-                <Select
-                  value={templateIds[item.key] || undefined}
-                  onValueChange={value =>
-                    setTemplateIds(current => ({ ...current, [item.key]: value }))
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Não configurado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map(template => (
-                      <SelectItem key={template.id} value={String(template.id)}>
-                        #{template.id} — {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
           </div>
 
           <div className="space-y-2">
@@ -478,13 +435,97 @@ export default function BrevoIntegrationCard() {
               placeholder="seu@email.com"
             />
           </div>
+
+          <div className="space-y-4">
+            {storeTemplates.map(template => (
+              <div
+                key={template.event}
+                className="space-y-3 rounded-xl border border-[var(--admin-border)] p-4"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-[var(--admin-text)]">
+                      {template.name}
+                    </p>
+                    <p className="text-xs text-[var(--admin-text-muted)]">
+                      {template.event}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={template.enabled}
+                      onCheckedChange={checked =>
+                        updateLocalTemplate(template.event, { enabled: checked })
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        !status.hasApiKey || testingEvent === template.event
+                      }
+                      onClick={() => void sendTemplateTest(template.event)}
+                      className="gap-1.5"
+                    >
+                      {testingEvent === template.event ? (
+                        <Spinner className="size-3.5" />
+                      ) : (
+                        <TestTube2 className="size-3.5" />
+                      )}
+                      Testar
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={savingEvent === template.event}
+                      onClick={() => void saveStoreTemplate(template)}
+                      className="gap-1.5"
+                    >
+                      {savingEvent === template.event ? (
+                        <Spinner className="size-3.5" />
+                      ) : (
+                        <Save className="size-3.5" />
+                      )}
+                      Salvar e-mail
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Assunto</Label>
+                  <Input
+                    value={template.subject}
+                    onChange={event =>
+                      updateLocalTemplate(template.event, {
+                        subject: event.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Conteúdo (HTML)</Label>
+                  <Textarea
+                    value={template.htmlContent}
+                    onChange={event =>
+                      updateLocalTemplate(template.event, {
+                        htmlContent: event.target.value,
+                      })
+                    }
+                    className="min-h-48 font-mono text-xs"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-3">
           <div>
-            <Label>Templates extras (opcional)</Label>
+            <Label>Templates extras no Brevo (opcional)</Label>
             <p className="text-xs text-[var(--admin-text-muted)]">
-              Podem ficar sem configurar por enquanto.
+              Só se quiser usar templates criados no Brevo para outros status.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -530,16 +571,12 @@ export default function BrevoIntegrationCard() {
               <Copy className="size-4" />
             </Button>
           </div>
-          <p className="text-xs text-[var(--admin-text-muted)]">
-            Opcional no uso simples. Serve para registrar entrega, bounce e
-            descadastro.
-          </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={saving} className="gap-2">
             {saving ? <Spinner className="size-4" /> : <Save className="size-4" />}
-            Salvar
+            Salvar conexão
           </Button>
           <Button
             type="button"
