@@ -11,6 +11,7 @@
     "build:vercel": "vite build && esbuild server/vercel.ts --bundle --platform=node --packages=external --format=esm --outfile=api/index.js --alias:@shared=./shared && node scripts/copy-spa-html.mjs",
     "start": "NODE_ENV=production node dist/index.js",
     "seed": "tsx --env-file=.env server/scripts/seed-products.ts",
+    "seed:regions": "tsx --env-file=.env server/scripts/seed-regions.ts",
     "migrate:nuvemshop": "tsx --env-file=.env server/scripts/migrate-tiendanube.ts",
     "convert:nuvemshop": "tsx --env-file=.env server/scripts/convert-tiendanube-to-import.ts",
     "fix:images": "tsx --env-file=.env server/scripts/fix-product-images.ts",

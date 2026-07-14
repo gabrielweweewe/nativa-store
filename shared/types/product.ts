@@ -49,4 +49,5 @@ export interface Product {
   weightKg?: number | null;
   faq: ProductFaq[];
   highlights: string[];
+  regionId: string | null;
 }

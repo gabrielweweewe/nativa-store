@@ -16,6 +16,7 @@ import adminMelhorEnvioRouter from "./adminMelhorEnvio";
 import adminMercadoPagoRouter from "./adminMercadoPago";
 import adminNotificationsRouter from "./adminNotifications";
 import adminOrdersRouter from "./adminOrders";
+import adminRegionsRouter from "./adminRegions";
 
 const router = Router();
 
@@ -87,6 +88,7 @@ router.use("/customers", adminCustomersRouter);
 router.use("/notifications", adminNotificationsRouter);
 router.use("/dashboard", adminDashboardRouter);
 router.use("/banners", adminBannersRouter);
+router.use("/regions", adminRegionsRouter);
 router.use("/melhor-envio", adminMelhorEnvioRouter);
 router.use("/mercado-pago", adminMercadoPagoRouter);
 

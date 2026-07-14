@@ -15,6 +15,7 @@ import AdminOrdersList from "./AdminOrdersList";
 import AdminProductForm from "./AdminProductForm";
 import AdminProductImport from "./AdminProductImport";
 import AdminProductsList from "./AdminProductsList";
+import AdminRegions from "./AdminRegions";
 
 function ProtectedAdmin({ children }: { children: React.ReactNode }) {
   return (
@@ -91,6 +92,11 @@ export default function AdminRouter() {
         <Route path="/admin/banners">
           <ProtectedAdmin>
             <AdminBanners />
+          </ProtectedAdmin>
+        </Route>
+        <Route path="/admin/regioes">
+          <ProtectedAdmin>
+            <AdminRegions />
           </ProtectedAdmin>
         </Route>
         <Route path="/admin/integracoes">

@@ -17,6 +17,7 @@ import {
   ImageIcon,
   LayoutDashboard,
   LogOut,
+  Map,
   MoreHorizontal,
   Package,
   Plug,
@@ -69,6 +70,12 @@ const navItems: NavItem[] = [
     href: "/admin/banners",
     icon: ImageIcon,
     match: (path) => path.startsWith("/admin/banners"),
+  },
+  {
+    label: "Mapa das Origens",
+    href: "/admin/regioes",
+    icon: Map,
+    match: (path) => path.startsWith("/admin/regioes"),
   },
   {
     label: "Integrações",

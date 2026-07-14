@@ -19,6 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { AdminApiError, createProduct, updateProduct } from "@/lib/adminApi";
 import { sanitizeProductHtml } from "@/lib/productHtml";
 import { fetchProductBySlug } from "@/lib/products";
+import { fetchRegions } from "@/lib/regions";
+import type { RegionWithProducts } from "@shared/types/region";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { slugify } from "@shared/lib/slugify";
 import { productDefaults, productSchema, type ProductInput } from "@shared/schemas/product";
@@ -88,6 +90,7 @@ export default function AdminProductForm() {
   const [slugTouched, setSlugTouched] = useState(isEditing);
   const [descPreview, setDescPreview] = useState(false);
   const [activeTab, setActiveTab] = useState("geral");
+  const [regions, setRegions] = useState<RegionWithProducts[]>([]);
 
   const {
     register,
@@ -121,6 +124,12 @@ export default function AdminProductForm() {
       setValue("slug", slugify(name || ""), { shouldValidate: false });
     }
   }, [name, isEditing, slugTouched, setValue]);
+
+  useEffect(() => {
+    fetchRegions()
+      .then(setRegions)
+      .catch(() => toast.error("Não foi possível carregar as regiões do Mapa das Origens"));
+  }, []);
 
   useEffect(() => {
     if (!isEditing || !params.slug) return;
@@ -689,6 +698,34 @@ export default function AdminProductForm() {
                       className="rounded-xl lg:rounded-md"
                       {...register("artisan.story")}
                     />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label>Região de origem (Mapa das Origens)</Label>
+                    <Controller
+                      control={control}
+                      name="regionId"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value ?? "none"}
+                          onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                        >
+                          <SelectTrigger className="h-11 w-full rounded-xl lg:h-9 lg:rounded-md">
+                            <SelectValue placeholder="Nenhuma" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhuma</SelectItem>
+                            {regions.map((region) => (
+                              <SelectItem key={region.id} value={region.id}>
+                                {region.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <p className="text-xs text-[var(--admin-text-muted)]">
+                      Vincula este produto à história cultural exibida no mapa da home.
+                    </p>
                   </div>
                 </div>
               </FormSection>

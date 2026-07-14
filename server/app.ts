@@ -9,6 +9,7 @@ import ordersRouter from "./routes/orders";
 import mercadoPagoRouter from "./routes/mercadoPago";
 import mercadoPagoWebhookRouter from "./routes/mercadoPagoWebhook";
 import productsRouter from "./routes/products";
+import regionsRouter from "./routes/regions";
 import shippingRouter from "./routes/shipping";
 import seoRouter from "./routes/seo";
 
@@ -61,6 +62,7 @@ export function createApiApp() {
   app.use("/api/mercado-pago", mercadoPagoRouter);
   app.use("/api/webhooks/mercado-pago", mercadoPagoWebhookRouter);
   app.use("/api/products", productsRouter);
+  app.use("/api/regions", regionsRouter);
   app.use("/api/shipping", shippingRouter);
   app.use("/api/seo", seoRouter);
 

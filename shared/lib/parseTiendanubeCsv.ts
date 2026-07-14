@@ -246,5 +246,6 @@ export function mapTiendanubeRowToProduct(
     stockCount: Math.max(0, Math.floor(row.stock)),
     faq: [],
     highlights,
+    regionId: null,
   };
 }

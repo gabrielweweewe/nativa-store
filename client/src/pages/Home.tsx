@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import CategoriesSection from "@/components/CategoriesSection";
+import MapaOrigens from "@/components/MapaOrigens/MapaOrigens";
 import ProductsSection from "@/components/ProductsSection";
 import AboutSection from "@/components/AboutSection";
 import TestimonialsSection from "@/components/TestimonialsSection";
@@ -31,6 +32,7 @@ export default function Home() {
       <Navbar />
       <HeroSection />
       <CategoriesSection />
+      <MapaOrigens />
       <ProductsSection />
       <AboutSection />
       <TestimonialsSection />

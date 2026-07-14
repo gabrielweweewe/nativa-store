@@ -10,6 +10,7 @@ import type {
   OrderStatus,
 } from "@shared/types/order";
 import type { Banner, BannerInput } from "@shared/types/banner";
+import type { Region, RegionInput } from "@shared/types/region";
 import type {
   MelhorEnvioSettingsInput,
   MelhorEnvioStatus,
@@ -270,6 +271,34 @@ export function reorderAdminBanners(orderedIds: string[]) {
   return request<Banner[]>("/api/admin/banners/reorder", {
     method: "PATCH",
     body: JSON.stringify({ orderedIds }),
+  });
+}
+
+export function fetchAdminRegions() {
+  return request<Region[]>("/api/admin/regions");
+}
+
+export function fetchAdminRegion(id: string) {
+  return request<Region>(`/api/admin/regions/${encodeURIComponent(id)}`);
+}
+
+export function createAdminRegion(input: RegionInput) {
+  return request<Region>("/api/admin/regions", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateAdminRegion(id: string, input: RegionInput) {
+  return request<Region>(`/api/admin/regions/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteAdminRegion(id: string) {
+  return request<void>(`/api/admin/regions/${encodeURIComponent(id)}`, {
+    method: "DELETE",
   });
 }
 
