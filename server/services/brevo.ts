@@ -196,7 +196,7 @@ export async function configureBrevoWebhooks() {
         "invalid",
         "blocked",
         "error",
-        "complaint",
+        "spam",
         "unsubscribed",
       ],
     },
@@ -218,18 +218,41 @@ export async function configureBrevoWebhooks() {
   for (const definition of definitions) {
     const existing = (await brevoRequest(
       `/webhooks${queryString({ type: definition.type, sort: "desc" })}`
-    )) as { webhooks?: Array<{ id: number; url: string }> };
-    const match = existing.webhooks?.find(webhook => webhook.url === url);
+    )) as { webhooks?: Array<{ id: number; url: string; type?: string }> };
+    const match = existing.webhooks?.find(
+      webhook =>
+        webhook.url === url &&
+        Number.isFinite(webhook.id) &&
+        webhook.id > 0 &&
+        (webhook.type == null || webhook.type === definition.type)
+    );
     const body = {
       description: `Nativa Store (${definition.type})`,
       url,
-      events: definition.events,
+      events: [...definition.events],
       type: definition.type,
-      auth: { type: "bearer", token },
+      auth: { type: "bearer" as const, token },
     };
+    if (match) {
+      try {
+        configured.push(
+          await brevoRequest(`/webhooks/${match.id}`, {
+            method: "PUT",
+            body: JSON.stringify(body),
+          })
+        );
+        continue;
+      } catch (error) {
+        const missing =
+          error instanceof BrevoApiError &&
+          (error.status === 404 ||
+            /does not exist|not found/i.test(error.message));
+        if (!missing) throw error;
+      }
+    }
     configured.push(
-      await brevoRequest(match ? `/webhooks/${match.id}` : "/webhooks", {
-        method: match ? "PUT" : "POST",
+      await brevoRequest("/webhooks", {
+        method: "POST",
         body: JSON.stringify(body),
       })
     );

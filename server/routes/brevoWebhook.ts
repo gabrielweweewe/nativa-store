@@ -47,6 +47,7 @@ function deliveryUpdate(
       "invalid",
       "error",
       "complaint",
+      "spam",
     ].includes(normalized)
   ) {
     update.failed_at = at;
