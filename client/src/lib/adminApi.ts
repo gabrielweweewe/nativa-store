@@ -24,6 +24,7 @@ import type {
 } from "@shared/types/mercadoPago";
 import type { ProductInput } from "@shared/schemas/product";
 import type { Product } from "@shared/types/product";
+import type { QuizExportPayload, QuizImportReport, QuizQuestion, QuizResult } from "@shared/types/quiz";
 import { supabaseClient } from "@/lib/supabaseClient";
 
 export class AdminApiError extends Error {
@@ -880,6 +881,21 @@ export function sendBrevoTestEmail(input: {
   return request<{ success: true }>("/api/admin/brevo/campaigns/test", {
     method: "POST",
     body: JSON.stringify(input),
+  });
+}
+
+export function fetchAdminQuiz() {
+  return request<{ questions: QuizQuestion[]; results: QuizResult[] }>("/api/admin/quiz");
+}
+
+export function exportQuiz() {
+  return request<QuizExportPayload>("/api/admin/quiz/export");
+}
+
+export function importQuiz(payload: QuizExportPayload) {
+  return request<QuizImportReport>("/api/admin/quiz/import", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

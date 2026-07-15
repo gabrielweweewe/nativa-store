@@ -66,6 +66,7 @@ export const products: Product[] = [
           "Produção artesanal: 3 a 5 dias úteis. Envio: 5 a 12 dias úteis conforme sua região.",
       },
     ],
+    styleTags: [],
     regionId: null,
   },
   {
@@ -125,6 +126,7 @@ export const products: Product[] = [
           "Comporta confortavelmente caderno, garrafa d'água, carteira e itens do dia a dia sem perder a forma.",
       },
     ],
+    styleTags: [],
     regionId: null,
   },
   {
@@ -189,6 +191,7 @@ export const products: Product[] = [
           "Sim, 100% couro bovino com curtimento vegetal, processo mais sustentável e que desenvolve pátina natural com o uso.",
       },
     ],
+    styleTags: [],
     regionId: null,
   },
   {
@@ -247,6 +250,7 @@ export const products: Product[] = [
           "Sim! O tamanho oversized comporta o essencial de um fim de semana, mantendo o estilo artesanal.",
       },
     ],
+    styleTags: [],
     regionId: null,
   },
   {
@@ -304,6 +308,7 @@ export const products: Product[] = [
           "Não. Usamos pigmentos ecológicos de alta fixação. Com os cuidados indicados, a estampa permanece viva por anos.",
       },
     ],
+    styleTags: [],
     regionId: null,
   },
   {
@@ -364,6 +369,7 @@ export const products: Product[] = [
           "Sim! O forro impermeável leve e o tecido resistente tornam a Bolsa Mandala perfeita para areia e sol.",
       },
     ],
+    styleTags: [],
     regionId: null,
   },
 ];

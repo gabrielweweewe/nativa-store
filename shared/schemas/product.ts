@@ -59,6 +59,7 @@ export const productSchema = z.object({
   weightKg: z.number().positive().max(100).nullable(),
   faq: z.array(productFaqSchema),
   highlights: z.array(z.string()),
+  styleTags: z.array(z.string()),
   regionId: z
     .string()
     .trim()
@@ -98,5 +99,6 @@ export const productDefaults: ProductInput = {
   weightKg: null,
   faq: [],
   highlights: [],
+  styleTags: [],
   regionId: null,
 };

@@ -20,6 +20,7 @@ import CustomerVerifyEmail from "./pages/auth/CustomerVerifyEmail";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import WishlistPage from "./pages/WishlistPage";
+import QuizPage from "./pages/QuizPage";
 import { CartProvider } from "./contexts/CartContext";
 import { WishlistProvider } from "./contexts/WishlistContext";
 import { StoreDiscoveryProvider } from "./contexts/StoreDiscoveryContext";
@@ -66,6 +67,7 @@ function Router() {
       <Route path={"/carrinho"} component={CartPage} />
       <Route path={"/checkout"} component={CheckoutPage} />
       <Route path={"/favoritos"} component={WishlistPage} />
+      <Route path={"/quiz"} component={QuizPage} />
       <Route path={"/produto/:slug"} component={ProductPage} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

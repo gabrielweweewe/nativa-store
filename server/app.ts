@@ -12,6 +12,7 @@ import mercadoPagoRouter from "./routes/mercadoPago";
 import mercadoPagoWebhookRouter from "./routes/mercadoPagoWebhook";
 import newsletterRouter from "./routes/newsletter";
 import productsRouter from "./routes/products";
+import quizRouter from "./routes/quiz";
 import regionsRouter from "./routes/regions";
 import shippingRouter from "./routes/shipping";
 import seoRouter from "./routes/seo";
@@ -68,6 +69,7 @@ export function createApiApp() {
   app.use("/api/webhooks/brevo", brevoWebhookRouter);
   app.use("/api/newsletter", newsletterRouter);
   app.use("/api/products", productsRouter);
+  app.use("/api/quiz", quizRouter);
   app.use("/api/regions", regionsRouter);
   app.use("/api/shipping", shippingRouter);
   app.use("/api/seo", seoRouter);

@@ -23,6 +23,7 @@ import {
   Package,
   Plug,
   ShoppingCart,
+  Sparkles,
   Ticket,
   Upload,
   Users,
@@ -78,6 +79,12 @@ const navItems: NavItem[] = [
     href: "/admin/cupons",
     icon: Ticket,
     match: (path) => path.startsWith("/admin/cupons"),
+  },
+  {
+    label: "Quiz",
+    href: "/admin/quiz",
+    icon: Sparkles,
+    match: (path) => path.startsWith("/admin/quiz"),
   },
   {
     label: "Mapa das Origens",

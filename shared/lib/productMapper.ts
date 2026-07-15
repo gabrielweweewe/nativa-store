@@ -35,6 +35,7 @@ export interface ProductRow {
   weight_kg?: number | null;
   faq: unknown;
   highlights: unknown;
+  style_tags?: unknown;
   region_id?: string | null;
 }
 
@@ -125,6 +126,7 @@ export function mapProductRowToProduct(row: ProductRow): Product {
     weightKg: row.weight_kg == null ? null : Number(row.weight_kg),
     faq: asFaq(row.faq),
     highlights: asStringArray(row.highlights),
+    styleTags: asStringArray(row.style_tags),
     regionId: row.region_id ?? null,
   };
 }
@@ -159,6 +161,7 @@ export function mapProductToRow(product: Omit<Product, "id">) {
     weight_kg: product.weightKg,
     faq: product.faq,
     highlights: product.highlights,
+    style_tags: product.styleTags ?? [],
     region_id: product.regionId ?? null,
   };
 }

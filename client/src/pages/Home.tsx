@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import CategoriesSection from "@/components/CategoriesSection";
+import QuizCtaSection from "@/components/QuizCtaSection";
 import MapaOrigens from "@/components/MapaOrigens/MapaOrigens";
 import ProductsSection from "@/components/ProductsSection";
 import AboutSection from "@/components/AboutSection";
@@ -32,6 +33,7 @@ export default function Home() {
       <Navbar />
       <HeroSection />
       <CategoriesSection />
+      <QuizCtaSection />
       <MapaOrigens />
       <ProductsSection />
       <AboutSection />
