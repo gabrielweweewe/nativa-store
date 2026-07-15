@@ -3,6 +3,13 @@ import ResultScreen from "@/components/QuizCuradoria/ResultScreen";
 import { Spinner } from "@/components/ui/spinner";
 import { useQuiz } from "@/hooks/useQuiz";
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
+
+const REVEAL_LINES = [
+  "Lendo suas escolhas…",
+  "Cruzando texturas e vibes…",
+  "Quase lá — preparando sua revelação…",
+];
 
 export default function QuizCuradoria() {
   const {
@@ -17,6 +24,25 @@ export default function QuizCuradoria() {
     selectOption,
     restart,
   } = useQuiz();
+
+  const [revealLine, setRevealLine] = useState(0);
+
+  useEffect(() => {
+    if (phase !== "calculating") {
+      setRevealLine(0);
+      return;
+    }
+    const id = window.setInterval(() => {
+      setRevealLine((prev) => (prev + 1) % REVEAL_LINES.length);
+    }, 900);
+    return () => window.clearInterval(id);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase === "result") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [phase]);
 
   if (phase === "loading") {
     return (
@@ -50,10 +76,38 @@ export default function QuizCuradoria() {
 
   if (phase === "calculating") {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4">
-        <Spinner className="size-8 text-[#C4522A]" />
-        <p style={{ color: "#8B6F5E", fontFamily: "'Nunito', sans-serif" }}>
-          Revelando seu estilo…
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 px-4 text-center">
+        <motion.div
+          className="relative flex size-20 items-center justify-center"
+          animate={{ scale: [1, 1.06, 1] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <span
+            className="absolute inset-0 rounded-full opacity-30"
+            style={{
+              background: "radial-gradient(circle, #C4522A 0%, transparent 70%)",
+            }}
+          />
+          <Spinner className="size-9 text-[#C4522A]" />
+        </motion.div>
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={revealLine}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.35 }}
+            className="text-base sm:text-lg"
+            style={{ color: "#5C4A3D", fontFamily: "'Lora', Georgia, serif" }}
+          >
+            {REVEAL_LINES[revealLine]}
+          </motion.p>
+        </AnimatePresence>
+        <p
+          className="text-xs font-semibold uppercase tracking-[0.2em]"
+          style={{ color: "#C4522A", fontFamily: "'Nunito', sans-serif" }}
+        >
+          Recompensa chegando
         </p>
       </div>
     );
@@ -64,17 +118,40 @@ export default function QuizCuradoria() {
   const remaining = questions.length - currentIndex;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-4 sm:px-6">
+    <div className="mx-auto w-full max-w-3xl px-4 pb-16 sm:px-6">
+      <header className="mb-10 text-center">
+        <p
+          className="mb-2 text-xs font-semibold uppercase tracking-[0.2em]"
+          style={{ color: "#8B6F5E", fontFamily: "'Nunito', sans-serif" }}
+        >
+          Curadoria Nativa
+        </p>
+        <h1
+          className="text-3xl sm:text-4xl"
+          style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            color: "#3D2B1F",
+          }}
+        >
+          Descubra sua bolsa ideal
+        </h1>
+        <p
+          className="mx-auto mt-3 max-w-md text-sm leading-relaxed sm:text-base"
+          style={{ color: "#5C4A3D", fontFamily: "'Lora', Georgia, serif" }}
+        >
+          Responda com o coração — a gente recomenda peças com a sua vibe.
+        </p>
+      </header>
+
       <div className="mb-8">
-        <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wider"
+        <div
+          className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wider"
           style={{ color: "#8B6F5E", fontFamily: "'Nunito', sans-serif" }}
         >
           <span>
             Pergunta {currentIndex + 1} de {questions.length}
           </span>
-          <span>
-            {remaining === 1 ? "Última pergunta" : `${remaining} restantes`}
-          </span>
+          <span>{remaining === 1 ? "Última pergunta" : `${remaining} restantes`}</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-[#EDE4D8]">
           <motion.div

@@ -1,4 +1,5 @@
 import ProductCard from "@/components/ProductCard";
+import RevealBurst from "@/components/QuizCuradoria/RevealBurst";
 import ShareResultCard from "@/components/QuizCuradoria/ShareResultCard";
 import {
   buildQuizShareCaption,
@@ -9,7 +10,7 @@ import {
 } from "@/components/QuizCuradoria/shareQuizResult";
 import type { QuizPublicResultPayload } from "@shared/types/quiz";
 import { AnimatePresence, motion } from "framer-motion";
-import { Copy, Download, Instagram, RefreshCw, Share2 } from "lucide-react";
+import { Copy, Download, Instagram, RefreshCw, Share2, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,6 +18,23 @@ interface ResultScreenProps {
   payload: QuizPublicResultPayload;
   onRestart: () => void;
 }
+
+const stagger = {
+  hidden: {},
+  show: {
+    transition: { staggerChildren: 0.16, delayChildren: 0.12 },
+  },
+};
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 22, filter: "blur(4px)" },
+  show: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const },
+  },
+};
 
 export default function ResultScreen({ payload, onRestart }: ResultScreenProps) {
   const shareRef = useRef<HTMLDivElement>(null);
@@ -36,7 +54,6 @@ export default function ResultScreen({ payload, onRestart }: ResultScreenProps) 
 
     setIsGenerating(true);
     try {
-      // Garante que as imagens remotas tenham tempo de pintar no DOM offscreen
       await new Promise((resolve) => window.setTimeout(resolve, 120));
       const blob = await captureShareCard(shareRef.current);
       setShareBlob(blob);
@@ -94,43 +111,91 @@ export default function ResultScreen({ payload, onRestart }: ResultScreenProps) 
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-      className="mx-auto w-full max-w-3xl px-4 pb-16 pt-6 sm:px-6"
+      variants={stagger}
+      initial="hidden"
+      animate="show"
+      className="relative mx-auto w-full max-w-3xl px-4 pb-20 pt-2 sm:px-6"
     >
-      <p
-        className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.2em]"
-        style={{ color: "#8B6F5E", fontFamily: "'Nunito', sans-serif" }}
-      >
-        Seu perfil de estilo
-      </p>
-
-      <h1
-        className="mb-5 text-center text-4xl leading-tight sm:text-5xl"
+      {/* Hero de revelação — um foco só */}
+      <motion.section
+        variants={fadeUp}
+        className="relative mb-12 overflow-hidden rounded-[2rem] px-6 py-12 text-center sm:px-10 sm:py-14"
         style={{
-          fontFamily: "'Playfair Display', Georgia, serif",
-          color: "#3D2B1F",
+          background:
+            "radial-gradient(ellipse 80% 70% at 50% 30%, rgba(196,82,42,0.16) 0%, transparent 55%), linear-gradient(165deg, #FFF8F0 0%, #F5E6D6 100%)",
+          boxShadow: "0 24px 60px rgba(61,43,31,0.08)",
         }}
       >
-        {payload.result.name}
-      </h1>
+        <RevealBurst />
 
-      <p
-        className="mx-auto mb-10 max-w-xl text-center text-base leading-relaxed sm:text-lg"
-        style={{ color: "#5C4A3D", fontFamily: "'Lora', Georgia, serif" }}
-      >
-        {payload.result.description}
-      </p>
+        <motion.div
+          initial={{ scale: 0.7, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.15, type: "spring", stiffness: 260, damping: 18 }}
+          className="relative z-[1] mb-5 inline-flex items-center gap-2 rounded-full px-4 py-1.5"
+          style={{
+            background: "rgba(196,82,42,0.12)",
+            color: "#C4522A",
+            fontFamily: "'Nunito', sans-serif",
+          }}
+        >
+          <Sparkles className="size-3.5" />
+          <span className="text-xs font-bold uppercase tracking-[0.18em]">Revelado</span>
+        </motion.div>
+
+        <motion.p
+          variants={fadeUp}
+          className="relative z-[1] mb-3 text-xs font-semibold uppercase tracking-[0.22em]"
+          style={{ color: "#8B6F5E", fontFamily: "'Nunito', sans-serif" }}
+        >
+          Seu perfil de estilo
+        </motion.p>
+
+        <motion.h1
+          initial={{ opacity: 0, scale: 0.88, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ delay: 0.28, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+          className="relative z-[1] mb-5 text-4xl leading-[1.1] sm:text-6xl"
+          style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            color: "#3D2B1F",
+            textShadow: "0 2px 40px rgba(196,82,42,0.15)",
+          }}
+        >
+          {payload.result.name}
+        </motion.h1>
+
+        <motion.div
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ delay: 0.55, duration: 0.45 }}
+          className="relative z-[1] mx-auto mb-6 h-0.5 w-16 origin-center"
+          style={{ background: "linear-gradient(90deg, transparent, #C4522A, transparent)" }}
+        />
+
+        <motion.p
+          variants={fadeUp}
+          className="relative z-[1] mx-auto max-w-lg text-base leading-relaxed sm:text-lg"
+          style={{ color: "#5C4A3D", fontFamily: "'Lora', Georgia, serif" }}
+        >
+          {payload.result.description}
+        </motion.p>
+      </motion.section>
 
       {payload.products.length > 0 ? (
-        <div className="mb-10">
+        <motion.div variants={fadeUp} className="mb-12">
           <h2
-            className="mb-5 text-center text-sm font-semibold uppercase tracking-wider"
+            className="mb-2 text-center text-sm font-semibold uppercase tracking-wider"
             style={{ color: "#8B6F5E", fontFamily: "'Nunito', sans-serif" }}
           >
-            Peças recomendadas para você
+            Feitas pra você
           </h2>
+          <p
+            className="mb-6 text-center text-sm"
+            style={{ color: "#5C4A3D", fontFamily: "'Lora', Georgia, serif" }}
+          >
+            Sua recompensa: peças que combinam com essa energia.
+          </p>
           <div
             className={`grid gap-6 ${
               payload.products.length === 1
@@ -138,18 +203,30 @@ export default function ResultScreen({ payload, onRestart }: ResultScreenProps) 
                 : "grid-cols-1 sm:grid-cols-2"
             }`}
           >
-            {payload.products.map((product) => (
-              <ProductCard key={product.id} product={product} variant="compact" />
+            {payload.products.map((product, index) => (
+              <motion.div
+                key={product.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 + index * 0.12, duration: 0.45 }}
+              >
+                <ProductCard product={product} variant="compact" />
+              </motion.div>
             ))}
           </div>
-        </div>
+        </motion.div>
       ) : (
-        <p className="mb-10 text-center text-sm" style={{ color: "#8B6F5E" }}>
+        <motion.p
+          variants={fadeUp}
+          className="mb-12 text-center text-sm"
+          style={{ color: "#8B6F5E" }}
+        >
           Em breve indicaremos peças para este perfil.
-        </p>
+        </motion.p>
       )}
 
-      <div
+      <motion.div
+        variants={fadeUp}
         className="mb-5 rounded-2xl px-5 py-4 text-center"
         style={{ background: "rgba(196,82,42,0.08)" }}
       >
@@ -163,9 +240,12 @@ export default function ResultScreen({ payload, onRestart }: ResultScreenProps) 
           </span>{" "}
           e desafia as amigas a descobrirem o estilo delas.
         </p>
-      </div>
+      </motion.div>
 
-      <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+      <motion.div
+        variants={fadeUp}
+        className="flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center"
+      >
         <button
           type="button"
           onClick={onRestart}
@@ -194,7 +274,7 @@ export default function ResultScreen({ payload, onRestart }: ResultScreenProps) 
           <Instagram className="size-4" />
           {isGenerating ? "Gerando imagem…" : "Postar no Instagram"}
         </button>
-      </div>
+      </motion.div>
 
       <AnimatePresence>
         {showShareActions && shareBlob && (
