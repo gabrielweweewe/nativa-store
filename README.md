@@ -8,6 +8,11 @@
 <p align="center"><i>Liberdade em cada detalhe</i> — marca Nativa / Quintiluz</p>
 
 <p align="center">
+  <a href="README.md">🇧🇷 Português</a> ·
+  <a href="README.en.md">🇺🇸 English</a>
+</p>
+
+<p align="center">
   <img alt="Status" src="https://img.shields.io/badge/status-em%20desenvolvimento-yellow">
   <a href="docs/importacao-em-massa.md"><img alt="Documentação" src="https://img.shields.io/badge/Documentação-Guias-blue?logo=readthedocs&logoColor=white"></a>
   <a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white"></a>
@@ -29,7 +34,7 @@
 
 > Este projeto foi desenvolvido para atender uma operação real de e-commerce de artesanato, com loja pública, painel administrativo completo e arquitetura pensada para produção — não um CRUD de tutorial.
 
-**Plataforma completa de e-commerce** — loja pública, painel administrativo, autenticação de clientes, carrinho persistente, checkout, migração de catálogo a partir da Nuvemshop e deploy na Vercel.
+**Plataforma completa de e-commerce** — loja pública, painel administrativo, autenticação de clientes, carrinho persistente, checkout com Mercado Pago e Melhor Envio, migração de catálogo a partir da Nuvemshop e deploy na Vercel.
 
 ---
 
@@ -72,12 +77,12 @@ O objetivo deste projeto foi reproduzir os principais desafios encontrados em um
 |---------|---------|
 | Catálogo e PDP | Produtos com galeria, tamanhos, cores, FAQ, materiais e história do artesão |
 | Carrinho | Drawer + página dedicada; cookie de sessão para visitante; merge ao login |
-| Checkout | Endereço (ViaCEP), resumo do pedido e pagamento simulado |
+| Checkout | Endereço (ViaCEP), cotação de frete, resumo do pedido e pagamento via Mercado Pago (Pix, cartão com Payment Brick ou boleto) |
 | Conta do cliente | Cadastro, login, recuperação de senha e verificação de e-mail (Supabase Auth) |
 | Pedidos | Histórico e detalhe na área logada |
-| Frete / cupom | Barra de frete grátis e cupom persistido no carrinho |
+| Frete / cupom | Cotação em tempo real via Melhor Envio; barra de frete grátis (threshold configurável) e cupom persistido no carrinho |
 
-> ⚠️ O checkout demonstra apenas o fluxo de compra. Nenhum pagamento real é processado.
+> ⚠️ O ambiente de pagamento (teste ou produção) e o Melhor Envio (sandbox ou produção) são configuráveis em `/admin/integracoes`. Em modo teste/sandbox, não há cobrança nem frete reais.
 
 ### Painel administrativo (`/admin`)
 
@@ -88,6 +93,7 @@ O objetivo deste projeto foi reproduzir os principais desafios encontrados em um
 | Importação em massa | CSV/XLSX com pré-visualização no navegador |
 | Pedidos | Lista, filtros, detalhe e alteração de status |
 | Clientes | Perfil, endereços e histórico de compras |
+| Integrações | Mercado Pago e Melhor Envio (credenciais criptografadas, ambientes teste/sandbox e produção) |
 | Notificações | Sino in-app para novos pedidos e cadastros (polling) |
 | Auth admin | Senha única + JWT em cookie `httpOnly` (adequado a serverless) |
 
@@ -129,6 +135,8 @@ flowchart TD
     B --> C["PostgreSQL (Supabase)"]
     B --> D["Auth (Supabase)"]
     B --> E["Storage (Supabase)"]
+    B --> F["Mercado Pago"]
+    B --> G["Melhor Envio"]
 ```
 
 ### Arquitetura de domínio (backend)
@@ -158,6 +166,8 @@ Notas de engenharia adicionais: admin carregado via **lazy route**, scripts de s
 | Banco de dados | PostgreSQL (Supabase) |
 | Autenticação | Supabase Auth |
 | Armazenamento | Supabase Storage |
+| Pagamento | Mercado Pago (Orders API + Payment Brick) |
+| Frete | Melhor Envio |
 | Validação | Zod (compartilhada entre client e server) |
 | Deploy | Vercel (SPA + API serverless) |
 | Package manager | pnpm |
@@ -170,13 +180,18 @@ Notas de engenharia adicionais: admin carregado via **lazy route**, scripts de s
 - Service Role do Supabase restrita ao servidor, nunca exposta ao client
 - Row Level Security (RLS) habilitada nas tabelas sensíveis (perfis, endereços, pedidos)
 - Normalização de inputs (trim, formato de telefone/CEP) antes da validação com Zod
+- Webhook do Mercado Pago (`/api/webhooks/mercado-pago`) com validação HMAC da assinatura `x-signature` e janela de tempo
+- Reconciliação de pagamento idempotente (`reconcile_mercado_pago_payment` + chave de idempotência por tentativa), evitando efeitos colaterais em eventos duplicados
+- Credenciais de Mercado Pago e Brevo criptografadas no banco (`MERCADO_PAGO_ENCRYPTION_KEY` / `BREVO_ENCRYPTION_KEY`)
 
 ---
 
 ## Resultados
 
 - Migração completa de um catálogo real da Nuvemshop, sem perda de dados de produto, variações ou imagens
-- Modelagem de **9 tabelas PostgreSQL** no Supabase (produtos, carrinho, pedidos, clientes, endereços, notificações e analytics)
+- Modelagem de **25 tabelas PostgreSQL** no Supabase (produtos, carrinho, pedidos, clientes, endereços, notificações, analytics, pagamento, frete, cupons, e-mail e quiz)
+- Integração de pagamento real com Mercado Pago (Pix, cartão e boleto), incluindo webhook com validação de assinatura e reconciliação idempotente
+- Cotação de frete em tempo real via Melhor Envio, com persistência da cotação no checkout e regra de frete grátis por threshold/cupom
 - Arquitetura pronta para múltiplos frontends consumindo a mesma API (o client nunca acessa o banco diretamente)
 - Código e validação compartilhados entre frontend e backend, reduzindo duplicação e bugs de divergência
 - Deploy automatizado na Vercel, do push à produção
@@ -279,6 +294,8 @@ Detalhes de variáveis e armadilhas: ver [`.env.example`](.env.example).
 | Compatibilidade com ambiente serverless | API stateless, com JWT em cookie `httpOnly` em vez de sessão em memória |
 | Migração de plataforma (Nuvemshop → Supabase) | Parser de CSV `latin1` multilinha + extração controlada de imagens da loja publicada |
 | Consistência entre banco (snake_case) e TS (camelCase) | Mappers dedicados em `shared/lib` (`productMapper`, `orderMapper`, `cartMapper`, `addressMapper`) |
+| Confirmação de pagamento | Webhook do Mercado Pago com validação de assinatura HMAC e reconciliação idempotente no Postgres |
+| Cálculo de frete | Cotação em tempo real via Melhor Envio; cotação persistida (~30 min) e revalidada no checkout; frete grátis por threshold e/ou cupom |
 
 ---
 
@@ -293,12 +310,13 @@ Detalhes de variáveis e armadilhas: ver [`.env.example`](.env.example).
 - **Modelagem de banco de dados** relacional, com RLS e tabelas para produtos, carrinho, pedidos e clientes
 - **Compartilhamento de schemas** de validação entre frontend e backend com Zod, eliminando duplicação de regras
 - **Migração de dados** de uma plataforma legada (Nuvemshop), lidando com encoding, parsing de CSV e integridade de imagens
+- **Integração com APIs de terceiros** (Mercado Pago e Melhor Envio): OAuth/credenciais, ambientes teste/sandbox vs produção e falhas de rede
+- **Webhooks e idempotência**, validando assinaturas, reconciliando status de pagamento e evitando efeitos colaterais em notificações duplicadas
 
 ---
 
 ## Roadmap
 
-- [ ] Gateway de pagamento real (Pix / cartão)
 - [ ] Configurações da loja no admin
 - [ ] Busca e filtros avançados no catálogo
 - [ ] Avaliações reais de clientes
