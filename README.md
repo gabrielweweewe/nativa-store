@@ -345,3 +345,23 @@ MIT — veja o arquivo de licença do repositório, se presente.
 <p align="center">
   Feito com React, Express e Supabase · Artesanato brasileiro em código
 </p>
+
+---
+
+---
+
+## Captura automática de screenshots e vídeo
+
+Os scripts Playwright ficam no repositório do portfólio (`gabrielamorim.dev`) e gravam neste diretório por padrão:
+
+`docs/screenshots/`
+
+```bash
+# no repo gabrielamorim.dev
+pnpm capture:install-browsers   # 1x
+cp .env.capture.example .env.capture.local
+# defina NATIVA_URL (localhost ou produção) e NATIVA_ADMIN_PASSWORD
+pnpm capture:nativa-store
+```
+
+Arquivos gerados (nomes típicos): `01-home.png` … `06-admin-dashboard.png`, `nativa-store-demo.webm` (e `.mp4` / `demo.gif` se o `ffmpeg` estiver instalado).
