@@ -205,36 +205,44 @@ Notas de engenharia adicionais: admin carregado via **lazy route**, scripts de s
   <img src="docs/screenshots/Home-Banner.webp" alt="Home da loja Nativa Store" width="850" />
 </p>
 
-<p align="center"><b>Página de produto</b> — galeria, variações e informações do artesão</p>
+<p align="center"><b>Home</b> — caminhos da loja e quiz de curadoria</p>
 <p align="center">
-  <img src="docs/screenshots/produto.webp" alt="Página de produto" width="850" />
+  <img src="docs/screenshots/01-home.png" alt="Home — caminhos da loja e quiz" width="850" />
 </p>
 
-### Carrinho
-
-<!-- Inserir screenshot do carrinho -->
-
+<p align="center"><b>Página de produto</b> — galeria, variações, frete e CTA</p>
 <p align="center">
-  <img src="docs/screenshots/carrinho.webp"
-       alt="Carrinho"
-       width="850" />
+  <img src="docs/screenshots/02-produto.png" alt="Página de produto" width="850" />
 </p>
 
----
-
-### Checkout
-
-<!-- Inserir screenshot do checkout -->
-
+<p align="center"><b>Carrinho</b> — itens no pedido</p>
 <p align="center">
-  <img src="docs/screenshots/checkout.webp"
-       alt="Checkout"
-       width="850" />
+  <img src="docs/screenshots/carrinho.webp" alt="Carrinho com itens" width="850" />
+</p>
+
+<p align="center"><b>Carrinho</b> — estado vazio</p>
+<p align="center">
+  <img src="docs/screenshots/03-carrinho.png" alt="Carrinho vazio" width="850" />
+</p>
+
+<p align="center"><b>Checkout</b> — endereço, frete e pagamento</p>
+<p align="center">
+  <img src="docs/screenshots/checkout.webp" alt="Checkout" width="850" />
+</p>
+
+<p align="center"><b>Conta do cliente</b> — login e benefícios da conta</p>
+<p align="center">
+  <img src="docs/screenshots/04-checkout.png" alt="Login do cliente" width="850" />
+</p>
+
+<p align="center"><b>Painel admin</b> — tela de login</p>
+<p align="center">
+  <img src="docs/screenshots/05-admin-login.png" alt="Login do painel administrativo" width="850" />
 </p>
 
 <p align="center"><b>Painel admin</b> — dashboard com métricas de vendas e gráficos</p>
 <p align="center">
-  <img src="docs/screenshots/admin-dashboard.webp" alt="Dashboard administrativo" width="850" />
+  <img src="docs/screenshots/06-admin-dashboard.png" alt="Dashboard administrativo" width="850" />
 </p>
 
 <p align="center"><b>Painel admin</b> — gestão de pedidos</p>
@@ -365,3 +373,5 @@ pnpm capture:nativa-store
 ```
 
 Arquivos gerados (nomes típicos): `01-home.png` … `06-admin-dashboard.png`, `nativa-store-demo.webm` (e `.mp4` / `demo.gif` se o `ffmpeg` estiver instalado).
+
+> Nota: `04-checkout.png` captura a tela de **login do cliente** (fluxo pós-carrinho quando a sessão exige autenticação), não o formulário de checkout — por isso a legenda nos READMEs usa “Conta do cliente”.

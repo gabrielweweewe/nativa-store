@@ -205,36 +205,44 @@ Additional engineering notes: admin loaded via **lazy route**, seed/migration/st
   <img src="docs/screenshots/Home-Banner.webp" alt="Nativa Store home" width="850" />
 </p>
 
-<p align="center"><b>Product page</b> — gallery, variants, and artisan details</p>
+<p align="center"><b>Home</b> — store paths and curation quiz</p>
 <p align="center">
-  <img src="docs/screenshots/produto.webp" alt="Product page" width="850" />
+  <img src="docs/screenshots/01-home.png" alt="Home — store paths and quiz" width="850" />
 </p>
 
-### Cart
-
-<!-- Insert cart screenshot -->
-
+<p align="center"><b>Product page</b> — gallery, variants, shipping, and CTAs</p>
 <p align="center">
-  <img src="docs/screenshots/carrinho.webp"
-       alt="Cart"
-       width="850" />
+  <img src="docs/screenshots/02-produto.png" alt="Product page" width="850" />
 </p>
 
----
-
-### Checkout
-
-<!-- Insert checkout screenshot -->
-
+<p align="center"><b>Cart</b> — items in the order</p>
 <p align="center">
-  <img src="docs/screenshots/checkout.webp"
-       alt="Checkout"
-       width="850" />
+  <img src="docs/screenshots/carrinho.webp" alt="Cart with items" width="850" />
+</p>
+
+<p align="center"><b>Cart</b> — empty state</p>
+<p align="center">
+  <img src="docs/screenshots/03-carrinho.png" alt="Empty cart" width="850" />
+</p>
+
+<p align="center"><b>Checkout</b> — address, shipping, and payment</p>
+<p align="center">
+  <img src="docs/screenshots/checkout.webp" alt="Checkout" width="850" />
+</p>
+
+<p align="center"><b>Customer account</b> — login and account benefits</p>
+<p align="center">
+  <img src="docs/screenshots/04-checkout.png" alt="Customer login" width="850" />
+</p>
+
+<p align="center"><b>Admin panel</b> — login screen</p>
+<p align="center">
+  <img src="docs/screenshots/05-admin-login.png" alt="Admin panel login" width="850" />
 </p>
 
 <p align="center"><b>Admin panel</b> — sales metrics dashboard and charts</p>
 <p align="center">
-  <img src="docs/screenshots/admin-dashboard.webp" alt="Admin dashboard" width="850" />
+  <img src="docs/screenshots/06-admin-dashboard.png" alt="Admin dashboard" width="850" />
 </p>
 
 <p align="center"><b>Admin panel</b> — order management</p>
