@@ -15,7 +15,7 @@ export function formatLabel(a: string, b: string) {
   return x;
 }
 
-// Intentional duplication of formatLabel
+// Intentional duplication of formatLabel teste
 export function formatLabelCopy(a: string, b: string) {
   const x = a + " " + b;
   return x;
