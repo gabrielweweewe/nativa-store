@@ -1,4 +1,4 @@
-import { absoluteUrl, stripHtml } from "@shared/lib/seo";
+import { absoluteUrl, normalizeBaseUrl, stripHtml } from "@shared/lib/seo";
 import type { Product } from "@shared/types/product";
 import type {
   FeedExclusionReason,
@@ -138,7 +138,7 @@ export function buildFeedFromProducts(
 
   const xml = buildProductFeedXml({
     title: `${options.brand} — Catálogo de produtos`,
-    link: options.baseUrl.replace(/\/$/, ""),
+    link: normalizeBaseUrl(options.baseUrl),
     description: `Feed de produtos da ${options.brand} para Instagram e Facebook Shopping`,
     items,
   });

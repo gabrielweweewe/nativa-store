@@ -77,6 +77,25 @@ describe("feedService", () => {
     expect(item.link).toBe("https://nativa.store/produto/bolsa-aruanda");
   });
 
+  it("adiciona https:// quando a URL base vem sem esquema", () => {
+    const item = mapProductToFeedItem(makeProduct(), {
+      baseUrl: "nativa-store.vercel.app",
+      brand: "Nativa",
+    });
+    const { xml } = buildFeedFromProducts([makeProduct()], {
+      baseUrl: "nativa-store.vercel.app/",
+      brand: "Nativa",
+    });
+
+    expect(item.link).toBe(
+      "https://nativa-store.vercel.app/produto/bolsa-aruanda"
+    );
+    expect(xml).toContain("<link>https://nativa-store.vercel.app</link>");
+    expect(xml).toContain(
+      "<g:link>https://nativa-store.vercel.app/produto/bolsa-aruanda</g:link>"
+    );
+  });
+
   it("gera XML RSS parseável com namespace g:", () => {
     const { xml, items, exclusions } = buildFeedFromProducts(
       [

@@ -11,7 +11,7 @@ import {
   SITE_TITLE,
   SITE_TWITTER_HANDLE,
 } from "@shared/const/site";
-import { absoluteUrl, escapeHtmlAttr, truncateMeta } from "@shared/lib/seo";
+import { absoluteUrl, escapeHtmlAttr, normalizeBaseUrl, truncateMeta } from "@shared/lib/seo";
 
 export type InjectMetaOptions = {
   title: string;
@@ -217,10 +217,9 @@ export function defaultSiteMeta(baseUrl: string): InjectMetaOptions {
 }
 
 export function resolvePublicBaseUrl(reqHost?: string | null, proto?: string | null): string {
-  let fromEnv = (process.env.APP_URL || process.env.VITE_APP_URL || "").trim();
+  const fromEnv = (process.env.APP_URL || process.env.VITE_APP_URL || "").trim();
   if (fromEnv) {
-    if (!/^https?:\/\//i.test(fromEnv)) fromEnv = `https://${fromEnv}`;
-    return fromEnv.replace(/\/$/, "");
+    return normalizeBaseUrl(fromEnv);
   }
   if (reqHost) {
     const scheme = proto === "http" ? "http" : "https";

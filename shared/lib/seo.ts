@@ -34,10 +34,20 @@ export function escapeHtmlAttr(value: string): string {
     .replace(/>/g, "&gt;");
 }
 
+/** Garante esquema http(s) e remove barra final. */
+export function normalizeBaseUrl(url: string): string {
+  let value = url.trim();
+  if (!value) return value;
+  if (!/^https?:\/\//i.test(value)) {
+    value = `https://${value}`;
+  }
+  return value.replace(/\/$/, "");
+}
+
 export function absoluteUrl(baseUrl: string, pathOrUrl: string): string {
-  if (!pathOrUrl) return baseUrl;
+  const base = normalizeBaseUrl(baseUrl);
+  if (!pathOrUrl) return base;
   if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
-  const base = baseUrl.replace(/\/$/, "");
   const path = pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`;
   return `${base}${path}`;
 }

@@ -3,6 +3,7 @@ import type {
   MetaCatalogAdminStatus,
   MetaCatalogTestResult,
 } from "@shared/types/metaCatalog";
+import { normalizeBaseUrl } from "@shared/lib/seo";
 import { nanoid } from "nanoid";
 import { supabase } from "../lib/supabase";
 import {
@@ -29,11 +30,11 @@ type MetaCatalogSettingsRow = {
 const SYNC_WINDOW_MS = 36 * 60 * 60 * 1000;
 
 function appBaseUrl(): string {
-  return (
+  return normalizeBaseUrl(
     process.env.APP_URL?.trim() ||
-    process.env.VITE_APP_URL?.trim() ||
-    "http://localhost:5000"
-  ).replace(/\/$/, "");
+      process.env.VITE_APP_URL?.trim() ||
+      "http://localhost:5000"
+  );
 }
 
 function buildFeedUrl(token: string | null): string {

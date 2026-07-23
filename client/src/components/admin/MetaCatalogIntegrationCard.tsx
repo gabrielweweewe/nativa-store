@@ -308,10 +308,17 @@ export default function MetaCatalogIntegrationCard() {
           <ol className="mt-2 list-decimal space-y-1 pl-4">
             <li>Copie a URL do feed.</li>
             <li>
-              No Meta Commerce Manager, vá em Catálogo → Fontes de dados →
-              Adicionar feed programado.
+              No Commerce Manager, abra o catálogo → Fontes de dados → Adicionar
+              produtos.
             </li>
-            <li>Cole a URL e defina atualização diária.</li>
+            <li>
+              Escolha <strong>Arquivo de dados</strong> (não é um item separado
+              chamado “feed programado”).
+            </li>
+            <li>
+              Em seguida selecione <strong>Usar uma URL</strong>, cole o link do
+              feed e defina a atualização (ex.: diária).
+            </li>
           </ol>
           <a
             href="https://business.facebook.com/commerce/"
