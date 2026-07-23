@@ -2,7 +2,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   CreditCard,
   Facebook,
-  Instagram,
   Mail,
   MessageCircle,
   Package,
@@ -18,9 +17,8 @@ export type IntegrationId =
   | "mercado-livre"
   | "amazon"
   | "shopee"
-  | "instagram"
-  | "whatsapp"
-  | "facebook";
+  | "meta-catalog"
+  | "whatsapp";
 
 export type IntegrationCategoryId =
   | "payments"
@@ -138,14 +136,14 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     iconColor: "text-orange-600",
   },
   {
-    id: "instagram",
+    id: "meta-catalog",
     categoryId: "social",
-    name: "Instagram",
-    description: "Catálogo e atendimento via Direct.",
-    availability: "coming_soon",
-    icon: Instagram,
-    iconBg: "bg-pink-50",
-    iconColor: "text-pink-600",
+    name: "Instagram e Facebook",
+    description: "Catálogo de produtos via feed para Shopping.",
+    availability: "available",
+    icon: Facebook,
+    iconBg: "bg-blue-50",
+    iconColor: "text-blue-600",
   },
   {
     id: "whatsapp",
@@ -156,16 +154,6 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     icon: MessageCircle,
     iconBg: "bg-green-50",
     iconColor: "text-green-600",
-  },
-  {
-    id: "facebook",
-    categoryId: "social",
-    name: "Facebook",
-    description: "Catálogo e anúncios conectados à loja.",
-    availability: "coming_soon",
-    icon: Facebook,
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-600",
   },
 ];
 

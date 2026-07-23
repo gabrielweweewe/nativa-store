@@ -16,6 +16,7 @@ import adminCustomersRouter from "./adminCustomers";
 import adminDashboardRouter from "./adminDashboard";
 import adminMelhorEnvioRouter from "./adminMelhorEnvio";
 import adminMercadoPagoRouter from "./adminMercadoPago";
+import adminMetaCatalogRouter from "./adminMetaCatalog";
 import adminNotificationsRouter from "./adminNotifications";
 import adminOrdersRouter from "./adminOrders";
 import adminQuizRouter from "./adminQuiz";
@@ -97,6 +98,7 @@ router.use("/quiz", adminQuizRouter);
 router.use("/regions", adminRegionsRouter);
 router.use("/melhor-envio", adminMelhorEnvioRouter);
 router.use("/mercado-pago", adminMercadoPagoRouter);
+router.use("/meta-catalog", adminMetaCatalogRouter);
 
 router.post(
   "/uploads",

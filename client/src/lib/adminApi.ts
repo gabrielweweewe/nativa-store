@@ -22,6 +22,11 @@ import type {
   MercadoPagoEnvironment,
   MercadoPagoSettingsInput,
 } from "@shared/types/mercadoPago";
+import type {
+  MetaCatalogAdminStatus,
+  MetaCatalogSettingsInput,
+  MetaCatalogTestResult,
+} from "@shared/types/metaCatalog";
 import type { ProductInput } from "@shared/schemas/product";
 import type { Product } from "@shared/types/product";
 import type { QuizExportPayload, QuizImportReport, QuizQuestion, QuizResult } from "@shared/types/quiz";
@@ -440,6 +445,23 @@ export function testMercadoPagoCredentials(
   return request<{ success: true }>("/api/admin/mercado-pago/test", {
     method: "POST",
     body: JSON.stringify({ environment }),
+  });
+}
+
+export function fetchMetaCatalogStatus() {
+  return request<MetaCatalogAdminStatus>("/api/admin/meta-catalog/status");
+}
+
+export function updateMetaCatalogSettings(input: MetaCatalogSettingsInput) {
+  return request<MetaCatalogAdminStatus>("/api/admin/meta-catalog/settings", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function testMetaCatalogFeed() {
+  return request<MetaCatalogTestResult>("/api/admin/meta-catalog/test", {
+    method: "POST",
   });
 }
 

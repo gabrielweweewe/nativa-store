@@ -2,6 +2,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import BrevoIntegrationCard from "@/components/admin/BrevoIntegrationCard";
 import MelhorEnvioIntegrationCard from "@/components/admin/MelhorEnvioIntegrationCard";
 import MercadoPagoIntegrationCard from "@/components/admin/MercadoPagoIntegrationCard";
+import MetaCatalogIntegrationCard from "@/components/admin/MetaCatalogIntegrationCard";
 import {
   getIntegrationById,
   getIntegrationsByCategory,
@@ -15,6 +16,7 @@ import {
   fetchBrevoStatus,
   fetchMelhorEnvioStatus,
   fetchMercadoPagoStatus,
+  fetchMetaCatalogStatus,
 } from "@/lib/adminApi";
 import { cn } from "@/lib/utils";
 import {
@@ -180,11 +182,12 @@ export default function AdminIntegrations() {
 
     async function loadStatuses() {
       try {
-        const [mpTest, mpProd, me, brevo] = await Promise.all([
+        const [mpTest, mpProd, me, brevo, meta] = await Promise.all([
           fetchMercadoPagoStatus("test").catch(() => null),
           fetchMercadoPagoStatus("production").catch(() => null),
           fetchMelhorEnvioStatus().catch(() => null),
           fetchBrevoStatus().catch(() => null),
+          fetchMetaCatalogStatus().catch(() => null),
         ]);
 
         if (cancelled) return;
@@ -211,6 +214,12 @@ export default function AdminIntegrations() {
             brevo.enabled && brevo.configured ? "active" : "inactive";
         } else {
           next.brevo = "unknown";
+        }
+
+        if (meta) {
+          next["meta-catalog"] = meta.enabled ? "active" : "inactive";
+        } else {
+          next["meta-catalog"] = "unknown";
         }
 
         setLiveStatus(next);
@@ -281,6 +290,7 @@ export default function AdminIntegrations() {
               {selected.id === "mercado-pago" && <MercadoPagoIntegrationCard />}
               {selected.id === "melhor-envio" && <MelhorEnvioIntegrationCard />}
               {selected.id === "brevo" && <BrevoIntegrationCard />}
+              {selected.id === "meta-catalog" && <MetaCatalogIntegrationCard />}
             </div>
           </div>
         ) : (
