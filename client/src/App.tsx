@@ -1,9 +1,13 @@
 import AuthHashRouter from "@/components/auth/AuthHashRouter";
 import PixelRouteTracker from "@/components/analytics/PixelRouteTracker";
 import StorePageViewTracker from "@/components/analytics/StorePageViewTracker";
+import AccessibilityToolbar from "@/components/accessibility/AccessibilityToolbar";
+import SkipLink from "@/components/accessibility/SkipLink";
+import VLibrasWidget from "@/components/accessibility/VLibrasWidget";
 import { Spinner } from "@/components/ui/spinner";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
 import { CustomerAuthProvider } from "@/contexts/CustomerAuthContext";
 import NotFound from "@/pages/NotFound";
 import ProductPage from "@/pages/ProductPage";
@@ -89,26 +93,33 @@ function App() {
         defaultTheme="light"
         // switchable
       >
-        <CustomerAuthProvider>
-          <WishlistProvider>
-            <CartProvider>
-              <StoreDiscoveryProvider>
-                <AuthHashRouter />
-                <TooltipProvider>
-                  <Toaster />
-                  <StorePageViewTracker />
-                  <PixelRouteTracker />
-                  <ScrollToTop />
-                  <CartDrawer />
-                  <StoreSearch />
-                  <QuickView />
-                  <WhatsAppFloatingButton />
-                  <Router />
-                </TooltipProvider>
-              </StoreDiscoveryProvider>
-            </CartProvider>
-          </WishlistProvider>
-        </CustomerAuthProvider>
+        <AccessibilityProvider>
+          <CustomerAuthProvider>
+            <WishlistProvider>
+              <CartProvider>
+                <StoreDiscoveryProvider>
+                  <AuthHashRouter />
+                  <TooltipProvider>
+                    <SkipLink />
+                    <Toaster />
+                    <StorePageViewTracker />
+                    <PixelRouteTracker />
+                    <ScrollToTop />
+                    <CartDrawer />
+                    <StoreSearch />
+                    <QuickView />
+                    <WhatsAppFloatingButton />
+                    <AccessibilityToolbar />
+                    <VLibrasWidget />
+                    <div id="conteudo" tabIndex={-1}>
+                      <Router />
+                    </div>
+                  </TooltipProvider>
+                </StoreDiscoveryProvider>
+              </CartProvider>
+            </WishlistProvider>
+          </CustomerAuthProvider>
+        </AccessibilityProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

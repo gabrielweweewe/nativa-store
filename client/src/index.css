@@ -499,4 +499,163 @@
       opacity: 0;
     }
   }
+
+  /* ——— Acessibilidade (WCAG) ——— */
+  .nativa-skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -100px;
+    z-index: 200;
+    border-radius: 9999px;
+    background: #1A3D2B;
+    color: #F5F0E8;
+    padding: 0.65rem 1.1rem;
+    font-family: "Nunito", sans-serif;
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 8px 24px rgba(26, 61, 43, 0.28);
+    transition: top 160ms ease;
+  }
+
+  .nativa-skip-link:focus,
+  .nativa-skip-link:focus-visible {
+    top: 1rem;
+    outline: 3px solid #C4522A;
+    outline-offset: 3px;
+  }
+
+  .nativa-a11y-fab {
+    background: linear-gradient(145deg, #C4522A 0%, #A33A1A 100%);
+    box-shadow:
+      0 8px 24px rgba(196, 82, 42, 0.32),
+      0 2px 8px rgba(61, 43, 31, 0.16);
+  }
+
+  .nativa-a11y-fab:hover {
+    box-shadow:
+      0 12px 32px rgba(196, 82, 42, 0.4),
+      0 4px 12px rgba(61, 43, 31, 0.2);
+  }
+
+  /* VLibras: sobe um pouco para não cobrir o FAB de acessibilidade */
+  div[vw] [vw-access-button],
+  div[vw].enabled [vw-access-button] {
+    bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  @media (min-width: 640px) {
+    div[vw] [vw-access-button],
+    div[vw].enabled [vw-access-button] {
+      bottom: 6.5rem !important;
+    }
+  }
+}
+
+body.is-admin-route [vw],
+body.is-admin-route [vw-access-button],
+body.is-admin-route .vw-plugin-wrapper,
+body.is-admin-route .nativa-a11y-root {
+  display: none !important;
+}
+
+/* Escala tipográfica — rem em cascata, sem mudar fontes da marca */
+html.a11y-font-large {
+  font-size: 112.5%;
+}
+
+html.a11y-font-xlarge {
+  font-size: 125%;
+}
+
+/* Links sempre sublinhados (WCAG 1.4.1 — uso de cor) */
+html.a11y-underline-links a[href] {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+/*
+ * Alto contraste dentro da identidade Nativa:
+ * creme mais claro, marrom mais escuro, terracota/verde reforçados.
+ * Não troca para preto/branco genérico.
+ */
+html.a11y-high-contrast {
+  --background: #fffcf7;
+  --foreground: #140e0a;
+  --card: #ffffff;
+  --card-foreground: #140e0a;
+  --popover: #ffffff;
+  --popover-foreground: #140e0a;
+  --primary: #9a3412;
+  --primary-foreground: #fffaf4;
+  --secondary: #14532d;
+  --secondary-foreground: #fffaf4;
+  --accent: #0e7490;
+  --accent-foreground: #fffaf4;
+  --muted: #efe8dc;
+  --muted-foreground: #3d2b1f;
+  --border: #5c4030;
+  --input: #5c4030;
+  --ring: #9a3412;
+  color-scheme: light;
+}
+
+html.a11y-high-contrast body {
+  background-color: #fffcf7 !important;
+  color: #140e0a;
+}
+
+html.a11y-high-contrast *:focus-visible {
+  outline: 3px solid #9a3412 !important;
+  outline-offset: 2px;
+}
+
+html.a11y-high-contrast .nativa-btn-primary {
+  background: #9a3412;
+  box-shadow: none;
+}
+
+html.a11y-high-contrast .nativa-btn-outline {
+  border-color: #9a3412;
+  color: #9a3412;
+}
+
+html.a11y-high-contrast .nativa-btn-outline:hover {
+  background: #9a3412;
+  color: #fffaf4;
+}
+
+html.a11y-high-contrast .product-description,
+html.a11y-high-contrast .product-description p,
+html.a11y-high-contrast .product-description li {
+  color: #3d2b1f;
+}
+
+html.a11y-high-contrast .product-description h3,
+html.a11y-high-contrast .product-description strong {
+  color: #140e0a;
+}
+
+html.a11y-high-contrast .product-description a {
+  color: #9a3412;
+}
+
+html.a11y-high-contrast .nativa-a11y-panel {
+  border-color: #5c4030 !important;
+  background: #fffcf7 !important;
+}
+
+html.a11y-high-contrast .nativa-texture {
+  background-image: none;
+}
+
+#conteudo:focus {
+  outline: none;
+}
+
+@media (prefers-contrast: more) {
+  html:not(.a11y-high-contrast) {
+    --muted-foreground: oklch(0.38 0.04 60);
+    --border: oklch(0.72 0.03 75);
+  }
 }
