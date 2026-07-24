@@ -5,12 +5,26 @@
  */
 
 import { toast } from "sonner";
-import { Instagram, Facebook, Youtube, Mail, MapPin, Phone } from "lucide-react";
+import { Instagram, Facebook, Mail, MapPin, Phone } from "lucide-react";
 import NativaLogo from "./NativaLogo";
 import { WaveDividerDown } from "./NativaDecorations";
 import { buildWhatsAppUrl, defaultWhatsAppMessage, WHATSAPP_DISPLAY } from "@/lib/whatsapp";
 
 const FOOTER_BG = "#1A3D2B";
+
+function TikTokIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1v-3.52a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3.15 15.8a6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.73a8.19 8.19 0 0 0 4.76 1.52V6.79a4.85 4.85 0 0 1-1-.1z" />
+    </svg>
+  );
+}
 
 const footerLinks = {
   loja: [
@@ -111,39 +125,27 @@ export default function Footer() {
                   label: "Facebook",
                   href: "https://www.facebook.com/share/1BjeTNQpat/?mibextid=wwXIfr",
                 },
-                { icon: <Youtube size={16} />, label: "YouTube", href: null },
-              ].map((social) =>
-                social.href ? (
-                  <a
-                    key={social.label}
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
-                    style={{
-                      background: "rgba(255,255,255,0.1)",
-                      color: "rgba(255,255,255,0.7)",
-                    }}
-                    aria-label={social.label}
-                  >
-                    {social.icon}
-                  </a>
-                ) : (
-                  <button
-                    key={social.label}
-                    type="button"
-                    onClick={() => toast(`${social.label} em breve!`)}
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
-                    style={{
-                      background: "rgba(255,255,255,0.1)",
-                      color: "rgba(255,255,255,0.7)",
-                    }}
-                    aria-label={social.label}
-                  >
-                    {social.icon}
-                  </button>
-                ),
-              )}
+                {
+                  icon: <TikTokIcon size={16} />,
+                  label: "TikTok",
+                  href: "https://www.tiktok.com/@nativa.criativa?_r=1&_t=ZS-98HzhNyOEYj",
+                },
+              ].map((social) => (
+                <a
+                  key={social.label}
+                  href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+                  style={{
+                    background: "rgba(255,255,255,0.1)",
+                    color: "rgba(255,255,255,0.7)",
+                  }}
+                  aria-label={social.label}
+                >
+                  {social.icon}
+                </a>
+              ))}
             </div>
           </div>
 

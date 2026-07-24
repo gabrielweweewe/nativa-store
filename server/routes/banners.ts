@@ -7,6 +7,8 @@ const router = Router();
 router.get("/", async (_req, res) => {
   try {
     const banners = await listActiveBanners();
+    // CDN/browser podem reusar a lista; banners mudam pouco no dia a dia.
+    res.setHeader("Cache-Control", "public, max-age=60, s-maxage=120, stale-while-revalidate=600");
     res.json(banners);
   } catch (error) {
     res.status(500).json({

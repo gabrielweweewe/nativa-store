@@ -10,7 +10,7 @@ import {
   FeatherRed,
   WaveDividerDown,
 } from "./NativaDecorations";
-import { fetchActiveBanners } from "@/lib/banners";
+import { FALLBACK_BANNER, fetchActiveBanners } from "@/lib/banners";
 import type { Banner } from "@shared/types/banner";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -39,8 +39,17 @@ const IMAGE_CLASS =
 const AUTOPLAY_MS = 6500;
 const SWIPE_THRESHOLD_PX = 48;
 
-function BannerSlide({ banner }: { banner: Banner }) {
+function BannerSlide({
+  banner,
+  priority,
+}: {
+  banner: Banner;
+  priority?: boolean;
+}) {
   const mobileSrc = banner.imageUrlMobile || banner.imageUrl;
+  const loading = priority ? "eager" : "lazy";
+  const fetchPriority = priority ? "high" : "low";
+  const decoding = priority ? "sync" : "async";
 
   const content = (
     <>
@@ -50,6 +59,11 @@ function BannerSlide({ banner }: { banner: Banner }) {
         className={`${IMAGE_CLASS} sm:hidden`}
         style={{ objectPosition: banner.objectPositionMobile }}
         draggable={false}
+        loading={loading}
+        fetchPriority={fetchPriority}
+        decoding={decoding}
+        width={960}
+        height={640}
       />
       <img
         src={banner.imageUrl}
@@ -57,6 +71,11 @@ function BannerSlide({ banner }: { banner: Banner }) {
         className={`${IMAGE_CLASS} hidden sm:block`}
         style={{ objectPosition: banner.objectPosition }}
         draggable={false}
+        loading={loading}
+        fetchPriority={fetchPriority}
+        decoding={decoding}
+        width={1920}
+        height={1024}
       />
     </>
   );
@@ -77,7 +96,8 @@ function BannerSlide({ banner }: { banner: Banner }) {
 }
 
 export default function HeroSection() {
-  const [banners, setBanners] = useState<Banner[]>([]);
+  // Fallback imediato: a imagem LCP começa a baixar no 1º paint, sem esperar a API.
+  const [banners, setBanners] = useState<Banner[]>([FALLBACK_BANNER]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -86,7 +106,16 @@ export default function HeroSection() {
   useEffect(() => {
     let cancelled = false;
     fetchActiveBanners().then((data) => {
-      if (!cancelled) setBanners(data);
+      if (cancelled || data.length === 0) return;
+      // Evita trocar a imagem se a API devolveu o mesmo fallback (ou URL idêntica).
+      const first = data[0];
+      const sameAsFallback =
+        data.length === 1 &&
+        first.id === FALLBACK_BANNER.id &&
+        first.imageUrl === FALLBACK_BANNER.imageUrl;
+      if (sameAsFallback) return;
+      setBanners(data);
+      setSelectedIndex(0);
     });
     return () => {
       cancelled = true;
@@ -118,6 +147,9 @@ export default function HeroSection() {
   }, [banners.length, goNext, isPaused]);
 
   const showControls = banners.length > 1;
+  const prevIndex =
+    banners.length > 1 ? (selectedIndex - 1 + banners.length) % banners.length : selectedIndex;
+  const nextIndex = banners.length > 1 ? (selectedIndex + 1) % banners.length : selectedIndex;
 
   function handleTouchStart(event: React.TouchEvent) {
     touchStartX.current = event.touches[0]?.clientX ?? null;
@@ -151,30 +183,31 @@ export default function HeroSection() {
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
       >
-        {banners.length === 0 ? (
-          <div className={`${IMAGE_CLASS} animate-pulse bg-[#E8DFD0]`} aria-hidden />
-        ) : (
-          <div className="relative" aria-roledescription="carousel" aria-label="Banners da loja">
-            {banners.map((banner, index) => {
-              const isActive = index === selectedIndex;
-              return (
-                <div
-                  key={banner.id}
-                  role="group"
-                  aria-roledescription="slide"
-                  aria-hidden={!isActive}
-                  className={`hero-banner-slide ${
-                    isActive
-                      ? "relative z-[1] opacity-100"
-                      : "pointer-events-none absolute inset-0 z-0 opacity-0"
-                  }`}
-                >
-                  <BannerSlide banner={banner} />
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <div className="relative" aria-roledescription="carousel" aria-label="Banners da loja">
+          {banners.map((banner, index) => {
+            const isActive = index === selectedIndex;
+            // Só monta ativo + vizinhos: evita baixar todos os banners de uma vez.
+            if (index !== selectedIndex && index !== prevIndex && index !== nextIndex) {
+              return null;
+            }
+
+            return (
+              <div
+                key={banner.id}
+                role="group"
+                aria-roledescription="slide"
+                aria-hidden={!isActive}
+                className={`hero-banner-slide ${
+                  isActive
+                    ? "relative z-[1] opacity-100"
+                    : "pointer-events-none absolute inset-0 z-0 opacity-0"
+                }`}
+              >
+                <BannerSlide banner={banner} priority={index === 0} />
+              </div>
+            );
+          })}
+        </div>
 
         <div className="absolute inset-0 pointer-events-none z-10 hidden sm:block">
           {feathers.map(({ Feather, top, left, right, size, rotate, anim, opacity }, i) => (

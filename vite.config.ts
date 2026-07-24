@@ -219,6 +219,21 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("framer-motion")) return "motion";
+          if (id.includes("@supabase")) return "supabase";
+          if (id.includes("@radix-ui")) return "radix";
+          if (id.includes("recharts")) return "charts";
+          if (id.includes("xlsx")) return "xlsx";
+          if (id.includes("@fancyapps")) return "fancyapps";
+          if (id.includes("@mercadopago")) return "mercadopago";
+          if (id.includes("lucide-react")) return "icons";
+        },
+      },
+    },
   },
   server: {
     port: 3000,
