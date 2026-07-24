@@ -43,13 +43,6 @@ export const couponSchema = z
       }),
   })
   .superRefine((data, ctx) => {
-    if (data.isMapReward && data.type !== "free_shipping") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["isMapReward"],
-        message: "A recompensa do mapa precisa ser um cupom de frete grátis",
-      });
-    }
     if (data.type === "percentage") {
       if (data.value <= 0 || data.value > 100) {
         ctx.addIssue({
@@ -59,11 +52,11 @@ export const couponSchema = z
         });
       }
     } else if (data.type === "fixed") {
-      if (data.value <= 0) {
+      if (data.value < 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["value"],
-          message: "Valor fixo deve ser maior que zero",
+          message: "Valor fixo não pode ser negativo",
         });
       }
     } else if (data.type === "free_shipping" && data.value < 0) {

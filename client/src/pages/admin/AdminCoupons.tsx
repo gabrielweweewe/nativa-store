@@ -118,7 +118,7 @@ function toInput(form: CouponFormState): CouponInput {
     type: form.type,
     value: form.type === "free_shipping" ? 0 : valueNum,
     isActive: form.isActive,
-    isMapReward: form.type === "free_shipping" ? form.isMapReward : false,
+    isMapReward: form.isMapReward,
     startsAt: fromDatetimeLocal(form.startsAt),
     endsAt: fromDatetimeLocal(form.endsAt),
     minSubtotal: parseOptionalNumber(form.minSubtotal),
@@ -392,7 +392,6 @@ export default function AdminCoupons() {
                       ...prev,
                       type: value,
                       value: value === "free_shipping" ? "0" : prev.value || "15",
-                      isMapReward: value === "free_shipping" ? prev.isMapReward : false,
                     }))
                   }
                 >
@@ -435,23 +434,21 @@ export default function AdminCoupons() {
               />
             </div>
 
-            {form.type === "free_shipping" && (
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--admin-border)] px-3 py-2">
-                <div className="min-w-0">
-                  <Label htmlFor="coupon-map-reward">Recompensa do Mapa das Origens</Label>
-                  <p className="text-xs text-[var(--admin-text-muted)]">
-                    Este código aparece no passaporte ao explorar as 5 regiões. Só um cupom por vez.
-                  </p>
-                </div>
-                <Switch
-                  id="coupon-map-reward"
-                  checked={form.isMapReward}
-                  onCheckedChange={(checked) =>
-                    setForm((prev) => ({ ...prev, isMapReward: checked }))
-                  }
-                />
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--admin-border)] px-3 py-2">
+              <div className="min-w-0">
+                <Label htmlFor="coupon-map-reward">Recompensa do Mapa das Origens</Label>
+                <p className="text-xs text-[var(--admin-text-muted)]">
+                  Este código aparece no passaporte ao explorar as 5 regiões. Só um cupom por vez.
+                </p>
               </div>
-            )}
+              <Switch
+                id="coupon-map-reward"
+                checked={form.isMapReward}
+                onCheckedChange={(checked) =>
+                  setForm((prev) => ({ ...prev, isMapReward: checked }))
+                }
+              />
+            </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">

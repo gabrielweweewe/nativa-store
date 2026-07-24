@@ -28,7 +28,7 @@ create table if not exists public.coupons (
   updated_at timestamptz not null default now(),
   constraint coupons_value_by_type_check check (
     (type = 'percentage' and value > 0 and value <= 100)
-    or (type = 'fixed' and value > 0)
+    or (type = 'fixed' and value >= 0)
     or (type = 'free_shipping' and value >= 0)
   )
 );
@@ -64,7 +64,7 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
--- Seed: NATIVA10 (10%) e BORDADO5 (frete grátis)
+-- Seed: NATIVA10 (10%) e BRINDE (recompensa do mapa)
 -- ---------------------------------------------------------------------------
 insert into public.coupons (code, type, value, is_active, description)
 select 'NATIVA10', 'percentage', 10, true, '10% de desconto no subtotal'
@@ -73,9 +73,9 @@ where not exists (
 );
 
 insert into public.coupons (code, type, value, is_active, description, is_map_reward)
-select 'BORDADO5', 'free_shipping', 0, true, 'Frete grátis na opção mais barata', true
+select 'BRINDE', 'fixed', 0, true, 'Brinde exclusivo junto com a compra. Válido enquanto durarem os estoques.', true
 where not exists (
-  select 1 from public.coupons where lower(code) = lower('BORDADO5')
+  select 1 from public.coupons where lower(code) = lower('BRINDE')
 );
 
 -- ---------------------------------------------------------------------------
