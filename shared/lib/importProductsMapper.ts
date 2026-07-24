@@ -1,6 +1,12 @@
 import { productDefaults, productSchema, type ProductInput } from "../schemas/product";
 import type { ProductCategory } from "../types/product";
+import {
+  mapTiendanubeRowToProduct,
+  type TiendanubeCsvRow,
+} from "./parseTiendanubeCsv";
 import { slugify } from "./slugify";
+
+const PLACEHOLDER_IMAGE_PREFIX = "data:image/svg+xml";
 
 export interface ImportRowResult {
   row: number;
@@ -107,4 +113,60 @@ export function mapImportRow(raw: Record<string, unknown>, rowNumber: number): I
   }
 
   return { row: rowNumber, data: parsed.data, errors: [] };
+}
+
+/** Converte linhas do export Tiendanube/Nuvemshop para o formato de importação da loja. */
+export function mapTiendanubeImportRows(
+  rows: TiendanubeCsvRow[],
+  imagesBySlug: Record<string, string[]> = {},
+): ImportRowResult[] {
+  return rows.map((row, index) => {
+    const rowNumber = index + 2;
+    const errors: string[] = [];
+
+    if (!row.name.trim()) errors.push("Coluna 'Nome' é obrigatória");
+    if (!row.slug.trim()) errors.push("Coluna 'Identificador URL' é obrigatória");
+    if (!(row.price > 0) && !(row.promotionalPrice != null && row.promotionalPrice > 0)) {
+      errors.push("Coluna 'Preço' é obrigatória e deve ser numérica");
+    }
+
+    const images = (imagesBySlug[row.slug] ?? []).filter(Boolean);
+    if (images.length === 0) {
+      errors.push(
+        "Não foi possível obter imagens deste produto na loja Nuvemshop (verifique se a página pública ainda existe)",
+      );
+    }
+
+    if (errors.length > 0) {
+      return { row: rowNumber, data: null, errors };
+    }
+
+    const mapped = mapTiendanubeRowToProduct(row, images[0], images.slice(1));
+    const gallery = mapped.images.filter(
+      (url) => url && !url.startsWith(PLACEHOLDER_IMAGE_PREFIX),
+    );
+
+    const candidate: ProductInput = {
+      ...productDefaults,
+      ...mapped,
+      image: gallery[0] ?? mapped.image,
+      images: gallery.length > 0 ? gallery : mapped.images,
+      widthCm: mapped.widthCm ?? null,
+      heightCm: mapped.heightCm ?? null,
+      lengthCm: mapped.lengthCm ?? null,
+      weightKg: mapped.weightKg ?? null,
+      regionId: mapped.regionId ?? null,
+    };
+
+    const parsed = productSchema.safeParse(candidate);
+    if (!parsed.success) {
+      return {
+        row: rowNumber,
+        data: null,
+        errors: parsed.error.issues.map((issue) => issue.message),
+      };
+    }
+
+    return { row: rowNumber, data: parsed.data, errors: [] };
+  });
 }

@@ -6,6 +6,10 @@ export interface TiendanubeCsvRow {
   categories: string;
   price: number;
   promotionalPrice: number | null;
+  weightKg: number | null;
+  heightCm: number | null;
+  widthCm: number | null;
+  lengthCm: number | null;
   stock: number;
   sku: string;
   published: boolean;
@@ -25,6 +29,10 @@ const CSV_COLUMNS = {
   categories: 2,
   price: 3,
   promotionalPrice: 4,
+  weightKg: 5,
+  heightCm: 6,
+  widthCm: 7,
+  lengthCm: 8,
   stock: 9,
   sku: 10,
   published: 12,
@@ -35,6 +43,24 @@ const CSV_COLUMNS = {
   seoDescription: 17,
   brand: 18,
 } as const;
+
+/** Detecta export CSV da Tiendanube/Nuvemshop (separador `;`, coluna Identificador URL). */
+export function isTiendanubeExportCsv(content: string): boolean {
+  const firstLine = content.split(/\r?\n/, 1)[0] ?? "";
+  const normalized = firstLine
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return (
+    normalized.includes("identificador url") ||
+    (firstLine.includes(";") && /nome/i.test(firstLine) && /categorias/i.test(firstLine))
+  );
+}
+
+function parsePositiveOrNull(value: string): number | null {
+  const parsed = parseNumber(value);
+  return parsed !== null && parsed > 0 ? parsed : null;
+}
 
 function parseNumber(value: string): number | null {
   const normalized = value.trim().replace(",", ".");
@@ -168,6 +194,10 @@ export function parseTiendanubeCsv(content: string): TiendanubeCsvRow[] {
     categories: cells[CSV_COLUMNS.categories]?.trim() ?? "",
     price: parseNumber(cells[CSV_COLUMNS.price] ?? "") ?? 0,
     promotionalPrice: parseNumber(cells[CSV_COLUMNS.promotionalPrice] ?? ""),
+    weightKg: parsePositiveOrNull(cells[CSV_COLUMNS.weightKg] ?? ""),
+    heightCm: parsePositiveOrNull(cells[CSV_COLUMNS.heightCm] ?? ""),
+    widthCm: parsePositiveOrNull(cells[CSV_COLUMNS.widthCm] ?? ""),
+    lengthCm: parsePositiveOrNull(cells[CSV_COLUMNS.lengthCm] ?? ""),
     stock: parseNumber(cells[CSV_COLUMNS.stock] ?? "") ?? 0,
     sku: cells[CSV_COLUMNS.sku]?.trim() ?? "",
     published: parseBooleanSimNao(cells[CSV_COLUMNS.published] ?? ""),
@@ -244,6 +274,10 @@ export function mapTiendanubeRowToProduct(
     sku: row.sku || row.slug,
     inStock: row.published && row.stock > 0,
     stockCount: Math.max(0, Math.floor(row.stock)),
+    widthCm: row.widthCm,
+    heightCm: row.heightCm,
+    lengthCm: row.lengthCm,
+    weightKg: row.weightKg,
     faq: [],
     highlights,
     styleTags: [],

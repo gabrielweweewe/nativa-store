@@ -180,6 +180,13 @@ export function bulkImportProducts(products: ProductInput[]) {
   });
 }
 
+export function fetchTiendanubeImportImages(slugs: string[]) {
+  return request<{ images: Record<string, string[]> }>("/api/admin/import/tiendanube-images", {
+    method: "POST",
+    body: JSON.stringify({ slugs }),
+  });
+}
+
 export function fetchAdminDashboard(period: DashboardPeriod = "30d") {
   return request<DashboardStats>(
     `/api/admin/dashboard?period=${encodeURIComponent(period)}`

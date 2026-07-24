@@ -7,14 +7,21 @@ em vez de usar o formulário produto por produto.
 
 ---
 
+## Formatos aceitos
+
+1. **Modelo Nativa** (recomendado para cadastros novos) — baixe em **"Baixar modelo CSV"**.
+2. **Export CSV da Tiendanube/Nuvemshop** — envie o `.csv` direto (separador `;`). A tela detecta
+   o formato, mapeia nome/preço/descrição e busca as imagens nas páginas públicas dos produtos.
+
+---
+
 ## Passo a passo
 
 1. Acesse `/admin/produtos/importar` (logado no painel admin).
-2. Clique em **"Baixar modelo CSV"** para obter a planilha de exemplo com as colunas corretas.
-3. Abra o arquivo no Excel, Google Sheets ou LibreOffice e preencha uma linha por produto
-   (veja a explicação de cada coluna abaixo). Você pode manter as duas linhas de exemplo como
-   referência e depois excluí-las.
-4. Salve/exporte como **.csv** (recomendado) ou **.xlsx**.
+2. Clique em **"Baixar modelo CSV"** **ou** use o CSV exportado da Tiendanube.
+3. Se for o modelo Nativa: abra no Excel/Google Sheets e preencha uma linha por produto
+   (veja as colunas abaixo). Você pode manter as linhas de exemplo e depois excluí-las.
+4. Salve como **.csv** (recomendado) ou **.xlsx** (modelo Nativa). O export Tiendanube fica em `.csv`.
 5. Volte na tela de importação e clique em **"Enviar planilha"**, escolhendo o arquivo salvo.
 6. Revise a **pré-visualização**: cada linha aparece com um status:
    - 🟢 **Novo** — produto será criado.
@@ -70,6 +77,9 @@ linha a linha por uma planilha). Para conseguir uma URL:
 
 Alternativamente, você pode usar qualquer URL de imagem pública já existente (ex: de outro site
 ou CDN), desde que o link aponte diretamente para o arquivo da imagem.
+
+No export da **Tiendanube**, as imagens são buscadas automaticamente nas páginas públicas dos
+produtos. Se a página não existir mais, a linha aparece com erro na pré-visualização.
 
 ---
 
