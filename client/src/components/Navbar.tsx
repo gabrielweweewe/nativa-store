@@ -64,11 +64,22 @@ export default function Navbar() {
         }`}
       >
         <div className="container">
-          <div className="relative flex items-center justify-end md:justify-between h-16 md:h-20">
-            {/* Logo — desktop sempre visível */}
-            <Link href="/" className="hidden md:block group shrink-0">
-              <NativaLogo className="h-9 sm:h-10 md:h-11 w-auto" showTagline />
-            </Link>
+          <div className="relative flex items-center justify-between h-16 md:h-20">
+            {/* Esquerda: menu mobile + logo desktop */}
+            <div className="relative z-10 flex items-center gap-1">
+              <button
+                type="button"
+                className="md:hidden flex items-center justify-center w-9 h-9 rounded-full hover:bg-[#C4522A]/10 text-[#3D2B1F] transition-all duration-200"
+                onClick={() => setMobileOpen(!mobileOpen)}
+                aria-label="Menu"
+                aria-expanded={mobileOpen}
+              >
+                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+              <Link href="/" className="hidden md:block group shrink-0">
+                <NativaLogo className="h-9 sm:h-10 md:h-11 w-auto" showTagline />
+              </Link>
+            </div>
 
             {/* Logo — mobile: só ao rolar (header com fundo) */}
             <Link
@@ -98,7 +109,7 @@ export default function Navbar() {
               ))}
             </nav>
 
-            {/* Actions */}
+            {/* Direita: busca, favoritos, carrinho (+ conta no desktop) */}
             <div className="relative z-10 flex items-center gap-1.5 sm:gap-2 md:gap-3">
               {!isLoading && (
                 <Link
@@ -158,20 +169,12 @@ export default function Navbar() {
                   </span>
                 )}
               </button>
-              <button
-                type="button"
-                className="md:hidden flex items-center justify-center w-9 h-9 rounded-full hover:bg-[#C4522A]/10 text-[#3D2B1F] transition-all duration-200"
-                onClick={() => setMobileOpen(!mobileOpen)}
-                aria-label="Menu"
-              >
-                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-              </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu — abre pela esquerda */}
       <div
         className={`fixed inset-0 z-40 transition-all duration-300 ${
           mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
@@ -179,8 +182,8 @@ export default function Navbar() {
       >
         <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
         <div
-          className={`absolute top-0 right-0 h-full w-72 bg-[#F5F0E8] shadow-2xl transition-transform duration-300 ${
-            mobileOpen ? "translate-x-0" : "translate-x-full"
+          className={`absolute top-0 left-0 h-full w-72 bg-[#F5F0E8] shadow-2xl transition-transform duration-300 ${
+            mobileOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
           <div className="flex flex-col h-full pt-20 px-6 pb-8">

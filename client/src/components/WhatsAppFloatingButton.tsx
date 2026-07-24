@@ -4,15 +4,16 @@ import { buildWhatsAppUrl, defaultWhatsAppMessage } from "@/lib/whatsapp";
 
 /**
  * Botão flutuante de WhatsApp — canto inferior direito.
- * Oculto no painel admin. Na PDP sobe um pouco para não cobrir a barra sticky.
+ * Oculto no painel admin e no checkout. Na PDP sobe um pouco para não cobrir a barra sticky.
  */
 export default function WhatsAppFloatingButton() {
   const [location] = useLocation();
 
   const isAdmin = location === "/admin" || location.startsWith("/admin/");
+  const isCheckout = location === "/checkout" || location.startsWith("/checkout/");
   const isProductPage = location.startsWith("/produto/");
 
-  if (isAdmin) return null;
+  if (isAdmin || isCheckout) return null;
 
   return (
     <a
