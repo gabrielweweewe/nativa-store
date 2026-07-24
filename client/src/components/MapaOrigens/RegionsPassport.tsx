@@ -1,8 +1,8 @@
 /**
  * Nativa Store — Mapa Vivo das Origens
  * Passaporte de regiões: indicador discreto de progresso (quantas regiões
- * o visitante já explorou) + celebração sutil e recompensa real — um cupom
- * de frete grátis — ao completar as 5 regiões.
+ * o visitante já explorou) + celebração sutil e recompensa (cupom de brinde)
+ * ao completar as 5 regiões.
  */
 
 import { useCart } from "@/contexts/CartContext";
@@ -102,17 +102,17 @@ export default function RegionsPassport({
       </div>
 
       {showReward && !rewardClaimed && (
-        <div className="relative flex w-full flex-col items-center gap-3 rounded-2xl border border-[#2D6A4F]/25 bg-[#2D6A4F]/[0.06] px-5 py-4 text-center animate-in fade-in slide-in-from-top-2 duration-500 sm:flex-row sm:justify-between sm:text-left">
+        <div className="relative w-full rounded-2xl border border-[#2D6A4F]/25 bg-[#2D6A4F]/[0.06] px-5 py-4 text-center animate-in fade-in slide-in-from-top-2 duration-500">
           <button
             type="button"
             onClick={onClaimReward}
             aria-label="Fechar aviso"
-            className="absolute right-2 top-2 text-[#8B6F5E] transition-colors hover:text-[#3D2B1F] sm:static sm:order-3 sm:self-start"
+            className="absolute right-2 top-2 text-[#8B6F5E] transition-colors hover:text-[#3D2B1F]"
           >
             <X size={16} />
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="mx-auto flex max-w-md flex-col items-center gap-3">
             <span
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
               style={{ background: "#2D6A4F1A", color: "#2D6A4F" }}
@@ -120,40 +120,55 @@ export default function RegionsPassport({
             >
               <Gift size={18} strokeWidth={1.75} />
             </span>
-            <p className="text-sm leading-relaxed text-[#3D2B1F]" style={{ fontFamily: "'Lora', serif" }}>
-              Você percorreu as 5 origens! Ganhe <strong className="font-semibold">frete grátis</strong> com o
-              cupom{" "}
-              <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs font-bold text-[#2D6A4F]">
-                {rewardCode}
-              </code>
-              .
-            </p>
-          </div>
+            <div
+              className="space-y-1.5 text-sm leading-relaxed text-[#3D2B1F]"
+              style={{ fontFamily: "'Lora', serif" }}
+            >
+              <p className="font-semibold">
+                🎉 Você explorou todas as regiões do Brasil!
+              </p>
+              <p>Como recompensa, você desbloqueou um presente especial.</p>
+              <p>
+                Use o cupom{" "}
+                <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs font-bold text-[#2D6A4F]">
+                  {rewardCode}
+                </code>{" "}
+                e receba um mimo exclusivo junto com sua compra.
+              </p>
+            </div>
 
-          <div className="flex shrink-0 items-center gap-2 sm:order-2">
-            <button
-              type="button"
-              onClick={() => void handleCopyCode()}
-              className="rounded-full border border-[#2D6A4F]/30 px-3 py-1.5 text-xs font-semibold text-[#2D6A4F] transition-colors hover:bg-[#2D6A4F]/10"
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleCopyCode()}
+                className="rounded-full border border-[#2D6A4F]/30 px-3 py-1.5 text-xs font-semibold text-[#2D6A4F] transition-colors hover:bg-[#2D6A4F]/10"
+              >
+                {copied ? "Copiado!" : "Copiar código"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleApplyToCart()}
+                disabled={isUpdating}
+                className="rounded-full px-4 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                style={{ background: "#2D6A4F" }}
+              >
+                Resgatar meu brinde
+              </button>
+            </div>
+
+            <p
+              className="text-[11px] text-[#8B6F5E]"
+              style={{ fontFamily: "'Nunito', sans-serif" }}
             >
-              {copied ? "Copiado!" : "Copiar código"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleApplyToCart()}
-              disabled={isUpdating}
-              className="rounded-full px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-              style={{ background: "#2D6A4F" }}
-            >
-              Aplicar no carrinho
-            </button>
+              Brinde válido enquanto durarem os estoques.
+            </p>
           </div>
         </div>
       )}
 
       {showReward && rewardClaimed && (
         <p className="text-xs text-[#2D6A4F]" style={{ fontFamily: "'Nunito', sans-serif" }}>
-          Cupom <strong className="font-bold">{rewardCode}</strong> de frete grátis garantido ✓
+          Cupom <strong className="font-bold">{rewardCode}</strong> resgatado ✓
         </p>
       )}
     </div>
