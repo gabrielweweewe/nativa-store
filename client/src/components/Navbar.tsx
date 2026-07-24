@@ -5,12 +5,14 @@
 
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ShoppingBag, Menu, X, Search, Heart, UserRound } from "lucide-react";
+import { ShoppingBag, Menu, X, Search, Heart, UserRound, LogOut } from "lucide-react";
 import NativaLogo from "./NativaLogo";
 import { useCustomerAuth } from "@/contexts/CustomerAuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useStoreDiscovery } from "@/contexts/StoreDiscoveryContext";
+import type { User } from "@supabase/supabase-js";
+import { toast } from "sonner";
 
 const navLinks = [
   { label: "Coleções", href: "#colecoes" },
@@ -18,6 +20,18 @@ const navLinks = [
   { label: "Sobre Nós", href: "#sobre" },
   { label: "Contato", href: "#contato" },
 ];
+
+function getFirstName(user: User | null): string | null {
+  const fullName = String(user?.user_metadata?.full_name ?? "").trim();
+  if (fullName) {
+    const first = fullName.split(/\s+/)[0] ?? "";
+    if (!first) return null;
+    return first.charAt(0).toUpperCase() + first.slice(1);
+  }
+  const emailLocal = user?.email?.split("@")[0]?.trim();
+  if (!emailLocal) return null;
+  return emailLocal.charAt(0).toUpperCase() + emailLocal.slice(1);
+}
 
 export default function Navbar() {
   const [location] = useLocation();
@@ -32,10 +46,11 @@ export default function Navbar() {
     location === "/redefinir-senha" ||
     location.startsWith("/verificar-email");
   const showSolidHeader = scrolled || !isHome || isAuthPage;
-  const { user, isLoading } = useCustomerAuth();
+  const { user, isLoading, signOut } = useCustomerAuth();
   const { itemCount, openDrawer, cartPulse } = useCart();
   const { count: wishlistCount } = useWishlist();
   const { openSearch } = useStoreDiscovery();
+  const firstName = getFirstName(user);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
@@ -187,6 +202,43 @@ export default function Navbar() {
           }`}
         >
           <div className="flex flex-col h-full pt-20 px-6 pb-8">
+            {!isLoading && user && firstName && (
+              <div className="mb-5 border-b border-[#C4522A]/15 pb-5">
+                <p
+                  className="text-lg font-semibold text-[#3D2B1F]"
+                  style={{ fontFamily: "'Playfair Display', serif" }}
+                >
+                  👋 Olá, {firstName}!
+                </p>
+                <p
+                  className="mt-1 text-xs text-[#8B6F5E]"
+                  style={{ fontFamily: "'Lora', serif" }}
+                >
+                  Que bom ter você por aqui.
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await signOut();
+                      setMobileOpen(false);
+                      toast.success("Você saiu da conta");
+                    } catch (error) {
+                      toast.error(
+                        error instanceof Error
+                          ? error.message
+                          : "Não foi possível sair",
+                      );
+                    }
+                  }}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-[#C4522A]/25 bg-white/50 px-4 py-2.5 text-sm font-semibold text-[#3D2B1F] transition-all duration-200 hover:border-[#C4522A]/40 hover:bg-[#C4522A]/10 hover:text-[#C4522A]"
+                  style={{ fontFamily: "'Nunito', sans-serif" }}
+                >
+                  <LogOut size={16} />
+                  Sair da conta
+                </button>
+              </div>
+            )}
             <nav className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <a
