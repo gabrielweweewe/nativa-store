@@ -101,23 +101,49 @@ export default function Footer() {
             {/* Social links */}
             <div className="flex gap-3 justify-center md:justify-start">
               {[
-                { icon: <Instagram size={16} />, label: "Instagram" },
-                { icon: <Facebook size={16} />, label: "Facebook" },
-                { icon: <Youtube size={16} />, label: "YouTube" },
-              ].map((social) => (
-                <button
-                  key={social.label}
-                  onClick={() => toast(`${social.label} em breve!`)}
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
-                  style={{
-                    background: "rgba(255,255,255,0.1)",
-                    color: "rgba(255,255,255,0.7)",
-                  }}
-                  aria-label={social.label}
-                >
-                  {social.icon}
-                </button>
-              ))}
+                {
+                  icon: <Instagram size={16} />,
+                  label: "Instagram",
+                  href: "https://www.instagram.com/nativa_criativa/",
+                },
+                {
+                  icon: <Facebook size={16} />,
+                  label: "Facebook",
+                  href: "https://www.facebook.com/share/1BjeTNQpat/?mibextid=wwXIfr",
+                },
+                { icon: <Youtube size={16} />, label: "YouTube", href: null },
+              ].map((social) =>
+                social.href ? (
+                  <a
+                    key={social.label}
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+                    style={{
+                      background: "rgba(255,255,255,0.1)",
+                      color: "rgba(255,255,255,0.7)",
+                    }}
+                    aria-label={social.label}
+                  >
+                    {social.icon}
+                  </a>
+                ) : (
+                  <button
+                    key={social.label}
+                    type="button"
+                    onClick={() => toast(`${social.label} em breve!`)}
+                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+                    style={{
+                      background: "rgba(255,255,255,0.1)",
+                      color: "rgba(255,255,255,0.7)",
+                    }}
+                    aria-label={social.label}
+                  >
+                    {social.icon}
+                  </button>
+                ),
+              )}
             </div>
           </div>
 

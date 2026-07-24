@@ -21,7 +21,7 @@ function StitchDivider() {
           className="text-xs font-bold text-[#C4522A] uppercase tracking-[0.2em]"
           style={{ fontFamily: "'Nunito', sans-serif" }}
         >
-          Coleção 2025
+          Nova coleção
         </span>
         <span className="text-[#C4522A] text-lg">✦</span>
       </div>
